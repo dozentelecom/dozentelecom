@@ -26,34 +26,75 @@
                 <p id="authSubtitle">Login to access cheap data and airtime plans</p>
             </div>
             
-            <div class="auth-form-padding" style="padding: 24px;">
-                <div class="form-group reg-only" style="display: none;">
-                    <label for="authName">Full Name</label>
-                    <input type="text" id="authName" placeholder="Enter your full name">
-                </div>
+			<div class="div class="auth-form-padding" style="padding: 24px;">
+				<!-- Full Name (Registration Only) -->
+				<div class="form-group reg-only" style="display: none;">
+					<label for="authName">Full Name</label>
+					<input type="text" id="authName" placeholder="Enter your full name">
+				</div>
 
-                <div class="form-group">
-                    <label for="authPhone">Phone Number</label>
-                    <input type="tel" id="authPhone" placeholder="e.g. 08123456789">
-                </div>
+				<!-- Email Address (Registration Only) -->
+				<div class="form-group reg-only" style="display: none;">
+					<label for="authEmail">Email Address</label>
+					<input type="email" id="authEmail" placeholder="e.g. user@example.com">
+				</div>
 
-                <div class="form-group">
-                    <label for="authPassword">Password</label>
-                    <input type="password" id="authPassword" placeholder="Minimum 6 characters">
-                </div>
+				<!-- Shared Input (Acts as Phone/Email on Login, but strictly Phone on Register) -->
+				<div class="form-group">
+					<label for="authPhone" id="phoneLabel">Phone Number or Email Address</label>
+					<input type="text" id="authPhone" placeholder="e.g. 08143140831 or user@example.com">
+				</div>
 
-                <div class="form-group reg-only" style="display: none;">
-                    <label for="authPin">Create 4-Digit Transaction PIN</label>
-                    <input type="password" id="authPin" maxlength="4" placeholder="e.g. 1234" pattern="[0-9]{4}">
-                </div>
+				<!-- Password (Shared) -->
+				<div class="form-group">
+					<label for="authPassword">Password</label>
+					<input type="password" id="authPassword" placeholder="Minimum 6 characters">
+					<p id="forgotPasswordLink" style="text-align: right; font-size: 13px; color: #6366f1; cursor: pointer; margin-top: 6px; margin-bottom: 0;">Forgot Password?</p>
+				</div>
 
-                <button id="mainAuthBtn" class="btn-submit">Login</button>
+				<!-- Transaction PIN (Registration Only) -->
+				<div class="form-group reg-only" style="display: none;">
+					<label for="authPin">Create 4-Digit Transaction PIN</label>
+					<input type="password" id="authPin" maxlength="4" placeholder="e.g. 1234" pattern="[0-9]*">
+				</div>
+
+				<button id="mainAuthBtn" class="btn-submit">Login</button>
                 
                 <p id="toggleAuthMode" style="margin-top: 16px; text-align: center; color: #6366f1; cursor: pointer; font-size: 14px; font-weight: 600;">
                     Don't have an account? Create Account
                 </p>
             </div>
         </section>
+		
+			<!-- PASSWORD RESET CARD -->
+				<section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e1e2e; border-radius: 8px; margin-top: 20px;">
+					<h3 id="resetTitle" style="color: white; margin-bottom: 8px;">Reset Password</h3>
+					<p id="resetSubtitle" style="color: #a5b4fc; font-size: 14px; margin-bottom: 16px;">Enter your registered Phone or Email to receive an OTP code.</p>
+
+				<!-- Step 1: Request OTP -->
+				<div id="resetStep1">
+					<div class="form-group">
+						<label for="resetIdentifier">Phone Number or Email</label>
+						<input type="text" id="resetIdentifier" placeholder="e.g. 08143140831 or user@email.com">
+					</div>
+					<button id="sendOtpBtn" class="btn-submit" onclick="handleForgotPassword()" style="margin-top: 12px; width: 100%;">Send Verification Code</button>
+				</div>
+
+				<!-- Step 2: Input OTP & New Password -->
+				<div id="resetStep2" style="display: none; margin-top: 16px;">
+					<div class="form-group">
+						<label for="resetOtp">Enter 6-Digit OTP Code</label>
+						<input type="text" id="resetOtp" maxlength="6" placeholder="e.g. 123456">
+					</div>
+					<div class="form-group" style="margin-top: 12px;">
+						<label for="resetNewPassword">New Password</label>
+						<input type="password" id="resetNewPassword" placeholder="Minimum 6 characters">
+					</div>
+					<button id="verifyAndResetBtn" class="btn-submit" onclick="handleResetPassword()" style="margin-top: 16px; width: 100%;">Verify & Reset Password</button>
+				</div>
+
+				<p id="backToLoginFromReset" style="margin-top: 16px; text-align: center; color: #6366f1; cursor: pointer;">Back to Login</p>
+			</section>
 
         <section id="transactionCard" class="card-wrapper" style="display: none;">
             <div class="card-header">
