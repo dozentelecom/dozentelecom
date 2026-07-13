@@ -18,20 +18,34 @@ const amountGroup = document.getElementById('amountGroup');
 const toggleAuthLink = document.getElementById('toggleAuthMode');
 
 // Toggles visual views between Logging in vs Creating an account
+// Toggles visual views between Logging in vs Creating an account
 toggleAuthLink.addEventListener('click', () => {
     isLoginMode = !isLoginMode;
+    
+    const phoneLabel = document.getElementById('phoneLabel');
+    const phoneInput = document.getElementById('authPhone');
+    
     if (isLoginMode) {
         document.getElementById('authTitle').innerText = "Welcome Back";
         document.getElementById('authSubtitle').innerText = "Login to access cheap data and airtime plans";
         document.getElementById('mainAuthBtn').innerText = "Login";
         toggleAuthLink.innerText = "Don't have an account? Create Account";
         document.querySelectorAll('.reg-only').forEach(el => el.style.display = 'none');
+        
+        // On Login screen: Accept both phone and email
+		if (phoneLabel) phoneLabel.innerText = "Phone Number or Email Address";
+		if (phoneInput) phoneInput.placeholder = "e.g. 08143140831 or user@example.com";
+        
     } else {
         document.getElementById('authTitle').innerText = "Create Account";
         document.getElementById('authSubtitle').innerText = "Join Dozentelecom platform for free";
         document.getElementById('mainAuthBtn').innerText = "Sign Up";
         toggleAuthLink.innerText = "Already registered? Login Here";
         document.querySelectorAll('.reg-only').forEach(el => el.style.display = 'block');
+        
+        // On Create Account screen: Make this field strictly for Phone Number
+		if (phoneLabel) phoneLabel.innerText = "Phone Number";
+		if (phoneInput) phoneInput.placeholder = "e.g. 08143140831";
     }
 });
 
@@ -48,7 +62,7 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
     if (isLoginMode) {
         // LOGIN OPERATION
         try {
-            const res = await fetch('http://localhost:5000/api/auth/login', {
+            const res = await fetch('https://dozentelecom.onrender.com/api/auth/login', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ phone, password })
@@ -77,7 +91,7 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
         }
 
         try {
-            const res = await fetch('http://localhost:5000/api/auth/register', {
+            const res = await fetch('https://dozentelecom.onrender.com/api/auth/register', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, phone, password, pin })
@@ -156,7 +170,7 @@ document.getElementById('rechargeForm').addEventListener('submit', async functio
     }
 
     try {
-        const response = await fetch('http://localhost:5000/api/pay', {
+        const response = await fetch('https://dozentelecom.onrender.com/api/pay', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -179,3 +193,107 @@ document.getElementById('rechargeForm').addEventListener('submit', async functio
         alert("Unable to establish backend link.");
     }
 });
+// --- PASSWORD RESET SYSTEM HANDLERS ---
+const authCard = document.getElementById('authTitle')?.parentElement?.parentElement || document.querySelector('.auth-form-padding')?.parentElement;
+const resetCard = document.getElementById('resetCard');
+const resetStep1 = document.getElementById('resetStep1');
+const resetStep2 = document.getElementById('resetStep2');
+
+// Open Reset Screen when "Forgot Password?" is clicked
+document.getElementById('forgotPasswordLink').addEventListener('click', () => {
+    if (authCard) authCard.style.display = 'none';
+    resetCard.style.display = 'block';
+    resetStep1.style.display = 'block';
+    resetStep2.style.display = 'none';
+});
+
+// Go Back to Login Screen
+document.getElementById('backToLoginFromReset').addEventListener('click', () => {
+    resetCard.style.display = 'none';
+    if (authCard) authCard.style.display = 'block';
+});
+
+// Action A: Request OTP Code
+document.getElementById('sendOtpBtn').addEventListener('click', async () => {
+    const identifier = document.getElementById('resetIdentifier').value.trim();
+    if (!identifier) return alert("Please input your Email Address.");
+
+    try {
+        const res = await fetch('https://dozentelecom.onrender.com/api/auth/forgot-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier })
+        });
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
+            alert(data.message);
+            resetStep1.style.display = 'none';
+            resetStep2.style.display = 'block';
+        } else {
+            alert(data.message || "failed to send reset code.");
+        }
+    } catch (err) {
+		console.error(err);
+        alert("Unable to connect to the server.");
+    }
+});
+
+// Action B: Verify and Reset Password
+document.getElementById('verifyAndResetBtn').addEventListener('click', async () => {
+    const identifier = document.getElementById('resetIdentifier').value.trim();
+    const otp = document.getElementById('resetOtp').value.trim();
+    const newPassword = document.getElementById('resetNewPassword').value.trim();
+
+    if (!otp || !newPassword) return alert("Please fill in both the OTP code and your new password.");
+
+    try {
+        const res = await fetch('https://dozentelecom.onrender.com/api/auth/reset-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ identifier, otp, newPassword })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            alert("Password reset successful! Redirecting to login...");
+            window.location.reload();
+        } else {
+            alert(data.message || "Failed to reset password.");
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Unable to connect to the server.");
+    }
+});
+// Function to handle the "Send Verification Code" button click
+async function handleForgotPassword() {
+    // Make sure your input field has an id="resetIdentifier" in your HTML!
+    const emailInput = document.getElementById('resetIdentifier').value.trim();
+
+    if (!emailInput) {
+        alert("Please enter your registered email address.");
+        return;
+    }
+
+    try {
+        const response = await fetch('https://dozentelecom.onrender.com/api/auth/forgot-password', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ identifier: emailInput })
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            alert(data.message);
+        } else {
+            alert(data.message || "Failed to send reset code.");
+        }
+    } catch (err) {
+        console.error("Frontend Error:", err);
+        alert("Unable to connect to the server. Please try again later.");
+    }
+}
