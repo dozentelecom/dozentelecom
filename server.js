@@ -3,6 +3,7 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const nodemailer = require('nodemailer');
 
 const app = express();
 app.use(express.json());
@@ -46,6 +47,72 @@ app.post('/api/auth/login', async (req, res) => {
     if (!isMatch) return res.status(400).json({ success: false, message: 'Incorrect credentials.' });
 
     res.json({ success: true, user: { name: user.name, phone: user.phone } });
+});
+
+// 4. ROUTE: Forgot Password (EMAIL ONLY DELIVERY)
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { identifier } = req.body;
+    try {
+        // Find user by email address
+        const user = databaseUsers.find(u => u.email === identifier);
+        if (!user) {  
+			return res.status(404).json({ success: false, message: "No account found with this information." });
+		}
+
+        // Generate secure 6-digit OTP code
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        user.resetOtp = otpCode;
+        user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiration
+
+		// Configure your SMTP email transport server settings
+        const transporter = nodemailer.createTransport({
+                service: 'gmail', 
+                auth: {
+                    user: 'ajibadeayodeji07@gmail.com',
+                    pass: 'wtavoycwytedwsir'
+                }
+            });
+
+			// Send the email
+            await transporter.sendMail({
+                from: '"Dozentelecom Support" <ajibadeayodeji07@gmail.com>',
+                to: user.email,
+                subject: 'Password Reset OTP Code',
+                text: `Your password reset code is ${otpCode}. It expires in 10 minutes.`
+            });
+
+            return res.json({ success: true, message: "A secure verification code has been sent to your email address." });
+
+    } catch (err) {
+        console.error("Delivery Engine Error:", err);
+        res.status(500).json({ success: false, message: "Server error handling dynamic OTP delivery." });
+    }
+});
+
+// 5. ROUTE: Reset Password (Validates OTP and replaces the password)
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { identifier, otp, newPassword } = req.body;
+    try {
+        const user = databaseUsers.find(u => 
+            (u.phone === identifier || u.email === identifier) && 
+            u.resetOtp === otp && 
+            u.resetOtpExpires > Date.now()
+        );
+
+        if (!user) return res.status(400).json({ success: false, message: "Invalid or expired OTP verification code." });
+
+        // Securely hash and save the new password using bcrypt
+        const salt = await bcrypt.genSalt(10);
+        user.password = await bcrypt.hash(newPassword, salt);
+        
+        // Clear out the OTP fields after a successful reset
+        user.resetOtp = undefined;
+        user.resetOtpExpires = undefined;
+
+        res.json({ success: true, message: "Password updated successfully." });
+    } catch (err) {
+        res.status(500).json({ success: false, message: "Server error resetting user password." });
+    }
 });
 
 // 3. ROUTE: Secure Payment Loop with PIN verification
