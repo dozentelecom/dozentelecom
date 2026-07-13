@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dozentelecom | Premium VTU Portal</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+    <header class="main-header">
+        <div class="container">
+            <div class="logo">Dozen<span>telecom</span></div>
+            <div id="logoutSection" style="display: none;">
+                <button id="logoutBtn" style="background: #ef4444; color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600;">Sign Out ❌</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container portal-layout">
+        
+        <section id="authCard" class="card-wrapper">
+            <div class="card-header">
+                <h3 id="authTitle">Welcome Back</h3>
+                <p id="authSubtitle">Login to access cheap data and airtime plans</p>
+            </div>
+            
+            <div class="auth-form-padding" style="padding: 24px;">
+                <div class="form-group reg-only" style="display: none;">
+                    <label for="authName">Full Name</label>
+                    <input type="text" id="authName" placeholder="Enter your full name">
+                </div>
+
+                <div class="form-group">
+                    <label for="authPhone">Phone Number</label>
+                    <input type="tel" id="authPhone" placeholder="e.g. 08123456789">
+                </div>
+
+                <div class="form-group">
+                    <label for="authPassword">Password</label>
+                    <input type="password" id="authPassword" placeholder="Minimum 6 characters">
+                </div>
+
+                <div class="form-group reg-only" style="display: none;">
+                    <label for="authPin">Create 4-Digit Transaction PIN</label>
+                    <input type="password" id="authPin" maxlength="4" placeholder="e.g. 1234" pattern="[0-9]{4}">
+                </div>
+
+                <button id="mainAuthBtn" class="btn-submit">Login</button>
+                
+                <p id="toggleAuthMode" style="margin-top: 16px; text-align: center; color: #6366f1; cursor: pointer; font-size: 14px; font-weight: 600;">
+                    Don't have an account? Create Account
+                </p>
+            </div>
+        </section>
+
+        <section id="transactionCard" class="card-wrapper" style="display: none;">
+            <div class="card-header">
+                <h3>Welcome, <span id="userGreeting" style="color: #6366f1;">User</span> 👋</h3>
+                <p>Wallet Balance: <strong style="color: #10b981;">₦0.00</strong></p>
+            </div>
+            
+            <form id="rechargeForm">
+                <div class="form-group">
+                    <label for="service">Select Service Type</label>
+                    <select id="service" required>
+                        <option value="airtime">Airtime VTU Top-up</option>
+                        <option value="data">Cheap Data Bundles</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="network">Select Mobile Network Provider</label>
+                    <select id="network" required>
+                        <option value="" disabled selected>Choose Network...</option>
+                        <option value="mtn">MTN Nigeria</option>
+                        <option value="airtel">Airtel Africa</option>
+                        <option value="glo">Glo Limited</option>
+                        <option value="9mobile">9mobile</option>
+                    </select>
+                </div>
+
+                <div id="amountGroup" class="form-group">
+                    <label for="amount">Amount (₦)</label>
+                    <input type="number" id="amount" min="100" placeholder="Minimum 100" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">Recipient Phone Number</label>
+                    <input type="tel" id="phone" placeholder="e.g. 08143140831" required pattern="[0-9]{11}">
+                </div>
+
+                <div class="form-group">
+                    <label for="confirmPin">Enter 4-Digit Security PIN</label>
+                    <input type="password" id="confirmPin" maxlength="4" placeholder="⚡ Enter PIN to authorize" required pattern="[0-9]{4}">
+                </div>
+
+                <button type="submit" class="btn-submit">Confirm & Pay Securely</button>
+            </form>
+        </section>
+
+    </main>
+
+    <footer class="main-footer">
+        <p>&copy; 2026 Dozentelecom. Safe automated API delivery system.</p>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
