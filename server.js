@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { Resend } = require('resend');
+const mongoose = require('mongoose');
 
 const express = require('express');
 const axios = require('axios');
@@ -12,43 +13,82 @@ app.use(express.json());
 app.use(cors());
 
 // Temporary memory store simulating database arrays
-const databaseUsers = [];
+// Connect to MongoDB
+mongoose.connect('mongodb+srv://Dozentelecom:YeXOFIkZQtjBdHcK@dozentelecom.bfghhqz.mongodb.net/?appName=Dozentelecom')
+	.then(() => console.log('Successfully connected to permanet Mongodb!'))
+	.catch(err => console.error('Database connection error:', err));
+// Define User Schema & Model
+const userSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  phone: { type: String, required: true, unique: true },
+  password: { type: String, required: true },
+  pin: { type: String, required: true },
+  email: { type: String, unique: true, sparse: true }, // keeping it sparse in case some old users don't have emails yet
+  resetOtp: { type: String },
+  resetOtpExpires: { type: Date }
+});
+
+const User = mongoose.model('User', userSchema);;
 
 // 1. ROUTE: Register Account (With encrypted password & 4-digit PIN)
 app.post('/api/auth/register', async (req, res) => {
-    const { name, phone, password, pin } = req.body;
+  const { name, phone, password, pin, email } = req.body;
 
-    const exists = databaseUsers.find(u => u.phone === phone);
-    if (exists) return res.status(400).json({ success: false, message: 'Phone number already registered.' });
-
-    try {
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
-        const hashedPin = await bcrypt.hash(pin, salt); // Securely hash the 4-digit PIN too
-
-        const newUser = {
-            name: name.toUpperCase(),
-            phone: phone,
-            password: hashedPassword,
-            pin: hashedPin
-        };
-        databaseUsers.push(newUser);
-        res.json({ success: true, message: 'Account created successfully! Please login.' });
-    } catch (err) {
-        res.status(500).json({ success: false, message: 'Registration failed.' });
+  try {
+    // Check if the user already exists in MongoDB
+    const exists = await User.findOne({ phone: phone });
+    if (exists) {
+      return res.status(400).json({ success: false, message: 'Phone number already registered' });
     }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPin = await bcrypt.hash(pin, salt);
+
+    // Save the new user directly to MongoDB
+    const newUser = new User({
+      name,
+      phone,
+      password: hashedPassword,
+      pin: hashedPin,
+      email: email || "" // Default to empty string if email isn't provided yet
+    });
+
+    await newUser.save();
+
+    res.status(201).json({ success: true, message: 'Account created successfully!' });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.status(500).json({ success: false, message: 'Server error during registration' });
+  }
 });
 
-// 2. ROUTE: User Account Login
+// 2. ROUTE: Login Account
 app.post('/api/auth/login', async (req, res) => {
-    const { phone, password } = req.body;
-    const user = databaseUsers.find(u => u.phone === phone);
-    if (!user) return res.status(400).json({ success: false, message: 'Account details not found.' });
+  const { phone, password } = req.body;
 
+  try {
+    // Find the user in MongoDB
+    const user = await User.findOne({ phone: phone });
+    if (!user) {
+      return res.status(400).json({ success: false, message: 'Invalid phone number or password' });
+    }
+
+    // Check password
     const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ success: false, message: 'Incorrect credentials.' });
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Invalid phone number or password' });
+    }
 
-    res.json({ success: true, user: { name: user.name, phone: user.phone } });
+    res.status(200).json({ 
+      success: true, 
+      message: 'Login successful!', 
+      user: { name: user.name, phone: user.phone, email: user.email } 
+    });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).json({ success: false, message: 'Server error during login' });
+  }
 });
 
 // Initialize Resend with your API key
@@ -56,59 +96,77 @@ const resend = new Resend('re_HyNv9KVt_LCnwKYQXq9T578GhJcsbAJeu');
 
 // 4. ROUTE: Forgot Password (via Resend HTTP API)
 app.post('/api/auth/forgot-password', async (req, res) => {
-    const { identifier } = req.body;
-    try {
-        // Find user by email address
-        const user = databaseUsers.find(u => u.email === identifier);
-        if (!user) {
-            return res.status(404).json({ success: false, message: "No account found with this information." });
-        }
-
-        // Generate secure 6-digit OTP code
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        user.resetOtp = otpCode;
-        user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiration
-
-        // Send email via Resend API (Uses Port 443, so Render won't block it!)
-        await resend.emails.send({
-            from: 'onboarding@resend.dev', // Free testing domain provided by Resend
-            to: user.email,
-            subject: 'Password Reset OTP Code',
-            html: `<p>Your password reset code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`
-        });
-
-        return res.json({ success: true, message: "A secure verification code has been sent to your email address." });
-
-    } catch (err) {
-        console.error("Resend Engine Error:", err);
-        return res.status(500).json({ success: false, message: "Server error handling email OTP delivery." });
+  const { identifier } = req.body;
+  try {
+    // Find user by email address (Notice the capitalized 'O' and using identifier)
+const user = await User.findOne({ 
+  email: email, 
+  resetOtp: otp, 
+  resetOtpExpires: { $gt: Date.now() } // checks if the OTP hasn't expired yet
+});
+    if (!user) {
+      return res.status(404).json({ success: false, message: "No account found with this information" });
     }
+
+    // Generate secure 6-digit OTP code
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetOtp = otpCode;
+    user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiration
+
+    // CRITICAL: Save these OTP fields down to your permanent MongoDB database!
+    await user.save();
+
+    // Send email via Resend API
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: user.email,
+      subject: 'Password Reset OTP Code',
+      html: `<p>Your password reset code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`
+    });
+
+    return res.json({ success: true, message: "A secure verification code has been sent to your email" });
+
+  } catch (err) {
+    console.error("Resend Engine Error:", err);
+    return res.status(500).json({ success: false, message: "Server error handling email OTP delivery" });
+  }
 });
 
 // 5. ROUTE: Reset Password (Validates OTP and replaces the password)
 app.post('/api/auth/reset-password', async (req, res) => {
-    const { identifier, otp, newPassword } = req.body;
-    try {
-        const user = databaseUsers.find(u => 
-            (u.phone === identifier || u.email === identifier) && 
-            u.resetOtp === otp && 
-            u.resetOtpExpires > Date.now()
-        );
+  const { identifier, otp, newPassword } = req.body;
+  try {
+    // Find the user where (phone matches OR email matches) AND OTP matches AND OTP is not expired
+    const user = await User.findOne({
+      $or: [
+        { phone: identifier },
+        { email: identifier }
+      ],
+      resetOtp: otp,
+      resetOtpExpires: { $gt: Date.now() } // $gt means "greater than" (checks if expiry time is in the future)
+    });
 
-        if (!user) return res.status(400).json({ success: false, message: "Invalid or expired OTP verification code." });
-
-        // Securely hash and save the new password using bcrypt
-        const salt = await bcrypt.genSalt(10);
-        user.password = await bcrypt.hash(newPassword, salt);
-        
-        // Clear out the OTP fields after a successful reset
-        user.resetOtp = undefined;
-        user.resetOtpExpires = undefined;
-
-        res.json({ success: true, message: "Password updated successfully." });
-    } catch (err) {
-        res.status(500).json({ success: false, message: "Server error resetting user password." });
+    if (!user) {
+      return res.status(400).json({ success: false, message: "Invalid or expired OTP" });
     }
+
+    // Securely hash and save the new password using bcrypt
+    const salt = await bcrypt.genSalt(10);
+    user.password = await bcrypt.hash(newPassword, salt);
+
+    // Clear out the OTP fields after a successful reset
+    user.resetOtp = undefined;
+    user.resetOtpExpires = undefined;
+
+    // Save the updated user document to MongoDB
+    await user.save();
+
+    return res.json({ success: true, message: "Password updated successfully." });
+
+  } catch (err) {
+    console.error("Server error resetting user password:", err);
+    return res.status(500).json({ success: false, message: "Server error resetting user password." });
+  }
 });
 
 // 3. ROUTE: Secure Payment Loop with PIN verification
