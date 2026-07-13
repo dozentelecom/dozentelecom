@@ -1,4 +1,6 @@
 require('dotenv').config();
+const { Resend } = require('resend');
+
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
