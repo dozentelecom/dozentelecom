@@ -49,43 +49,37 @@ app.post('/api/auth/login', async (req, res) => {
     res.json({ success: true, user: { name: user.name, phone: user.phone } });
 });
 
-// 4. ROUTE: Forgot Password (EMAIL ONLY DELIVERY)
+// Initialize Resend with your API key
+const resend = new Resend('re_HyNv9KVt_LCnwKYQXq9T578GhJcsbAJeu');
+
+// 4. ROUTE: Forgot Password (via Resend HTTP API)
 app.post('/api/auth/forgot-password', async (req, res) => {
     const { identifier } = req.body;
     try {
         // Find user by email address
         const user = databaseUsers.find(u => u.email === identifier);
-        if (!user) {  
-			return res.status(404).json({ success: false, message: "No account found with this information." });
-		}
+        if (!user) {
+            return res.status(404).json({ success: false, message: "No account found with this information." });
+        }
 
         // Generate secure 6-digit OTP code
         const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
         user.resetOtp = otpCode;
         user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiration
 
-		// Configure your SMTP email transport server settings
-        const transporter = nodemailer.createTransport({
-                service: 'gmail', 
-                auth: {
-                    user: 'ajibadeayodeji07@gmail.com',
-                    pass: 'wtavoycwytedwsir'
-                }
-            });
+        // Send email via Resend API (Uses Port 443, so Render won't block it!)
+        await resend.emails.send({
+            from: 'onboarding@resend.dev', // Free testing domain provided by Resend
+            to: user.email,
+            subject: 'Password Reset OTP Code',
+            html: `<p>Your password reset code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`
+        });
 
-			// Send the email
-            await transporter.sendMail({
-                from: '"Dozentelecom Support" <ajibadeayodeji07@gmail.com>',
-                to: user.email,
-                subject: 'Password Reset OTP Code',
-                text: `Your password reset code is ${otpCode}. It expires in 10 minutes.`
-            });
-
-            return res.json({ success: true, message: "A secure verification code has been sent to your email address." });
+        return res.json({ success: true, message: "A secure verification code has been sent to your email address." });
 
     } catch (err) {
-        console.error("Delivery Engine Error:", err);
-        res.status(500).json({ success: false, message: "Server error handling dynamic OTP delivery." });
+        console.error("Resend Engine Error:", err);
+        return res.status(500).json({ success: false, message: "Server error handling email OTP delivery." });
     }
 });
 
