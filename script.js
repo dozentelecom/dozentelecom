@@ -195,3 +195,19 @@ if (resetPasswordBtn) {
         }
     });
 }
+
+// 5. Sign Out / Logout Operation
+// This looks for your red button and resets the page when clicked
+const signOutBtn = document.getElementById('logoutBtn') || document.getElementById('signOutBtn') || document.getElementById('logoutSection');
+
+if (signOutBtn) {
+    signOutBtn.addEventListener('click', () => {
+        // Clear stored user state
+        loggedInUserPhone = "";
+        
+        alert("You have signed out successfully.");
+        
+        // Reload the page to securely wipe all active user data and show the login screen
+        window.location.reload();
+    });
+}
