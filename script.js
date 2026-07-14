@@ -51,11 +51,11 @@ toggleAuthLink.addEventListener('click', () => {
 
 // Handles form registration or verification on click
 document.getElementById('mainAuthBtn').addEventListener('click', async () => {
-    // 1. Grab values from HTML inputs
+    // 1. Grab values from HTML inputs safely
     const phone = document.getElementById('authPhone') ? document.getElementById('authPhone').value.trim() : "";
     const password = document.getElementById('authPassword') ? document.getElementById('authPassword').value.trim() : "";
     
-    // Grab registration-only inputs
+    // Grab registration-only inputs safely
     const nameInput = document.getElementById('authName');
     const emailInput = document.getElementById('authEmail');
     const pinInput = document.getElementById('authPin');
@@ -95,7 +95,20 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
             
             if (res.ok) {
                 alert("Login successful!");
-                window.location.reload(); 
+                
+                // Set user interface values
+                if (data.user) {
+                    loggedInUserPhone = data.user.phone;
+                    if (document.getElementById('userGreeting')) {
+                        document.getElementById('userGreeting').innerText = data.user.username || data.user.name || "User";
+                    }
+                }
+                
+                // Show dashboard and hide login card
+                if (document.getElementById('authCard')) document.getElementById('authCard').style.display = 'none';
+                if (document.getElementById('transactionCard')) document.getElementById('transactionCard').style.display = 'block';
+                if (document.getElementById('logoutSection')) document.getElementById('logoutSection').style.display = 'block';
+                
             } else {
                 alert(data.message || "Invalid login credentials.");
             }
@@ -121,9 +134,11 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
                 
                 // Manually switch back to login mode instead of refreshing!
                 isLoginMode = true;
-                document.getElementById('authTitle').innerText = "Login";
-                document.getElementById('mainAuthBtn').innerText = "Login";
-                document.getElementById('toggleAuthMode').innerHTML = `Don't have an account? <span style="text-decoration: underline; cursor: pointer;">Create Account</span>`;
+                if (document.getElementById('authTitle')) document.getElementById('authTitle').innerText = "Login";
+                if (document.getElementById('mainAuthBtn')) document.getElementById('mainAuthBtn').innerText = "Login";
+                if (document.getElementById('toggleAuthMode')) {
+                    document.getElementById('toggleAuthMode').innerHTML = `Don't have an account? <span style="text-decoration: underline; cursor: pointer;">Create Account</span>`;
+                }
                 
                 // Hide registration-only fields
                 document.querySelectorAll('.reg-only').forEach(el => el.style.display = 'none');
@@ -134,7 +149,7 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
 
     } catch (err) {
         console.error("Authentication Error:", err);
-        alert("Unable to connect to the server. Please check your network and try again.");
+        alert("Backend logic engine is offline.");
     }
 });
 
