@@ -197,11 +197,18 @@ if (resetPasswordBtn) {
 }
 
 // 5. Sign Out / Logout Operation
-// This looks for your red button and resets the page when clicked
-const signOutBtn = document.getElementById('logoutBtn') || document.getElementById('signOutBtn') || document.getElementById('logoutSection');
-
-if (signOutBtn) {
-    signOutBtn.addEventListener('click', () => {
+// This covers every possible ID or class name to ensure it binds perfectly!
+document.addEventListener('click', function(event) {
+    const target = event.target;
+    
+    // Check if the clicked element has a logout ID, class, or contains the text "Sign Out"
+    if (
+        target.id === 'logoutBtn' || 
+        target.id === 'signOutBtn' || 
+        target.id === 'logoutSection' || 
+        target.classList.contains('logout-btn') ||
+        (target.textContent && target.textContent.trim() === 'Sign Out')
+    ) {
         // Clear stored user state
         loggedInUserPhone = "";
         
@@ -209,5 +216,5 @@ if (signOutBtn) {
         
         // Reload the page to securely wipe all active user data and show the login screen
         window.location.reload();
-    });
-}
+    }
+});
