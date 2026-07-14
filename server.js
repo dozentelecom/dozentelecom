@@ -95,37 +95,42 @@ app.post('/api/auth/login', async (req, res) => {
 // Initialize Resend with your API key
 const resend = new Resend('re_HyNv9KVt_LCnwKYQXq9T578GhJcsbAJeu');
 
-// 4. ROUTE: Forgot Password (via Resend HTTP API)
+// ROUTE: Send OTP / Forgot Password
 app.post('/api/auth/forgot-password', async (req, res) => {
-  const { identifier } = req.body;
+  const { identifier } = req.body; // This is what the user typed in the input box
+
   try {
-    // Find user by email address (Notice the capitalized 'O' and using identifier)
-const user = await User.findOne({ 
-  email: email, 
-  resetOtp: otp, 
-  resetOtpExpires: { $gt: Date.now() } // checks if the OTP hasn't expired yet
-});
-    if (!user) {
-      return res.status(404).json({ success: false, message: "No account found with this information" });
-    }
-
-    // Generate secure 6-digit OTP code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    user.resetOtp = otpCode;
-    user.resetOtpExpires = Date.now() + 10 * 60 * 1000; // 10 minutes expiration
-
-    // CRITICAL: Save these OTP fields down to your permanent MongoDB database!
-    await user.save();
-
-    // Send email via Resend API
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: user.email,
-      subject: 'Password Reset OTP Code',
-      html: `<p>Your password reset code is <strong>${otpCode}</strong>. It expires in 10 minutes.</p>`
+    // 1. Find user by email OR phone in the database
+    const user = await User.findOne({
+      $or: [
+        { email: identifier },
+        { phone: identifier }
+      ]
     });
 
-    return res.json({ success: true, message: "A secure verification code has been sent to your email" });
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    // 2. Generate a 6-digit OTP code
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // 3. Save OTP and Expiration (valid for 10 minutes) to the user document
+    user.resetOtp = otp;
+    user.resetOtpExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    // 4. Send the OTP email using the user's registered email address
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: user.email, // <--- Correctly uses user.email from the database!
+      subject: 'Your Password Reset OTP Code',
+      text: `Your password reset code is: ${otp}. It will expire in 10 minutes.`
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    return res.json({ success: true, message: "OTP sent to your registered email." });
 
   } catch (err) {
     console.error("Resend Engine Error:", err);
