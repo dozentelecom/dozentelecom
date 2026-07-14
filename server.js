@@ -36,18 +36,18 @@ app.post('/api/auth/register', async (req, res) => {
   const { name, phone, password, pin, email } = req.body;
 
   try {
-    // Check if the user already exists in MongoDB
-    // Find the user in MongoDB
-        // New query (looks for phone OR email)
+  // 1. Check if the user already exists in MongoDB
         const user = await User.findOne({
             $or: [
                 { phone: phone },
                 { email: phone }
             ]
         });
-    if (exists) {
-      return res.status(400).json({ success: false, message: 'Phone number/email already registered' });
-    }
+
+        // FIXED: Changed 'exists' to 'user' to match your variable above
+        if (user) { 
+            return res.status(400).json({ success: false, message: 'Phone number/email already registered' });
+        }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
