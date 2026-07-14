@@ -11,6 +11,7 @@ const nodemailer = require('nodemailer');
 const app = express();
 app.use(express.json());
 app.use(cors());
+app.use(express.static(__dirname));
 
 // Temporary memory store simulating database arrays
 // Connect to MongoDB
