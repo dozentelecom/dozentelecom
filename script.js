@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "https://dozentelecom.onrender.com/api/auth/login";
 
             const payload = isRegisterMode 
-                ? { phone: phoneOrEmail, password, pin }
+                ? { phone: phoneOrEmail, password, pin: pin, transactionPin: pin}
                 : { identifier: phoneOrEmail, password };
 
             try {
