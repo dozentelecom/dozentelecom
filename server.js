@@ -113,13 +113,13 @@ app.post('/api/auth/forgot-password', async (req, res) => {
   const { identifier } = req.body; // This is what the user typed in the input box
 
   try {
-    // 1. Find user by email OR phone in the database
-    const user = await User.findOne({
-      $or: [
-        { email: identifier },
-        { phone: identifier }
-      ]
-    });
+    // 1. Find user ignoring uppercase/lowercase differences
+        const user = await User.findOne({
+            $or: [
+                { email: { $regex: new RegExp(`^${identifier}$`, 'i') } },
+                { phone: identifier }
+            ]
+        });
 
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found" });
