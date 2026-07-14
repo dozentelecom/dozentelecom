@@ -37,9 +37,16 @@ app.post('/api/auth/register', async (req, res) => {
 
   try {
     // Check if the user already exists in MongoDB
-    const exists = await User.findOne({ phone: phone });
+    // Find the user in MongoDB
+        // New query (looks for phone OR email)
+        const user = await User.findOne({
+            $or: [
+                { phone: phone },
+                { email: phone }
+            ]
+        });
     if (exists) {
-      return res.status(400).json({ success: false, message: 'Phone number already registered' });
+      return res.status(400).json({ success: false, message: 'Phone number/email already registered' });
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -70,9 +77,15 @@ app.post('/api/auth/login', async (req, res) => {
 
   try {
     // Find the user in MongoDB
-    const user = await User.findOne({ phone: phone });
+   // ✅ New query (looks for phone OR email)
+const user = await User.findOne({
+    $or: [
+        { phone: phone },
+        { email: phone }
+    ]
+});
     if (!user) {
-      return res.status(400).json({ success: false, message: 'Invalid phone number or password' });
+      return res.status(400).json({ success: false, message: 'Invalid phone number/email or password' });
     }
 
     // Check password
