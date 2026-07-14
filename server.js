@@ -133,22 +133,32 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     user.resetOtpExpires = Date.now() + 10 * 60 * 1000;
     await user.save();
 
-    // 4. Send the OTP email using the user's registered email address
-    const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: user.email, // <--- Correctly uses user.email from the database!
-      subject: 'Your Password Reset OTP Code',
-      text: `Your password reset code is: ${otp}. It will expire in 10 minutes.`
-    };
+   // 4. Send the OTP email using Resend
+        await resend.emails.send({
+            from: 'onboarding@resend.dev', // DO NOT change this! Resend requires this for free testing accounts
+            to: user.email,               // The user's registered email address in the database
+            subject: 'DozenTelecom - Your Password Reset OTP',
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+                    <h2 style="color: #4f46e5;">DozenTelecom</h2>
+                    <p>Hello,</p>
+                    <p>You requested to reset your password. Use the verification code below to proceed:</p>
+                    <div style="background: #f1f5f9; padding: 15px; border-radius: 4px; font-size: 24px; font-weight: bold; letter-spacing: 2px; text-align: center; color: #1e293b; margin: 20px 0;">
+                        ${otp}
+                    </div>
+                    <p>This code will expire in 10 minutes.</p>
+                    <p style="color: #64748b; font-size: 12px; margin-top: 20px;">If you didn't request this, you can safely ignore this email.</p>
+                </div>
+            `
+        });
 
-    await transporter.sendMail(mailOptions);
+        // 5. Send success response back to the browser frontend
+        return res.status(200).json({ success: true, message: "OTP code sent successfully!" });
 
-    return res.json({ success: true, message: "OTP sent to your registered email." });
-
-  } catch (err) {
-    console.error("Resend Engine Error:", err);
-    return res.status(500).json({ success: false, message: "Server error handling email OTP delivery" });
-  }
+    } catch (err) {
+        console.error("OTP Delivery Error:", err);
+        return res.status(500).json({ success: false, message: "Server error handling email OTP delivery" });
+    }
 });
 
 // 5. ROUTE: Reset Password (Validates OTP and replaces the password)
