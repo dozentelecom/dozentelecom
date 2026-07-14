@@ -49,7 +49,9 @@
 				<div class="form-group">
 					<label for="authPassword">Password</label>
 					<input type="password" id="authPassword" placeholder="Minimum 6 characters">
-					<p id="forgotPasswordLink" style="text-align: right; font-size: 13px; color: #6366f1; cursor: pointer; margin-top: 6px; margin-bottom: 0;">Forgot Password?</p>
+					<p style="text-align: right; font-size: 13px; margin-top: 8px;">
+    <a href="#" id="forgotPasswordLink" style="color: #6366f1; text-decoration: none; cursor: pointer;">Forgot Password?</a>
+</p>
 				</div>
 
 				<!-- Transaction PIN (Registration Only) -->
@@ -67,34 +69,35 @@
         </section>
 		
 			<!-- PASSWORD RESET CARD -->
-				<section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e1e2e; border-radius: 8px; margin-top: 20px;">
-					<h3 id="resetTitle" style="color: white; margin-bottom: 8px;">Reset Password</h3>
-					<p id="resetSubtitle" style="color: #a5b4fc; font-size: 14px; margin-bottom: 16px;">Enter your registered Phone or Email to receive an OTP code.</p>
+				<section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e293b; border-radius: 8px; color: white;">
+        <h3 id="resetTitle" style="color: white; margin-bottom: 8px;">Reset Password</h3>
+        <p id="resetSubtitle" style="color: #a5b4fc; font-size: 14px; margin-bottom: 16px;">Enter your registered Phone or Email to receive an OTP code.</p>
 
-				<!-- Step 1: Request OTP -->
-				<div id="resetStep1">
-					<div class="form-group">
-						<label for="resetIdentifier">Phone Number or Email</label>
-						<input type="text" id="resetIdentifier" placeholder="e.g. 08143140831 or user@email.com">
-					</div>
-					<button id="sendOtpBtn" class="btn-submit" onclick="handleForgotPassword()" style="margin-top: 12px; width: 100%;">Send Verification Code</button>
-				</div>
+        <div id="resetStep1">
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label for="resetIdentifier" style="display: block; margin-bottom: 6px;">Phone Number or Email</label>
+                <input type="text" id="resetIdentifier" placeholder="e.g. 08143140831 or user@email.com" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+            </div>
+            <button id="sendOtpBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #4f46e5; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 12px;">Send OTP</button>
+        </div>
 
-				<!-- Step 2: Input OTP & New Password -->
-				<div id="resetStep2" style="display: none; margin-top: 16px;">
-					<div class="form-group">
-						<label for="resetOtp">Enter 6-Digit OTP Code</label>
-						<input type="text" id="resetOtp" maxlength="6" placeholder="e.g. 123456">
-					</div>
-					<div class="form-group" style="margin-top: 12px;">
-						<label for="resetNewPassword">New Password</label>
-						<input type="password" id="resetNewPassword" placeholder="Minimum 6 characters">
-					</div>
-					<button id="verifyAndResetBtn" class="btn-submit" onclick="handleResetPassword()" style="margin-top: 16px; width: 100%;">Verify & Reset Password</button>
-				</div>
+        <div id="resetStep2" style="display: none; margin-top: 16px;">
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label for="resetOtp" style="display: block; margin-bottom: 6px;">Enter 6-Digit OTP Code</label>
+                <input type="text" id="resetOtp" maxlength="6" placeholder="e.g. 123456" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+            </div>
+            
+            <div class="form-group" style="margin-bottom: 12px;">
+                <label for="resetNewPassword" style="display: block; margin-bottom: 6px;">New Password</label>
+                <input type="password" id="resetNewPassword" placeholder="Minimum 6 characters" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+            </div>
+            <button id="verifyAndResetBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #10b981; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 12px;">Reset Password</button>
+        </div>
 
-				<p id="backToLoginFromReset" style="margin-top: 16px; text-align: center; color: #6366f1; cursor: pointer;">Back to Login</p>
-			</section>
+        <p style="text-align: center; margin-top: 16px; font-size: 14px;">
+            <a href="#" id="backToLoginBtn" style="color: #6366f1; text-decoration: none; font-weight: bold;">Back to Login</a>
+        </p>
+    </section>
 
         <section id="transactionCard" class="card-wrapper" style="display: none;">
             <div class="card-header">
