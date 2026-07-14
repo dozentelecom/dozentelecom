@@ -97,12 +97,18 @@ if (mainAuthBtn) {
                 }
 
             } else {
-                // ==================== REGISTER ====================
-                const res = await fetch('https://dozentelecom.onrender.com/api/auth/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, email, phone, password, pin })
-                });
+              // ==================== REGISTER ====================
+const res = await fetch('https://dozentelecom.onrender.com/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+        name: username,  // <-- This maps 'username' from HTML to 'name' on the database!
+        email: email, 
+        phone: phone, 
+        password: password, 
+        pin: pin 
+    })
+});
 
                 const data = await res.json();
 
