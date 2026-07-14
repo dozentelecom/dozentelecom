@@ -51,13 +51,91 @@ toggleAuthLink.addEventListener('click', () => {
 
 // Handles form registration or verification on click
 document.getElementById('mainAuthBtn').addEventListener('click', async () => {
-    const phone = document.getElementById('authPhone').value.trim();
-    const password = document.getElementById('authPassword').value.trim();
+    // 1. Grab all input elements from the HTML
+    const phone = document.getElementById('authPhone') ? document.getElementById('authPhone').value.trim() : "";
+    const password = document.getElementById('authPassword') ? document.getElementById('authPassword').value.trim() : "";
+    
+    // Registration-only fields
+    const emailInput = document.getElementById('authEmail');
+    const nameInput = document.getElementById('authName');
+    const pinInput = document.getElementById('authPin') || document.getElementById('authTransactionPin'); 
 
+    const email = emailInput ? emailInput.value.trim() : "";
+    const username = nameInput ? nameInput.value.trim() : "";
+    const pin = pinInput ? pinInput.value.trim() : "";
+
+    // 2. RUN VALIDATION CHECKS
+
+    // Phone and Password are always required
     if (!phone || !password) {
-        alert("Please provide phone and password.");
+        alert("Please provide both phone number and password.");
         return;
     }
+
+    // If registering, Name, Email, and PIN are ALSO required
+    if (!isLoginMode) {
+        if (!username || !email || !pin) {
+            alert("Please fill in all registration fields: Full Name, Email, and 4-Digit PIN.");
+            return;
+        }
+        if (pin.length !== 4 || isNaN(pin)) {
+            alert("Transaction PIN must be a 4-digit number.");
+            return;
+        }
+    }
+
+    // 3. EXECUTE BACKEND REQUESTS
+    try {
+        if (isLoginMode) {
+            // ==================== LOGIN OPERATION ====================
+            const res = await fetch('https://dozentelecom.onrender.com/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ phone, password })
+            });
+            
+            const data = await res.json();
+            
+            if (res.ok) {
+                alert("Login successful!");
+                window.location.reload(); 
+            } else {
+                alert(data.message || "Invalid login credentials.");
+            }
+
+        } else {
+            // ==================== REGISTER OPERATION ====================
+            const res = await fetch('https://dozentelecom.onrender.com/api/auth/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    username: username, 
+                    email: email, 
+                    phone: phone, 
+                    password: password, 
+                    pin: pin 
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                alert("Registration successful! You can now log in.");
+                if (typeof toggleAuthMode === 'function') {
+                    toggleAuthMode(); 
+                } else {
+                    window.location.reload();
+                }
+            } else {
+                alert(data.message || "Server error during registration.");
+            }
+        }
+
+    } catch (err) {
+        console.error("Authentication Error:", err);
+        alert("Unable to connect to the server. Please check your network and try again.");
+    }
+});
 
     if (isLoginMode) {
         // LOGIN OPERATION
