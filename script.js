@@ -51,28 +51,25 @@ toggleAuthLink.addEventListener('click', () => {
 
 // Handles form registration or verification on click
 document.getElementById('mainAuthBtn').addEventListener('click', async () => {
-    // 1. Grab all input elements from the HTML
+    // 1. Grab values from HTML inputs
     const phone = document.getElementById('authPhone') ? document.getElementById('authPhone').value.trim() : "";
     const password = document.getElementById('authPassword') ? document.getElementById('authPassword').value.trim() : "";
     
-    // Registration-only fields
-    const emailInput = document.getElementById('authEmail');
+    // Grab registration-only inputs
     const nameInput = document.getElementById('authName');
-    const pinInput = document.getElementById('authPin') || document.getElementById('authTransactionPin'); 
+    const emailInput = document.getElementById('authEmail');
+    const pinInput = document.getElementById('authPin');
 
-    const email = emailInput ? emailInput.value.trim() : "";
     const username = nameInput ? nameInput.value.trim() : "";
+    const email = emailInput ? emailInput.value.trim() : "";
     const pin = pinInput ? pinInput.value.trim() : "";
 
-    // 2. RUN VALIDATION CHECKS
-
-    // Phone and Password are always required
+    // 2. Validate Inputs
     if (!phone || !password) {
-        alert("Please provide both phone number and password.");
+        alert("Please provide phone and password.");
         return;
     }
 
-    // If registering, Name, Email, and PIN are ALSO required
     if (!isLoginMode) {
         if (!username || !email || !pin) {
             alert("Please fill in all registration fields: Full Name, Email, and 4-Digit PIN.");
@@ -84,7 +81,7 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
         }
     }
 
-    // 3. EXECUTE BACKEND REQUESTS
+    // 3. Send Requests
     try {
         if (isLoginMode) {
             // ==================== LOGIN OPERATION ====================
@@ -121,11 +118,15 @@ document.getElementById('mainAuthBtn').addEventListener('click', async () => {
 
             if (res.ok) {
                 alert("Registration successful! You can now log in.");
-                if (typeof toggleAuthMode === 'function') {
-                    toggleAuthMode(); 
-                } else {
-                    window.location.reload();
-                }
+                
+                // Manually switch back to login mode instead of refreshing!
+                isLoginMode = true;
+                document.getElementById('authTitle').innerText = "Login";
+                document.getElementById('mainAuthBtn').innerText = "Login";
+                document.getElementById('toggleAuthMode').innerHTML = `Don't have an account? <span style="text-decoration: underline; cursor: pointer;">Create Account</span>`;
+                
+                // Hide registration-only fields
+                document.querySelectorAll('.reg-only').forEach(el => el.style.display = 'none');
             } else {
                 alert(data.message || "Server error during registration.");
             }
