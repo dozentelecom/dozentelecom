@@ -78,13 +78,13 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPin = await bcrypt.hash(finalPin, salt);
 
         // Save new user document to MongoDB
-        const newUser = new User({
+       const newUser = new User({
             name: name ? name.trim() : "",
-            phone: phone.trim(),
+            phone: phone ? phone.trim() : "",
             email: email ? email.trim().toLowerCase() : "",
             password: hashedPassword,
             transactionPin: hashedPin
-        });.
+        });
 
         await newUser.save();
         return res.status(201).json({ success: true, message: "Account registered successfully!" });
