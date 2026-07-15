@@ -1,6 +1,36 @@
 
 
 // ==========================================
+// CHECK LOGIN SESSION & SHOW DASHBOARD
+// ==========================================
+const userToken = localStorage.getItem("userToken");
+
+if (userToken) {
+    // Check if a dashboard element actually exists on your page
+    const dashboardContainer = document.getElementById("dashboard");
+    const authForm = document.querySelector(".auth-form-padding");
+
+    if (authForm) authForm.style.display = "none";
+
+    if (dashboardContainer) {
+        dashboardContainer.style.display = "block";
+    } else {
+        // Fallback: If no dashboard container exists, show a nice temporary interface
+        document.body.innerHTML = `
+            <div style="text-align: center; padding: 100px 20px; font-family: Arial, sans-serif;">
+                <h1 style="color: #002D62;">Welcome to Dozentelecom</h1>
+                <p style="color: #555;">You are successfully logged in!</p>
+                <button onclick="localStorage.clear(); location.reload();" 
+                        style="padding: 12px 24px; background: #d9534f; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 20px;">
+                    Sign Out & Return to Login
+                </button>
+            </div>
+        `;
+    }
+}
+
+
+// ==========================================
 // UNIFIED DOZENTELECOM AUTHENTICATION SCRIPT
 // ==========================================
 
