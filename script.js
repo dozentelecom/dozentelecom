@@ -91,6 +91,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
             // Send both pin fields so backend is guaranteed to accept it
 // Send name, email, phone, and both pin fields so backend is guaranteed to accept it
+// Send name, email, phone, and both pin fields so backend is guaranteed to accept it
 const payload = isRegisterMode
     ? { 
         name: document.getElementById("authName") ? document.getElementById("authName").value : "",
