@@ -28,6 +28,16 @@ const userSchema = new mongoose.Schema({
     resetOtpExpires: { type: Date }
 });
 
+// ==========================================
+// ROOT HEALTH CHECK ROUTE
+// ==========================================
+app.get('/', (req, res) => {
+    res.status(200).json({
+        success: true,
+        message: "DozenTelecom API Server is running and healthy!"
+    });
+});
+
 const User = mongoose.model('User', userSchema);
 
 // --- INITIALIZE RESEND EMAIL API ---
