@@ -1,17 +1,6 @@
 
 
 // ==========================================
-// CHECK LOGIN SESSION & SHOW DASHBOARD
-// ==========================================
-const userToken = localStorage.getItem("userToken");
-
-if (userToken) {
-    // If your dashboard is on a separate page (like dashboard.html)
-    window.location.href = "dashboard.html"; 
-}
-
-
-// ==========================================
 // UNIFIED DOZENTELECOM AUTHENTICATION SCRIPT
 // ==========================================
 
