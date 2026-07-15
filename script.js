@@ -90,9 +90,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 : "https://dozentelecom.onrender.com/api/auth/login";
 
             // Send both pin fields so backend is guaranteed to accept it
-            const payload = isRegisterMode 
-                ? { phone: phoneOrEmail, password, pin: pin, transactionPin: pin }
-                : { identifier: phoneOrEmail, password };
+// Send name, email, phone, and both pin fields so backend is guaranteed to accept it
+const payload = isRegisterMode
+    ? { 
+        name: document.getElementById("authName") ? document.getElementById("authName").value : "",
+        email: document.getElementById("authEmail") ? document.getElementById("authEmail").value : "",
+        phone: phoneOrEmail, 
+        password, 
+        pin, 
+        transactionPin: pin 
+      }
+    : { identifier: phoneOrEmail, password };
 
             try {
                 const res = await fetch(endpoint, {
