@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // Forgot / Reset Password elements
     const forgotPasswordLink = document.getElementById("forgotPasswordLink");
     const resetIdentifier = document.getElementById("resetIdentifier");
-    const sendOtpBtn = document.getElementById("sendOtpBtn");
+    const sendOtpBtn = document.getElementById("sendOtpBtn"); // DECLARED ONLY ONCE NOW
     const resetOtp = document.getElementById("resetOtp");
     const resetNewPassword = document.getElementById("resetNewPassword");
     const verifyAndResetBtn = document.getElementById("verifyAndResetBtn");
