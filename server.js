@@ -99,15 +99,11 @@ app.post('/api/auth/register', async (req, res) => {
 // ==========================================
 // 2. ROUTE: User Login
 // ==========================================
-app.post('/api/auth/login', async (req, res) => {
-    const { identifier, password } = req.body;
-
-    try {
-        // FIXED: Restored template literal syntax to properly read the 'identifier' variable
+try {
         const user = await User.findOne({
             $or: [
                 { phone: identifier },
-                { email: { $regex: new RegExp(`^${identifier}$`, 'i') } }
+                { email: { $regex: new RegExp("^" + identifier + "$", "i") } }
             ]
         });
 

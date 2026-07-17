@@ -1,268 +1,184 @@
-
-
 // ==========================================
-// CHECK LOGIN SESSION & SHOW DASHBOARD
+// 1. SESSION MANAGEMENT & LAYOUT SWITCHER
 // ==========================================
 const userToken = localStorage.getItem("userToken");
 
-if (userToken) {
-    // Check if a dashboard element actually exists on your page
-    const dashboardContainer = document.getElementById("dashboard");
-    const authForm = document.querySelector(".auth-form-padding");
+function applySessionLayout() {
+    const authCard = document.getElementById("authCard") || document.querySelector(".auth-form-padding");
+    const dashboard = document.getElementById("dashboard");
 
-    if (authForm) authForm.style.display = "none";
-
-    if (dashboardContainer) {
-        dashboardContainer.style.display = "block";
+    if (userToken) {
+        if (authCard) authCard.style.setProperty("display", "none", "important");
+        if (dashboard) dashboard.style.setProperty("display", "block", "important");
     } else {
-        // Fallback: If no dashboard container exists, show a nice temporary interface
-        document.body.innerHTML = `
-            <div style="text-align: center; padding: 100px 20px; font-family: Arial, sans-serif;">
-                <h1 style="color: #002D62;">Welcome to Dozentelecom</h1>
-                <p style="color: #555;">You are successfully logged in!</p>
-                <button onclick="localStorage.clear(); location.reload();" 
-                        style="padding: 12px 24px; background: #d9534f; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 20px;">
-                    Sign Out & Return to Login
-                </button>
-            </div>
-        `;
+        if (authCard) authCard.style.setProperty("display", "block", "important");
+        if (dashboard) dashboard.style.setProperty("display", "none", "important");
     }
 }
 
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", applySessionLayout);
+} else {
+    applySessionLayout();
+}
 
 // ==========================================
-// UNIFIED DOZENTELECOM AUTHENTICATION SCRIPT
+// 2. YOUR ORIGINAL LOGIN / REGISTER SUBMIT LOGIC
 // ==========================================
+const authForm = document.getElementById("authForm") || document.querySelector("form");
+const toggleAuthMode = document.getElementById("toggleAuthMode");
+let isRegisterMode = false;
+
+if (authForm) {
+    authForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        // Target form fields dynamically based on your layout setup
+        const phoneOrEmailInput = authForm.querySelector("input[type='tel']") || authForm.querySelector("input[type='text']");
+        const passwordInput = authForm.querySelector("input[type='password']");
+        const nameInput = document.getElementById("name");
+
+        if (!phoneOrEmailInput || !passwordInput) {
+            alert("Form inputs missing. Please verify your input field attributes.");
+            return;
+        }
+
+        const payload = {
+            identifier: phoneOrEmailInput.value,
+            password: passwordInput.value,
+            ...(isRegisterMode && nameInput && { name: nameInput.value })
+        };
+
+        const endpoint = isRegisterMode ? "/api/auth/register" : "/api/auth/login";
+
+        try {
+            const res = await fetch(endpoint, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                if (isRegisterMode) {
+                    alert("Registration successful! Switching to login...");
+                    if (toggleAuthMode) toggleAuthMode.click();
+                } else {
+                    alert("Login successful!");
+                    localStorage.setItem("userToken", data.token);
+                    window.location.reload(); 
+                }
+            } else {
+                alert(data.message || "An authentication error occurred.");
+            }
+        } catch (error) {
+            console.error("Auth submit error:", error);
+            alert("Cannot connect to server. Check your backend status.");
+        }
+    });
+}
+
+// ==========================================
+// 3. DYNAMIC DATA PURCHASE FEATURE
+// ==========================================
+const dataPlansDataset = {
+    MTN: {
+        SME: [
+            { id: "mtn-sme-1gb", name: "MTN SME 1GB (30 Days)", price: 230 },
+            { id: "mtn-sme-2gb", name: "MTN SME 2GB (30 Days)", price: 460 },
+            { id: "mtn-sme-5gb", name: "MTN SME 5GB (30 Days)", price: 1150 }
+        ],
+        "CORPORATE GIFTING": [
+            { id: "mtn-cg-1gb", name: "MTN CG 1GB (30 Days)", price: 250 },
+            { id: "mtn-cg-5gb", name: "MTN CG 5GB (30 Days)", price: 1250 }
+        ],
+        GIFTING: [
+            { id: "mtn-gift-1gb", name: "MTN Gifting 1GB (30 Days)", price: 290 }
+        ]
+    },
+    AIRTEL: {
+        SME: [{ id: "airtel-sme-1gb", name: "Airtel SME 1GB (30 Days)", price: 220 }],
+        "CORPORATE GIFTING": [
+            { id: "airtel-cg-1gb", name: "Airtel CG 1GB (30 Days)", price: 240 },
+            { id: "airtel-cg-5gb", name: "Airtel CG 5GB (30 Days)", price: 1200 }
+        ],
+        GIFTING: [{ id: "airtel-gift-1gb", name: "Airtel Gifting 1.5GB (30 Days)", price: 1000 }]
+    },
+    GLO: {
+        "CORPORATE GIFTING": [{ id: "glo-cg-1gb", name: "Glo CG 1GB (30 Days)", price: 245 }],
+        GIFTING: [{ id: "glo-gift-1gb", name: "Glo Gifting 1.35GB (14 Days)", price: 480 }]
+    },
+    "9MOBILE": {
+        "CORPORATE GIFTING": [{ id: "9mob-cg-1gb", name: "9Mobile CG 1GB (30 Days)", price: 200 }],
+        GIFTING: [{ id: "9mob-gift-1gb", name: "9mobile Gifting 1GB (30 Days)", price: 450 }]
+    }
+};
 
 document.addEventListener("DOMContentLoaded", () => {
-    // --- STATE VARIABLES ---
-    let isRegisterMode = false;
+    const buyDataBtn = document.getElementById("buyData");
+    const dataModal = document.getElementById("dataModal");
+    const closeDataModal = document.getElementById("closeDataModal");
+    const dataNetwork = document.getElementById("dataNetwork");
+    const dataType = document.getElementById("dataType");
+    const dataPlan = document.getElementById("dataPlan");
+    const dataPurchaseForm = document.getElementById("dataPurchaseForm");
 
-    // --- DOM ELEMENTS ---
-    const authCard = document.getElementById("authCard");
-    const resetCard = document.getElementById("resetCard");
-    const resetStep2 = document.getElementById("resetStep2");
-    
-    // Auth inputs & buttons
-    const authPhone = document.getElementById("authPhone");
-    const authPassword = document.getElementById("authPassword");
-    const authPin = document.getElementById("authPin");
-    const mainAuthBtn = document.getElementById("mainAuthBtn");
-    const toggleAuthMode = document.getElementById("toggleAuthMode");
-    const phoneLabel = document.getElementById("phoneLabel");
-    const regOnlyFields = document.querySelectorAll(".reg-only");
-
-    // Forgot / Reset Password elements
-    const forgotPasswordLink = document.getElementById("forgotPasswordLink");
-    const resetIdentifier = document.getElementById("resetIdentifier");
-    const sendOtpBtn = document.getElementById("sendOtpBtn"); // DECLARED ONLY ONCE NOW
-    const resetOtp = document.getElementById("resetOtp");
-    const resetNewPassword = document.getElementById("resetNewPassword");
-    const verifyAndResetBtn = document.getElementById("verifyAndResetBtn");
-
-    // Logout elements
-    const logoutSection = document.getElementById("logoutSection");
-    const logoutBtn = document.getElementById("logoutBtn");
-
-    // ==========================================
-    // 1. INITIAL SESSION CHECK (On Page Load)
-    // ==========================================
-    const userToken = localStorage.getItem("userToken");
-    if (userToken) {
-        if (logoutSection) logoutSection.style.display = "block";
-        if (authCard) authCard.style.display = "none";
-    } else {
-        if (logoutSection) logoutSection.style.display = "none";
-        if (authCard) authCard.style.display = "block";
+    if (buyDataBtn && dataModal) {
+        buyDataBtn.addEventListener("click", () => dataModal.style.display = "flex");
     }
 
-    // ==========================================
-    // 2. TOGGLE LOGIN / REGISTER MODE
-    // ==========================================
-    if (toggleAuthMode) {
-        toggleAuthMode.addEventListener("click", (e) => {
-            e.preventDefault();
-            isRegisterMode = !isRegisterMode;
-
-            if (isRegisterMode) {
-                if (phoneLabel) phoneLabel.textContent = "Phone Number";
-                if (mainAuthBtn) mainAuthBtn.textContent = "Register";
-                if (toggleAuthMode) toggleAuthMode.innerHTML = 'Already have an account? Login';
-                regOnlyFields.forEach(el => el.style.display = "block");
-            } else {
-                if (phoneLabel) phoneLabel.textContent = "Phone Number or Email Address";
-                if (mainAuthBtn) mainAuthBtn.textContent = "Login";
-                if (toggleAuthMode) toggleAuthMode.innerHTML = "Don't have an account? Create Account";
-                regOnlyFields.forEach(el => el.style.display = "none");
-            }
+    if (closeDataModal && dataModal) {
+        closeDataModal.addEventListener("click", () => {
+            dataModal.style.display = "none";
+            if (dataPurchaseForm) dataPurchaseForm.reset();
+            resetDropdowns();
         });
     }
 
-    // ==========================================
-    // 3. SUBMIT LOGIN / REGISTRATION
-    // ==========================================
-    if (mainAuthBtn) {
-        mainAuthBtn.addEventListener("click", async () => {
-            const phoneOrEmail = authPhone ? authPhone.value.trim() : "";
-            const password = authPassword ? authPassword.value.trim() : "";
-            const pin = authPin ? authPin.value.trim() : "";
+    function resetDropdowns() {
+        if (dataType) {
+            dataType.innerHTML = '<option value="">-- Select Network First --</option>';
+            dataType.disabled = true;
+        }
+        if (dataPlan) {
+            dataPlan.innerHTML = '<option value="">-- Select Type First --</option>';
+            dataPlan.disabled = true;
+        }
+    }
 
-            if (!phoneOrEmail || !password) {
-                alert("Please fill in your credentials.");
-                return;
-            }
+    if (dataNetwork) {
+        dataNetwork.addEventListener("change", (e) => {
+            const selectedNetwork = e.target.value;
+            resetDropdowns();
 
-            if (isRegisterMode && !pin) {
-                alert("Please enter a 4-digit transaction PIN to register.");
-                return;
-            }
-
-            const endpoint = isRegisterMode 
-                ? "https://dozentelecom.onrender.com/api/auth/register"
-                : "https://dozentelecom.onrender.com/api/auth/login";
-
-            // Send both pin fields so backend is guaranteed to accept it
-// Send name, email, phone, and both pin fields so backend is guaranteed to accept it
-// Send name, email, phone, and both pin fields so backend is guaranteed to accept it
-const payload = isRegisterMode
-    ? { 
-        name: document.getElementById("authName") ? document.getElementById("authName").value : "",
-        email: document.getElementById("authEmail") ? document.getElementById("authEmail").value : "",
-        phone: phoneOrEmail, 
-        password, 
-        pin, 
-        transactionPin: pin 
-      }
-    : { identifier: phoneOrEmail, password };
-
-            try {
-                const res = await fetch(endpoint, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload)
+            if (selectedNetwork && dataPlansDataset[selectedNetwork] && dataType) {
+                dataType.innerHTML = '<option value="">-- Select Type --</option>';
+                Object.keys(dataPlansDataset[selectedNetwork]).forEach(type => {
+                    dataType.innerHTML += `<option value="${type}">${type}</option>`;
                 });
+                dataType.disabled = false;
+            }
+        });
+    }
 
-                const data = await res.json();
+    if (dataType) {
+        dataType.addEventListener("change", (e) => {
+            const selectedNetwork = dataNetwork ? dataNetwork.value : "";
+            const selectedType = e.target.value;
 
-                if (res.ok) {
-                    if (isRegisterMode) {
-                        alert("Registration successful! Switching to login...");
-                        toggleAuthMode.click();
-                    } else {
-                        alert("Login successful!");
-                        localStorage.setItem("userToken", data.token);
-                        window.location.reload();
-                    }
-                } else {
-                    alert(data.message || "An authentication error occurred.");
+            if (dataPlan) {
+                dataPlan.innerHTML = '<option value="">-- Select Plan --</option>';
+                dataPlan.disabled = true;
+
+                if (selectedNetwork && selectedType && dataPlansDataset[selectedNetwork][selectedType]) {
+                    const plans = dataPlansDataset[selectedNetwork][selectedType];
+                    plans.forEach(plan => {
+                        dataPlan.innerHTML += `<option value="${plan.id}" data-price="${plan.price}">${plan.name} - ₦${plan.price}</option>`;
+                    });
+                    dataPlan.disabled = false;
                 }
-            } catch (err) {
-                console.error("Auth Error:", err);
-                alert("Cannot connect to server. Check your internet connection.");
             }
-        });
-    }
-	
-	
-
-    // ==========================================
-    // 4. SIGN OUT FUNCTIONALITY
-    // ==========================================
-    if (logoutBtn) {
-        logoutBtn.addEventListener("click", () => {
-            localStorage.removeItem("userToken");
-            alert("Signed out successfully!");
-            window.location.reload();
-        });
-    }
-
-    // ==========================================
-    // 5. FORGOT PASSWORD: OPEN CARD
-    // ==========================================
-    if (forgotPasswordLink && resetCard) {
-        forgotPasswordLink.addEventListener("click", (e) => {
-            e.preventDefault();
-            if (authCard) authCard.style.display = "none";
-            resetCard.style.display = "block";
-        });
-    }
-
-    // ==========================================
-    // 6. FORGOT PASSWORD: STEP 1 (SEND OTP)
-    // ==========================================
-    if (sendOtpBtn) {
-        sendOtpBtn.addEventListener("click", async () => {
-            const identifier = resetIdentifier ? resetIdentifier.value.trim() : "";
-            if (!identifier) {
-                alert("Please input your Email Address or Phone Number.");
-                return;
-            }
-
-            try {
-                const res = await fetch("https://dozentelecom.onrender.com/api/auth/forgot-password", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ identifier })
-                });
-
-                const data = await res.json();
-                if (res.ok) {
-                    alert("An OTP code has been sent to your registered email address.");
-                    if (resetStep2) resetStep2.style.display = "block";
-                } else {
-                    alert(data.message || "Error sending password reset OTP.");
-                }
-            } catch (err) {
-                console.error("OTP Error:", err);
-                alert("Unable to reach authentication server.");
-            }
-        });
-    }
-
-    // ==========================================
-    // 7. FORGOT PASSWORD: STEP 2 (RESET PASS)
-    // ==========================================
-    if (verifyAndResetBtn) {
-        verifyAndResetBtn.addEventListener("click", async () => {
-            const identifier = resetIdentifier ? resetIdentifier.value.trim() : "";
-            const otp = resetOtp ? resetOtp.value.trim() : "";
-            const newPassword = resetNewPassword ? resetNewPassword.value.trim() : "";
-
-            if (!otp || !newPassword) {
-                alert("Please enter the OTP code sent to your email and your new password.");
-                return;
-            }
-
-            try {
-                const res = await fetch("https://dozentelecom.onrender.com/api/auth/reset-password", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ identifier, otp, newPassword })
-                });
-
-                const data = await res.json();
-                if (res.ok) {
-                    alert("Password changed successfully! You can now log in.");
-                    window.location.reload();
-                } else {
-                    alert(data.message || "Failed to reset password. Please check your OTP.");
-                }
-            } catch (err) {
-                console.error("Reset Error:", err);
-                alert("Unable to process password reset request.");
-            }
-        });
-    }
-
-    // ==========================================
-    // 8. BACK TO LOGIN ACTION
-    // ==========================================
-    const backToLoginBtn = document.getElementById('backToLoginBtn');
-    if (backToLoginBtn) {
-        backToLoginBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            if (resetCard) resetCard.style.display = 'none';
-            if (authCard) authCard.style.display = 'block';
         });
     }
 });

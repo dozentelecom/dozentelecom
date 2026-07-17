@@ -26,7 +26,7 @@
                 <p id="authSubtitle">Login to access cheap data and airtime plans</p>
             </div>
             
-			<div class="div class="auth-form-padding" style="padding: 24px;">
+			<div id="authCard" class="auth-form-padding" style="padding: 24px;">
 				<!-- Full Name (Registration Only) -->
 				<div class="form-group reg-only" style="display: none;">
 					<label for="authName">Full Name</label>
@@ -39,6 +39,9 @@
 					<input type="email" id="authEmail" placeholder="e.g. user@example.com">
 				</div>
 
+<form id="loginForm">
+    <!-- Your phone, password inputs, and login button remain here -->
+</form>
 				<!-- Shared Input (Acts as Phone/Email on Login, but strictly Phone on Register) -->
 				<div class="form-group">
 					<label for="authPhone" id="phoneLabel">Phone Number or Email Address</label>
@@ -66,7 +69,6 @@
                     Don't have an account? Create Account
                 </p>
             </div>
-        </section>
 		
 			<!-- PASSWORD RESET CARD -->
 				<section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e293b; border-radius: 8px; color: white;">
@@ -97,59 +99,117 @@
         <p style="text-align: center; margin-top: 16px; font-size: 14px;">
             <a href="#" id="backToLoginBtn" style="color: #6366f1; text-decoration: none; font-weight: bold;">Back to Login</a>
         </p>
-    </section>
-
-        <section id="transactionCard" class="card-wrapper" style="display: none;">
-            <div class="card-header">
-                <h3>Welcome, <span id="userGreeting" style="color: #6366f1;">User</span> 👋</h3>
-                <p>Wallet Balance: <strong style="color: #10b981;">₦0.00</strong></p>
-            </div>
-            
-            <form id="rechargeForm">
-                <div class="form-group">
-                    <label for="service">Select Service Type</label>
-                    <select id="service" required>
-                        <option value="airtime">Airtime VTU Top-up</option>
-                        <option value="data">Cheap Data Bundles</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="network">Select Mobile Network Provider</label>
-                    <select id="network" required>
-                        <option value="" disabled selected>Choose Network...</option>
-                        <option value="mtn">MTN Nigeria</option>
-                        <option value="airtel">Airtel Africa</option>
-                        <option value="glo">Glo Limited</option>
-                        <option value="9mobile">9mobile</option>
-                    </select>
-                </div>
-
-                <div id="amountGroup" class="form-group">
-                    <label for="amount">Amount (₦)</label>
-                    <input type="number" id="amount" min="100" placeholder="Minimum 100" required>
-                </div>
-
-                <div class="form-group">
-                    <label for="phone">Recipient Phone Number</label>
-                    <input type="tel" id="phone" placeholder="e.g. 08143140831" required pattern="[0-9]{11}">
-                </div>
-
-                <div class="form-group">
-                    <label for="confirmPin">Enter 4-Digit Security PIN</label>
-                    <input type="password" id="confirmPin" maxlength="4" placeholder="⚡ Enter PIN to authorize" required pattern="[0-9]{4}">
-                </div>
-
-                <button type="submit" class="btn-submit">Confirm & Pay Securely</button>
-            </form>
-        </section>
-
     </main>
 
     <footer class="main-footer">
         <p>&copy; 2026 Dozentelecom. Safe automated API delivery system.</p>
     </footer>
+	
+	<!-- ========================================== -->
+<!-- MAIN VTU DASHBOARD SECTION CONTAINER       -->
+<!-- ========================================== -->
+<div id="dashboard" style="display: none; padding: 24px;">
+    <div class="dashboard-wrapper">
+        
+        <!-- 1. Top Stats Bar -->
+        <div class="stats-grid">
+            <div class="stat-card balance-card">
+                <h3>Wallet Balance</h3>
+                <div class="balance-amount">₦0.00</div>
+                <button class="btn-fund">Fund Wallet</button>
+            </div>
+            <div class="stat-card">
+                <h3>User Level</h3>
+                <div class="stat-value" style="color: white;">Smart Earner</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Spent</h3>
+                <div class="stat-value" style="color: white;">₦0.00</div>
+            </div>
+        </div>
 
+        <!-- 2. Quick Services Section -->
+        <h2 class="section-title" style="color: white; margin-top: 30px;">Quick Services</h2>
+        <div class="services-grid">
+            <div class="service-item" id="buyAirtime">
+                <div class="icon-holder">📱</div>
+                <span>Buy Airtime</span>
+            </div>
+            <div class="service-item" id="buyData">
+                <div class="icon-holder">📶</div>
+                <span>Buy Data</span>
+            </div>
+            <div class="service-item" id="cableTv">
+                <div class="icon-holder">📺</div>
+                <span>Cable TV</span>
+            </div>
+            <div class="service-item" id="electricity">
+                <div class="icon-holder">💡</div>
+                <span>Electricity</span>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ========================================== -->
+    <!-- NESTED BUY DATA OVERLAY MODAL              -->
+    <!-- ========================================== -->
+    <div id="dataModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Buy Mobile Data</h3>
+                <span class="close-modal" id="closeDataModal">&times;</span>
+            </div>
+            
+            <form id="dataPurchaseForm">
+                <!-- Select Network -->
+                <div class="form-group">
+                    <label for="dataNetwork">Select Network</label>
+                    <select id="dataNetwork" required>
+                        <option value="">-- Choose Network --</option>
+                        <option value="MTN">MTN</option>
+                        <option value="AIRTEL">Airtel</option>
+                        <option value="GLO">Glo</option>
+                        <option value="9MOBILE">9mobile</option>
+                    </select>
+                </div>
+
+                <!-- Select Data Type -->
+                <div class="form-group">
+                    <label for="dataType">Select Data Type</label>
+                    <select id="dataType" required disabled>
+                        <option value="">-- Select Network First --</option>
+                    </select>
+                </div>
+
+                <!-- Select Plan -->
+                <div class="form-group">
+                    <label for="dataPlan">Select Plan</label>
+                    <select id="dataPlan" required disabled>
+                        <option value="">-- Select Type First --</option>
+                    </select>
+                </div>
+
+                <!-- Phone Number -->
+                <div class="form-group">
+                    <label for="dataPhone">Recipient Phone Number</label>
+                    <input type="tel" id="dataPhone" placeholder="e.g. 08143140831" maxlength="11" required>
+                </div>
+
+                <!-- Transaction PIN -->
+                <div class="form-group">
+                    <label for="dataPin">4-Digit Transaction PIN</label>
+                    <input type="password" id="dataPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <!-- Activation Button -->
+                <button type="submit" id="activateDataBtn" class="btn-submit">Activate Data Plan</button>
+            </form>
+        </div>
+    </div>
+</div>
+<!-- Make sure this is at the absolute bottom, right before </body> -->
     <script src="script.js"></script>
+</body>
 </body>
 </html>
