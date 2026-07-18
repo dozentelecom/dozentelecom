@@ -78,7 +78,7 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPin = await bcrypt.hash(finalPin, salt);
 
         // Save new user document to MongoDB
-       const newUser = new User({
+        const newUser = new User({
             name: name ? name.trim() : "",
             phone: phone ? phone.trim() : "",
             email: email ? email.trim().toLowerCase() : "",
@@ -99,7 +99,14 @@ app.post('/api/auth/register', async (req, res) => {
 // ==========================================
 // 2. ROUTE: User Login
 // ==========================================
-try {
+app.post('/api/auth/login', async (req, res) => {
+    const { identifier, password } = req.body;
+
+    if (!identifier || !password) {
+        return res.status(400).json({ success: false, message: "Missing required fields: identifier and password are required." });
+    }
+
+    try {
         const user = await User.findOne({
             $or: [
                 { phone: identifier },
@@ -179,6 +186,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
                         ${otp}
                     </div>
                     <p>This OTP will expire in <strong>10 minutes</strong>. If you did not make this request, please change your security settings immediately.</p>
+                    <p style="color: #64748b; font-size: 12px;">DozenTelecom Support Team</p>
                 </div>
             `
         });
