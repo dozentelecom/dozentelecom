@@ -6,15 +6,24 @@
     <title>Dozentelecom | Premium VTU Portal</title>
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
     <header class="main-header">
-        <div class="container">
-            <div class="logo">Dozen<span>telecom</span></div>
-           <div id="logoutSection" style="display: none;">
-            <button id="logoutBtn" style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer;">Sign Out ❌</button>
-        </div>
+        <div class="container header-content">
+            <div class="logo">
+                <i class="fas fa-mobile-alt"></i>
+                Dozen<span>telecom</span>
+            </div>
+            <div id="logoutSection" style="display: none;" class="header-actions">
+                <button id="profileBtn" class="btn-profile" title="Profile">
+                    <i class="fas fa-user-circle"></i> Profile
+                </button>
+                <button id="logoutBtn" class="btn-logout" title="Sign Out">
+                    <i class="fas fa-sign-out-alt"></i> Sign Out
+                </button>
+            </div>
         </div>
     </header>
 
@@ -26,190 +35,620 @@
                 <p id="authSubtitle">Login to access cheap data and airtime plans</p>
             </div>
             
-			<div id="authCard" class="auth-form-padding" style="padding: 24px;">
-				<!-- Full Name (Registration Only) -->
-				<div class="form-group reg-only" style="display: none;">
-					<label for="authName">Full Name</label>
-					<input type="text" id="authName" placeholder="Enter your full name">
-				</div>
+            <div class="auth-form-padding" style="padding: 24px;">
+                <!-- Full Name (Registration Only) -->
+                <div class="form-group reg-only" style="display: none;">
+                    <label for="authName">Full Name</label>
+                    <input type="text" id="authName" placeholder="Enter your full name">
+                </div>
 
-				<!-- Email Address (Registration Only) -->
-				<div class="form-group reg-only" style="display: none;">
-					<label for="authEmail">Email Address</label>
-					<input type="email" id="authEmail" placeholder="e.g. user@example.com">
-				</div>
+                <!-- Email Address (Registration Only) -->
+                <div class="form-group reg-only" style="display: none;">
+                    <label for="authEmail">Email Address</label>
+                    <input type="email" id="authEmail" placeholder="e.g. user@example.com">
+                </div>
 
-<form id="loginForm">
-    <!-- Your phone, password inputs, and login button remain here -->
-</form>
-				<!-- Shared Input (Acts as Phone/Email on Login, but strictly Phone on Register) -->
-				<div class="form-group">
-					<label for="authPhone" id="phoneLabel">Phone Number or Email Address</label>
-					<input type="text" id="authPhone" placeholder="e.g. 08143140831 or user@example.com">
-				</div>
+                <!-- Phone Number -->
+                <div class="form-group">
+                    <label for="authPhone">Phone Number or Email Address</label>
+                    <input type="text" id="authPhone" placeholder="e.g. 08143140831 or user@example.com">
+                </div>
 
-				<!-- Password (Shared) -->
-				<div class="form-group">
-					<label for="authPassword">Password</label>
-					<input type="password" id="authPassword" placeholder="Minimum 6 characters">
-					<p style="text-align: right; font-size: 13px; margin-top: 8px;">
-    <a href="#" id="forgotPasswordLink" style="color: #6366f1; text-decoration: none; cursor: pointer;">Forgot Password?</a>
-</p>
-				</div>
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="authPassword">Password</label>
+                    <input type="password" id="authPassword" placeholder="Minimum 6 characters">
+                    <p style="text-align: right; font-size: 13px; margin-top: 8px;">
+                        <a href="#" id="forgotPasswordLink" style="color: #6366f1; text-decoration: none; cursor: pointer;">Forgot Password?</a>
+                    </p>
+                </div>
 
-				<!-- Transaction PIN (Registration Only) -->
-				<div class="form-group reg-only" style="display: none;">
-					<label for="authPin">Create 4-Digit Transaction PIN</label>
-					<input type="password" id="authPin" maxlength="4" placeholder="e.g. 1234" pattern="[0-9]*">
-				</div>
+                <!-- Transaction PIN (Registration Only) -->
+                <div class="form-group reg-only" style="display: none;">
+                    <label for="authPin">Create 4-Digit Transaction PIN</label>
+                    <input type="password" id="authPin" maxlength="4" placeholder="e.g. 1234" pattern="[0-9]*">
+                </div>
 
-				<button id="mainAuthBtn" class="btn-submit">Login</button>
+                <button id="mainAuthBtn" class="btn-submit">Login</button>
                 
                 <p id="toggleAuthMode" style="margin-top: 16px; text-align: center; color: #6366f1; cursor: pointer; font-size: 14px; font-weight: 600;">
                     Don't have an account? Create Account
                 </p>
             </div>
-		
-			<!-- PASSWORD RESET CARD -->
-				<section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e293b; border-radius: 8px; color: white;">
-        <h3 id="resetTitle" style="color: white; margin-bottom: 8px;">Reset Password</h3>
-        <p id="resetSubtitle" style="color: #a5b4fc; font-size: 14px; margin-bottom: 16px;">Enter your registered Phone or Email to receive an OTP code.</p>
+        
+            <!-- PASSWORD RESET CARD -->
+            <section id="resetCard" class="card-wrapper" style="display: none; padding: 24px; background: #1e293b; border-radius: 8px; color: white;">
+                <h3 id="resetTitle" style="color: white; margin-bottom: 8px;">Reset Password</h3>
+                <p id="resetSubtitle" style="color: #a5b4fc; font-size: 14px; margin-bottom: 16px;">Enter your registered Phone or Email to receive an OTP code.</p>
 
-        <div id="resetStep1">
-            <div class="form-group" style="margin-bottom: 12px;">
-                <label for="resetIdentifier" style="display: block; margin-bottom: 6px;">Phone Number or Email</label>
-                <input type="text" id="resetIdentifier" placeholder="e.g. 08143140831 or user@email.com" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
-            </div>
-            <button id="sendOtpBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #4f46e5; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 12px;">Send OTP</button>
-        </div>
+                <div id="resetStep1">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="resetIdentifier" style="display: block; margin-bottom: 6px;">Phone Number or Email</label>
+                        <input type="text" id="resetIdentifier" placeholder="e.g. 08143140831 or user@email.com" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+                    </div>
+                    <button id="sendOtpBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #4f46e5; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 8px;">Send OTP Code</button>
+                </div>
 
-        <div id="resetStep2" style="display: none; margin-top: 16px;">
-            <div class="form-group" style="margin-bottom: 12px;">
-                <label for="resetOtp" style="display: block; margin-bottom: 6px;">Enter 6-Digit OTP Code</label>
-                <input type="text" id="resetOtp" maxlength="6" placeholder="e.g. 123456" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
-            </div>
-            
-            <div class="form-group" style="margin-bottom: 12px;">
-                <label for="resetNewPassword" style="display: block; margin-bottom: 6px;">New Password</label>
-                <input type="password" id="resetNewPassword" placeholder="Minimum 6 characters" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
-            </div>
-            <button id="verifyAndResetBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #10b981; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 12px;">Reset Password</button>
-        </div>
+                <div id="resetStep2" style="display: none; margin-top: 16px;">
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="resetOtp" style="display: block; margin-bottom: 6px;">Enter 6-Digit OTP Code</label>
+                        <input type="text" id="resetOtp" maxlength="6" placeholder="e.g. 123456" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+                    </div>
+                    
+                    <div class="form-group" style="margin-bottom: 12px;">
+                        <label for="resetNewPassword" style="display: block; margin-bottom: 6px;">New Password</label>
+                        <input type="password" id="resetNewPassword" placeholder="Minimum 6 characters" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #475569; background: #0f172a; color: white;">
+                    </div>
+                    <button id="verifyAndResetBtn" class="btn-submit" style="width: 100%; padding: 10px; background: #10b981; border: none; color: white; border-radius: 4px; cursor: pointer; font-weight: bold; margin-top: 8px;">Reset Password</button>
+                </div>
 
-        <p style="text-align: center; margin-top: 16px; font-size: 14px;">
-            <a href="#" id="backToLoginBtn" style="color: #6366f1; text-decoration: none; font-weight: bold;">Back to Login</a>
-        </p>
+                <p style="text-align: center; margin-top: 16px; font-size: 14px;">
+                    <a href="#" id="backToLoginBtn" style="color: #6366f1; text-decoration: none; font-weight: bold;">Back to Login</a>
+                </p>
+            </section>
+        </section>
     </main>
 
-    <footer class="main-footer">
-        <p>&copy; 2026 Dozentelecom. Safe automated API delivery system.</p>
-    </footer>
-	
-	<!-- ========================================== -->
-<!-- MAIN VTU DASHBOARD SECTION CONTAINER       -->
-<!-- ========================================== -->
-<div id="dashboard" style="display: none; padding: 24px;">
-    <div class="dashboard-wrapper">
-        
-        <!-- 1. Top Stats Bar -->
-        <div class="stats-grid">
-            <div class="stat-card balance-card">
-                <h3>Wallet Balance</h3>
-                <div class="balance-amount">₦0.00</div>
-                <button class="btn-fund">Fund Wallet</button>
+    <!-- ========================================== -->
+    <!-- MAIN VTU DASHBOARD                         -->
+    <!-- ========================================== -->
+    <div id="dashboard" style="display: none; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); min-height: 100vh; padding: 30px 0;">
+        <div class="dashboard-wrapper">
+            
+            <!-- 1. Top Stats Bar -->
+            <div class="stats-grid">
+                <div class="stat-card balance-card">
+                    <div class="stat-icon"><i class="fas fa-wallet"></i></div>
+                    <h3>Wallet Balance</h3>
+                    <div class="balance-amount" id="walletBalance">₦0.00</div>
+                    <button class="btn-fund" id="fundWalletBtn">
+                        <i class="fas fa-plus"></i> Fund Wallet
+                    </button>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-star"></i></div>
+                    <h3>User Level</h3>
+                    <div class="stat-value">Smart Earner</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+                    <h3>Total Spent</h3>
+                    <div class="stat-value" id="totalSpent">₦0.00</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon"><i class="fas fa-calendar-alt"></i></div>
+                    <h3>Account Number</h3>
+                    <div class="stat-value account-num" id="accountNum" style="font-size: 16px; word-break: break-all;">Not Generated</div>
+                </div>
             </div>
-            <div class="stat-card">
-                <h3>User Level</h3>
-                <div class="stat-value" style="color: white;">Smart Earner</div>
-            </div>
-            <div class="stat-card">
-                <h3>Total Spent</h3>
-                <div class="stat-value" style="color: white;">₦0.00</div>
+
+            <!-- 2. Quick Services Section -->
+            <h2 class="section-title"><i class="fas fa-bolt"></i> Quick Services</h2>
+            <div class="services-grid">
+                <div class="service-item" id="buyData">
+                    <div class="icon-holder"><i class="fas fa-database"></i></div>
+                    <span>Buy Data</span>
+                    <p class="service-price">5% interest</p>
+                </div>
+                <div class="service-item" id="buyAirtime">
+                    <div class="icon-holder"><i class="fas fa-mobile-alt"></i></div>
+                    <span>Buy Airtime</span>
+                    <p class="service-price">5% interest</p>
+                </div>
+                <div class="service-item" id="airtimeToCash">
+                    <div class="icon-holder"><i class="fas fa-money-bill-wave"></i></div>
+                    <span>Airtime to Cash</span>
+                    <p class="service-price">15% interest</p>
+                </div>
+                <div class="service-item" id="electricity">
+                    <div class="icon-holder"><i class="fas fa-bolt"></i></div>
+                    <span>Buy Electricity</span>
+                    <p class="service-price">10% interest</p>
+                </div>
+                <div class="service-item" id="cableTv">
+                    <div class="icon-holder"><i class="fas fa-tv"></i></div>
+                    <span>Cable TV</span>
+                    <p class="service-price">10% interest</p>
+                </div>
+                <div class="service-item" id="educationalPins">
+                    <div class="icon-holder"><i class="fas fa-book"></i></div>
+                    <span>Educational Pins</span>
+                    <p class="service-price">15% interest</p>
+                </div>
             </div>
         </div>
-
-        <!-- 2. Quick Services Section -->
-        <h2 class="section-title" style="color: white; margin-top: 30px;">Quick Services</h2>
-        <div class="services-grid">
-            <div class="service-item" id="buyAirtime">
-                <div class="icon-holder">📱</div>
-                <span>Buy Airtime</span>
-            </div>
-            <div class="service-item" id="buyData">
-                <div class="icon-holder">📶</div>
-                <span>Buy Data</span>
-            </div>
-            <div class="service-item" id="cableTv">
-                <div class="icon-holder">📺</div>
-                <span>Cable TV</span>
-            </div>
-            <div class="service-item" id="electricity">
-                <div class="icon-holder">💡</div>
-                <span>Electricity</span>
-            </div>
-        </div>
-
     </div>
 
     <!-- ========================================== -->
-    <!-- NESTED BUY DATA OVERLAY MODAL              -->
+    <!-- PROFILE MODAL                              -->
+    <!-- ========================================== -->
+    <div id="profileModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content profile-modal">
+            <div class="modal-header">
+                <h3><i class="fas fa-user-cog"></i> Account Settings</h3>
+                <span class="close-modal" id="closeProfileModal">&times;</span>
+            </div>
+            
+            <div class="profile-menu">
+                <div class="profile-option" id="ninBvnOption">
+                    <div class="option-icon"><i class="fas fa-id-card"></i></div>
+                    <div class="option-text">
+                        <h4>Verify NIN/BVN</h4>
+                        <p>Generate account number for wallet funding</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="profile-option" id="changePinOption">
+                    <div class="option-icon"><i class="fas fa-lock"></i></div>
+                    <div class="option-text">
+                        <h4>Change Transaction PIN</h4>
+                        <p>Update your 4-digit transaction PIN</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="profile-option" id="resetPinOption">
+                    <div class="option-icon"><i class="fas fa-redo"></i></div>
+                    <div class="option-text">
+                        <h4>Reset Transaction PIN</h4>
+                        <p>Reset PIN using OTP verification</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="profile-option" id="changePasswordOption">
+                    <div class="option-icon"><i class="fas fa-key"></i></div>
+                    <div class="option-text">
+                        <h4>Change Password</h4>
+                        <p>Update your login password</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="profile-option" id="fingerprintOption">
+                    <div class="option-icon"><i class="fas fa-fingerprint"></i></div>
+                    <div class="option-text">
+                        <h4>Register Fingerprint</h4>
+                        <p>Add biometric authentication</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+
+                <div class="profile-option" id="supportOption">
+                    <div class="option-icon"><i class="fas fa-headset"></i></div>
+                    <div class="option-text">
+                        <h4>Customer Support</h4>
+                        <p>Get help from our support team</p>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- NIN/BVN VERIFICATION MODAL                 -->
+    <!-- ========================================== -->
+    <div id="ninBvnModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-id-card"></i> Verify NIN/BVN</h3>
+                <span class="close-modal" id="closeNinBvnModal">&times;</span>
+            </div>
+            
+            <form id="ninBvnForm">
+                <div class="form-group">
+                    <label for="ninBvnInput">Enter your NIN or BVN (11 digits)</label>
+                    <input type="text" id="ninBvnInput" placeholder="Enter 11-digit NIN/BVN" maxlength="11" required>
+                    <p style="font-size: 12px; color: #999; margin-top: 8px;">Your account number will be generated after verification</p>
+                </div>
+                <button type="submit" class="btn-submit">Verify & Generate Account Number</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- FUND WALLET MODAL                          -->
+    <!-- ========================================== -->
+    <div id="fundModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-wallet"></i> Fund Wallet</h3>
+                <span class="close-modal" id="closeFundModal">&times;</span>
+            </div>
+            
+            <form id="fundForm">
+                <div class="form-group">
+                    <label for="fundAmount">Amount to Fund</label>
+                    <input type="number" id="fundAmount" placeholder="Enter amount in ₦" min="100" required>
+                </div>
+                <div class="fee-breakdown" style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;" id="feeBreakdown">
+                    <p><strong>Subtotal:</strong> <span id="subtotal">₦0.00</span></p>
+                    <p><strong>Funding Fee (10%):</strong> <span id="fundingFee">₦0.00</span></p>
+                    <p style="border-top: 1px solid #ddd; padding-top: 8px; margin-top: 8px;"><strong>Total Debit:</strong> <span id="totalDebit">₦0.00</span></p>
+                </div>
+                <button type="submit" class="btn-submit">Proceed to Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- BUY DATA MODAL                             -->
     <!-- ========================================== -->
     <div id="dataModal" class="modal-overlay" style="display: none;">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Buy Mobile Data</h3>
+                <h3><i class="fas fa-database"></i> Buy Mobile Data</h3>
                 <span class="close-modal" id="closeDataModal">&times;</span>
             </div>
             
             <form id="dataPurchaseForm">
-                <!-- Select Network -->
                 <div class="form-group">
                     <label for="dataNetwork">Select Network</label>
                     <select id="dataNetwork" required>
                         <option value="">-- Choose Network --</option>
-                        <option value="MTN">MTN</option>
-                        <option value="AIRTEL">Airtel</option>
-                        <option value="GLO">Glo</option>
-                        <option value="9MOBILE">9mobile</option>
+                        <option value="MTN">MTN Nigeria</option>
+                        <option value="AIRTEL">Airtel Nigeria</option>
+                        <option value="GLO">Glo Nigeria</option>
+                        <option value="9MOBILE">9mobile Nigeria</option>
                     </select>
                 </div>
 
-                <!-- Select Data Type -->
                 <div class="form-group">
-                    <label for="dataType">Select Data Type</label>
+                    <label for="dataType">Select Plan Type</label>
                     <select id="dataType" required disabled>
                         <option value="">-- Select Network First --</option>
                     </select>
                 </div>
 
-                <!-- Select Plan -->
                 <div class="form-group">
-                    <label for="dataPlan">Select Plan</label>
+                    <label for="dataPlan">Select Data Plan</label>
                     <select id="dataPlan" required disabled>
                         <option value="">-- Select Type First --</option>
                     </select>
                 </div>
 
-                <!-- Phone Number -->
+                <div class="price-display" id="priceDisplay" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Base Price: <span id="basePrice">₦0.00</span></p>
+                    <p>Interest (5%): <span id="dataInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">Final Price: <span id="finalPrice">₦0.00</span></p>
+                </div>
+
                 <div class="form-group">
                     <label for="dataPhone">Recipient Phone Number</label>
                     <input type="tel" id="dataPhone" placeholder="e.g. 08143140831" maxlength="11" required>
                 </div>
 
-                <!-- Transaction PIN -->
                 <div class="form-group">
                     <label for="dataPin">4-Digit Transaction PIN</label>
                     <input type="password" id="dataPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
                 </div>
 
-                <!-- Activation Button -->
-                <button type="submit" id="activateDataBtn" class="btn-submit">Activate Data Plan</button>
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Confirm Purchase
+                </button>
             </form>
         </div>
     </div>
-</div>
-<!-- Make sure this is at the absolute bottom, right before </body> -->
+
+    <!-- ========================================== -->
+    <!-- BUY AIRTIME MODAL                          -->
+    <!-- ========================================== -->
+    <div id="airtimeModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-mobile-alt"></i> Buy Airtime</h3>
+                <span class="close-modal" id="closeAirtimeModal">&times;</span>
+            </div>
+            
+            <form id="airtimePurchaseForm">
+                <div class="form-group">
+                    <label for="airtimeNetwork">Select Network</label>
+                    <select id="airtimeNetwork" required>
+                        <option value="">-- Choose Network --</option>
+                        <option value="MTN">MTN Nigeria</option>
+                        <option value="AIRTEL">Airtel Nigeria</option>
+                        <option value="GLO">Glo Nigeria</option>
+                        <option value="9MOBILE">9mobile Nigeria</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="airtimeAmount">Amount</label>
+                    <select id="airtimeAmount" required>
+                        <option value="">-- Select Amount --</option>
+                        <option value="100">₦100</option>
+                        <option value="200">₦200</option>
+                        <option value="500">₦500</option>
+                        <option value="1000">₦1,000</option>
+                        <option value="2000">₦2,000</option>
+                        <option value="5000">₦5,000</option>
+                    </select>
+                </div>
+
+                <div class="price-display" id="airtimePriceDisplay" style="background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Base Price: <span id="airtimeBasePrice">₦0.00</span></p>
+                    <p>Interest (5%): <span id="airtimeInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">Final Price: <span id="airtimeFinalPrice">₦0.00</span></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="airtimePhone">Phone Number</label>
+                    <input type="tel" id="airtimePhone" placeholder="e.g. 08143140831" maxlength="11" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="airtimePin">4-Digit Transaction PIN</label>
+                    <input type="password" id="airtimePin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Buy Airtime
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- AIRTIME TO CASH MODAL                      -->
+    <!-- ========================================== -->
+    <div id="airtimeToCashModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-money-bill-wave"></i> Convert Airtime to Cash</h3>
+                <span class="close-modal" id="closeAirtimeToCashModal">&times;</span>
+            </div>
+            
+            <form id="airtimeToCashForm">
+                <div class="form-group">
+                    <label for="a2cNetwork">Select Network</label>
+                    <select id="a2cNetwork" required>
+                        <option value="">-- Choose Network --</option>
+                        <option value="MTN">MTN Nigeria</option>
+                        <option value="AIRTEL">Airtel Nigeria</option>
+                        <option value="GLO">Glo Nigeria</option>
+                        <option value="9MOBILE">9mobile Nigeria</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="a2cAmount">Amount to Convert</label>
+                    <input type="number" id="a2cAmount" placeholder="Enter amount in ₦" min="100" required>
+                </div>
+
+                <div class="price-display" id="a2cPriceDisplay" style="background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Airtime Amount: <span id="a2cBasePrice">₦0.00</span></p>
+                    <p>Service Fee (15%): <span id="a2cInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">You'll Receive: <span id="a2cFinalPrice">₦0.00</span></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="a2cPhone">Phone Number</label>
+                    <input type="tel" id="a2cPhone" placeholder="e.g. 08143140831" maxlength="11" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="a2cPin">4-Digit Transaction PIN</label>
+                    <input type="password" id="a2cPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Convert Airtime
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ELECTRICITY MODAL                          -->
+    <!-- ========================================== -->
+    <div id="electricityModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-bolt"></i> Buy Electricity Tokens</h3>
+                <span class="close-modal" id="closeElectricityModal">&times;</span>
+            </div>
+            
+            <form id="electricityForm">
+                <div class="form-group">
+                    <label for="elecProvider">Select Distribution Company</label>
+                    <select id="elecProvider" required>
+                        <option value="">-- Choose Provider --</option>
+                        <option value="EKEDC">EKEDC (East)</option>
+                        <option value="IKEDC">IKEDC (Ikeja)</option>
+                        <option value="AEDC">AEDC (Abuja)</option>
+                        <option value="BEDC">BEDC (Benin)</option>
+                        <option value="JEDC">JEDC (Jos)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="elecAmount">Amount</label>
+                    <input type="number" id="elecAmount" placeholder="Enter amount in ₦" min="1000" required>
+                </div>
+
+                <div class="price-display" id="elecPriceDisplay" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Base Price: <span id="elecBasePrice">₦0.00</span></p>
+                    <p>Interest (10%): <span id="elecInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">Final Price: <span id="elecFinalPrice">₦0.00</span></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="elecMeter">Meter Number</label>
+                    <input type="text" id="elecMeter" placeholder="Enter meter number" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="elecPin">4-Digit Transaction PIN</label>
+                    <input type="password" id="elecPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Buy Token
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CABLE TV MODAL                             -->
+    <!-- ========================================== -->
+    <div id="cableTvModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-tv"></i> Renew Cable TV Subscription</h3>
+                <span class="close-modal" id="closeCableTvModal">&times;</span>
+            </div>
+            
+            <form id="cableTvForm">
+                <div class="form-group">
+                    <label for="tvProvider">Select Cable Provider</label>
+                    <select id="tvProvider" required>
+                        <option value="">-- Choose Provider --</option>
+                        <option value="DSTV">DStv Nigeria</option>
+                        <option value="GOTV">GOtv Nigeria</option>
+                        <option value="STARTIMES">StarTimes Nigeria</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="tvPlan">Select Plan</label>
+                    <select id="tvPlan" required>
+                        <option value="">-- Select Provider First --</option>
+                    </select>
+                </div>
+
+                <div class="price-display" id="tvPriceDisplay" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Base Price: <span id="tvBasePrice">₦0.00</span></p>
+                    <p>Interest (10%): <span id="tvInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">Final Price: <span id="tvFinalPrice">₦0.00</span></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="tvSmartcard">Smart Card/IUC Number</label>
+                    <input type="text" id="tvSmartcard" placeholder="Enter smart card number" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="tvPin">4-Digit Transaction PIN</label>
+                    <input type="password" id="tvPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Renew Subscription
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- EDUCATIONAL PINS MODAL                     -->
+    <!-- ========================================== -->
+    <div id="educationalPinsModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-book"></i> Buy Educational Pins</h3>
+                <span class="close-modal" id="closeEducationalPinsModal">&times;</span>
+            </div>
+            
+            <form id="educationalPinsForm">
+                <div class="form-group">
+                    <label for="eduProvider">Select Exam Body</label>
+                    <select id="eduProvider" required>
+                        <option value="">-- Choose Exam Body --</option>
+                        <option value="JAMB">JAMB ePIN</option>
+                        <option value="WAEC">WAEC ePIN</option>
+                        <option value="NECO">NECO ePIN</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="eduQuantity">Quantity</label>
+                    <input type="number" id="eduQuantity" placeholder="Number of pins" min="1" required>
+                </div>
+
+                <div class="price-display" id="eduPriceDisplay" style="background: linear-gradient(135deg, #06b6d4, #0891b2); color: white; padding: 12px; border-radius: 6px; margin: 12px 0; display: none;">
+                    <p>Base Price: <span id="eduBasePrice">₦0.00</span></p>
+                    <p>Interest (15%): <span id="eduInterest">₦0.00</span></p>
+                    <p style="font-size: 16px; font-weight: bold; border-top: 1px solid rgba(255,255,255,0.3); padding-top: 8px; margin-top: 8px;">Final Price: <span id="eduFinalPrice">₦0.00</span></p>
+                </div>
+
+                <div class="form-group">
+                    <label for="eduEmail">Email Address (for pins delivery)</label>
+                    <input type="email" id="eduEmail" placeholder="e.g. student@example.com" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="eduPin">4-Digit Transaction PIN</label>
+                    <input type="password" id="eduPin" placeholder="e.g. 1234" maxlength="4" pattern="\d{4}" inputmode="numeric" required>
+                </div>
+
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-check"></i> Purchase Pins
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- CUSTOMER SUPPORT MODAL                     -->
+    <!-- ========================================== -->
+    <div id="supportModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-headset"></i> Customer Support</h3>
+                <span class="close-modal" id="closeSupportModal">&times;</span>
+            </div>
+            
+            <div class="support-content">
+                <p style="margin-bottom: 20px; color: #666;">Get in touch with our support team through any of the channels below:</p>
+                
+                <a href="mailto:ajibadeayodeji07@gmail.com" class="support-option email-option">
+                    <div class="support-icon"><i class="fas fa-envelope"></i></div>
+                    <div class="support-info">
+                        <h4>Email Support</h4>
+                        <p>ajibadeayodeji07@gmail.com</p>
+                    </div>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+
+                <a href="https://wa.me/qr/7KXHGSCQUCU2C1" target="_blank" class="support-option whatsapp-option">
+                    <div class="support-icon"><i class="fab fa-whatsapp"></i></div>
+                    <div class="support-info">
+                        <h4>WhatsApp Support</h4>
+                        <p>Click to chat with us on WhatsApp</p>
+                    </div>
+                    <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <footer class="main-footer">
+        <p>&copy; 2026 Dozentelecom. Safe automated API delivery system.</p>
+    </footer>
+	
     <script src="script.js"></script>
-</body>
 </body>
 </html>
