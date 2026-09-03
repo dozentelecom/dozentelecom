@@ -1,0 +1,1 @@
+import Link from 'next/link';export default function Services(){return <main className="shell page"><Link href="/">← Home</Link><h1>Services</h1><div className="grid">{['Airtime','Data','Electricity','Cable TV','Education','Airtime to Cash'].map(x=><div className="card" key={x}><h2>{x}</h2><p className="muted">Available in your secure dashboard.</p></div>)}</div></main>}

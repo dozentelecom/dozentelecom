@@ -1,0 +1,1 @@
+import{describe,it,expect}from'vitest';import{roundAirtime,percentPrice,assertRate}from'../lib/pricing';describe('pricing',()=>{it('rounds 97 to 100',()=>expect(roundAirtime(97)).toBe(100));it('applies 5 percent',()=>expect(percentPrice(100,5)).toBe(105));it('caps data',()=>expect(()=>assertRate('data',6)).toThrow())})

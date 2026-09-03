@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import {smeapi,ProviderError} from '@/lib/smeapi';
+export async function POST(req:Request){try{const b=await req.json();const provider=Number(b.provider),iucnumber=String(b.iucnumber||'');if(!Number.isFinite(provider)||!iucnumber)return NextResponse.json({error:'provider and iucnumber are required'},{status:400});return NextResponse.json(await smeapi.cableVerify({provider,iucnumber}))}catch(e:any){const s=e instanceof ProviderError?e.status:502;return NextResponse.json({error:e.message,details:e.details},{status:s})}}

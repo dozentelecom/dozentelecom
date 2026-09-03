@@ -1,0 +1,5 @@
+import Link from "next/link";
+export default async function Forgot({searchParams}:{searchParams?:Promise<{error?:string}>}){
+  const params=await searchParams;
+  return <main className="shell page"><div className="card auth-card"><h1>Forgot password</h1><p className="muted">Choose how you want to recover your account. We can send a verification code, a secure reset link, or both.</p>{params?.error&&<div className="alert error">{params.error}</div>}<form action="/api/auth/forgot-password" method="post"><label className="label">Email</label><input className="input" name="email" type="email" required placeholder="you@example.com"/><label className="label">Recovery preference</label><select className="input" name="method" defaultValue="both"><option value="both">Send code + reset link</option><option value="code">Send verification code</option><option value="link">Send reset link</option></select><button className="btn primary">Send recovery email</button></form><p><Link href="/login">← Back to login</Link></p></div></main>
+}

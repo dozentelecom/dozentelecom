@@ -1,0 +1,1 @@
+export const ATC={MTN:process.env.ATC_MTN_NUMBER||'08143140831',AIRTEL:process.env.ATC_AIRTEL_NUMBER||'09112123096'};export const payout=(amount:number,rate=20)=>Math.round(amount*(1-rate/100)*100)/100;

@@ -1,0 +1,1 @@
+import {NextResponse} from 'next/server';import {cookies} from 'next/headers';export async function GET(req:Request){(await cookies()).delete('dt_session');return NextResponse.redirect(new URL('/',req.url))}

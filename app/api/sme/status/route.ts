@@ -1,0 +1,2 @@
+import {NextResponse} from 'next/server';import {smeapi,ProviderError} from '@/lib/smeapi';
+export async function POST(req:Request){try{const b=await req.json();const ref=String(b.ref||'');if(!ref)return NextResponse.json({error:'ref is required'},{status:400});return NextResponse.json(await smeapi.status({ref}))}catch(e:any){const s=e instanceof ProviderError?e.status:502;return NextResponse.json({error:e.message,details:e.details},{status:s})}}

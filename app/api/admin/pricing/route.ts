@@ -1,0 +1,4 @@
+import {NextResponse} from 'next/server';import {currentUserId} from '@/lib/session';import {db} from '@/lib/db';import {User} from '@/lib/models';import {getRates,saveRates} from '@/lib/settings';
+async function admin(){const id=await currentUserId();if(!id)throw new Error('UNAUTHORIZED');await db();const u:any=await User.findById(id);if(!u||u.role!=='admin')throw new Error('FORBIDDEN');return u;}
+export async function GET(){try{await admin();return NextResponse.json({rates:await getRates()})}catch(e:any){return NextResponse.json({error:e.message},{status:e.message==='UNAUTHORIZED'?401:403})}}
+export async function POST(req:Request){try{await admin();const b=await req.json();return NextResponse.json({rates:await saveRates(b)})}catch(e:any){return NextResponse.json({error:e.message},{status:e.message==='UNAUTHORIZED'?401:403})}}
