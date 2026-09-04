@@ -420,7 +420,7 @@ export async function POST(req: Request) {
             new: true,
             runValidators: true,
           }
-        ).lean();
+        ).lean() as any;
 
       /*
       ---------------------------------------------------------

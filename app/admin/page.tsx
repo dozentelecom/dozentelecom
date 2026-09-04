@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/admin";
 import AdminSidebar from "@/components/admin/AdminSidebar";
-import BackButton from "./components/BackButton";
+import BackButton from "@/components/admin/BackButton";
 
 export default async function AdminDashboard() {
   const admin = await requireAdmin();
