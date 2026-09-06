@@ -340,6 +340,84 @@ export default async function Dashboard() {
 
         </div>
 
+	                {/* CONTACT & COMMUNITY */}
+
+        <div className="section-head">
+          <div>
+            <h2>
+              Contact & Community
+            </h2>
+
+            <p className="muted">
+              Need help? Contact our support team or
+              join our WhatsApp community.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid">
+
+          {/* WHATSAPP ADMIN */}
+          <a
+            href="https://wa.me/2348143140831"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card service-card"
+          >
+            <div className="service-icon">
+              💬
+            </div>
+
+            <h3>
+              Chat with Admin
+            </h3>
+
+            <p className="muted">
+              Message us directly on WhatsApp
+            </p>
+          </a>
+
+          {/* WHATSAPP GROUP */}
+          <a
+            href="https://chat.whatsapp.com/Euf9WLOfbIGD1BzH4c4jVE"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="card service-card"
+          >
+            <div className="service-icon">
+              👥
+            </div>
+
+            <h3>
+              Join WhatsApp Group
+            </h3>
+
+            <p className="muted">
+              Join our community for updates and
+              announcements
+            </p>
+          </a>
+
+          {/* EMAIL SUPPORT */}
+          <a
+            href="mailto:ajibadeayodeji07@gmail.com"
+            className="card service-card"
+          >
+            <div className="service-icon">
+              ✉️
+            </div>
+
+            <h3>
+              Email Support
+            </h3>
+
+            <p className="muted">
+              Contact our support team by email
+            </p>
+          </a>
+
+        </div>
+
       </section>
     </main>
   );
