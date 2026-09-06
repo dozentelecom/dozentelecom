@@ -23,6 +23,7 @@ console.log("REGISTER DATA:", {
   name,
   email,
   phone,
+phoneNumber: phone,
 });
 
     if (!name || !email || !phone || password.length < 8) {
@@ -69,6 +70,7 @@ console.log("REGISTER PHONE:", phone);
   name,
   email,
   phone,
+  phoneNumber: phone,
   passwordHash,
   role,
 });
