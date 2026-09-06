@@ -1101,10 +1101,8 @@ if (loadedRates) {
           </h1>
 
           <p className="muted">
-            Live networks, plans and
-            provider prices are loaded
-            from the configured APIs.
-          </p>
+  Choose a service and complete your purchase securely.
+</p>
         </div>
 
         <a
@@ -1290,6 +1288,16 @@ if (loadedRates) {
               <h2>
                 📶 Mobile Data
               </h2>
+
+	   <div
+  className="alert"
+  style={{
+    marginBottom: "14px",
+    fontSize: "13px",
+  }}
+>
+  ⚠️ <strong>Awoof Plans:</strong> Only eligible numbers can use Awoof plans. If an Awoof plan fails, please try another plan.
+</div>
 
               <label className="field">
                 <span>
@@ -2206,43 +2214,14 @@ const price = customerPrice(
             Security
           </h3>
 
-          <p className="muted">
-            Purchases are sent through
-            secure server-side API
-            routes. Provider API keys
-            and customer PINs are never
-            exposed to the browser.
-          </p>
-
-          <a
+            <a
             className="btn"
             href="/forgot-pin"
           >
             Forgot PIN?
           </a>
 
-          <hr />
-
-          <h3>
-            Providers
-          </h3>
-
-          <p className="muted">
-            SME API:
-            <br />
-            Airtime & Data
-            <br />
-            <br />
-            WISESUB:
-            <br />
-            Electricity
-            <br />
-            Cable TV
-            <br />
-            Education / Exam PIN
-          </p>
-
-        </aside>
+          </aside>
 
       </div>
     </main>
