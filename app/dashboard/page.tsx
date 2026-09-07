@@ -41,7 +41,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="grid">
+        <div className="dashboard-summary-grid">
 
           {/* WALLET */}
           <div className="card">
@@ -302,7 +302,7 @@ export default async function Dashboard() {
 
         </div>
 
-        <div className="grid">
+        <div className="service-card-grid">
 
           {[
             ["Airtime", "📱"],
@@ -355,7 +355,7 @@ export default async function Dashboard() {
           </div>
         </div>
 
-        <div className="grid">
+        <div className="contact-grid">
 
           {/* WHATSAPP ADMIN */}
           <a
