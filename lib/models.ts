@@ -394,6 +394,192 @@ const ProfitWithdrawalSchema = new Schema(
 
 
 /* =========================================================
+   GIVEAWAY
+   ========================================================= */
+
+const GiveawaySchema = new Schema(
+  {
+    creatorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    token: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["AIRTIME", "DATA"],
+      required: true,
+    },
+
+    network: {
+      type: Number,
+      required: true,
+    },
+
+    /* Airtime amount in Naira */
+    airtimeAmount: {
+      type: Number,
+    },
+
+    /* Data plan ID */
+    dataPlan: {
+      type: Number,
+    },
+
+    /* Data plan name shown to recipients */
+    dataPlanName: {
+      type: String,
+    },
+
+    /* Provider cost at time giveaway was created */
+    providerCostKobo: {
+      type: Number,
+      required: true,
+    },
+
+    /* Price charged/reserved from creator wallet per recipient */
+    rewardPriceKobo: {
+      type: Number,
+      required: true,
+    },
+
+    recipientLimit: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    claimedCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "ACTIVE",
+        "COMPLETED",
+        "CANCELLED",
+        "EXPIRED",
+      ],
+      default: "ACTIVE",
+      index: true,
+    },
+
+    expiresAt: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+
+/* =========================================================
+   GIVEAWAY CLAIM
+   ========================================================= */
+
+const GiveawayClaimSchema = new Schema(
+  {
+    giveawayId: {
+      type: Schema.Types.ObjectId,
+      ref: "Giveaway",
+      required: true,
+      index: true,
+    },
+
+    creatorId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    phone: {
+      type: String,
+      required: true,
+    },
+
+    type: {
+      type: String,
+      enum: ["AIRTIME", "DATA"],
+      required: true,
+    },
+
+    network: {
+      type: Number,
+      required: true,
+    },
+
+    amountKobo: {
+      type: Number,
+      required: true,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "PROCESSING",
+        "SUCCESS",
+        "FAILED",
+      ],
+      default: "PROCESSING",
+      index: true,
+    },
+
+    providerReference: {
+      type: String,
+    },
+
+    providerResponse: {
+      type: Schema.Types.Mixed,
+    },
+
+    error: {
+      type: String,
+    },
+
+    claimedAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+
+/*
+ * VERY IMPORTANT:
+ *
+ * The same phone number can only claim once
+ * from the same giveaway.
+ *
+ * This also protects against two simultaneous
+ * claim requests.
+ */
+GiveawayClaimSchema.index(
+  {
+    giveawayId: 1,
+    phone: 1,
+  },
+  {
+    unique: true,
+  }
+);
+
+/* =========================================================
    MODELS
    ========================================================= */
 
@@ -419,6 +605,17 @@ export const AirtimeToCash =
 export const Settings =
   models.Settings ||
   model("Settings", SettingsSchema);
+
+export const Giveaway =
+  models.Giveaway ||
+  model("Giveaway", GiveawaySchema);
+
+export const GiveawayClaim =
+  models.GiveawayClaim ||
+  model(
+    "GiveawayClaim",
+    GiveawayClaimSchema
+  );
 
 export const ProfitWithdrawal =
   models.ProfitWithdrawal ||

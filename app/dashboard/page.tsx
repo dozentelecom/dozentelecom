@@ -305,17 +305,20 @@ export default async function Dashboard() {
             ["Electricity", "⚡"],
             ["Education", "🎓"],
             ["Airtime to Cash", "💸"],
+	    ["Giveaway", "🎁"],
           ].map(([x, icon]) => (
 
             <Link
-              href={
-                x === "Airtime to Cash"
-                  ? "/dashboard/airtime-to-cash"
-                  : "/dashboard/services"
-              }
-              className="card service-card"
-              key={x}
-            >
+  href={
+    x === "Airtime to Cash"
+      ? "/dashboard/airtime-to-cash"
+      : x === "Giveaway"
+      ? "/dashboard/giveaway"
+      : "/dashboard/services"
+  }
+  className="card service-card"
+  key={x}
+>
 
               <div className="service-icon">
                 {icon}
@@ -326,7 +329,9 @@ export default async function Dashboard() {
               </h3>
 
               <p className="muted">
-                Open secure form
+                {x === "Giveaway"
+          ? "Send Airtime or Data as a gift"
+          : "Open secure form"}
               </p>
 
             </Link>
