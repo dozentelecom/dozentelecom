@@ -194,27 +194,6 @@ useEffect(() => {
             </div>
           )}
 
-	   {/* GIVEAWAY */}
-<Link
-  href="/dashboard/giveaway"
-  className={`sidebar-link ${
-    pathname.startsWith("/dashboard/giveaway")
-      ? "active"
-      : ""
-  }`}
-  title="Giveaway"
->
-  <span className="sidebar-icon">
-    🎁
-  </span>
-
-  {open && (
-    <span>
-      Giveaway
-    </span>
-  )}
-</Link>
-
 	{/* GIVEAWAY */}
 <Link
   href="/dashboard/giveaway"
