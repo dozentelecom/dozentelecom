@@ -312,12 +312,21 @@ export default function GiveawayPage() {
    * =========================================================
    */
 
-  const selectedDataPrice = selectedPlan
-    ? percentPrice(
-        selectedPlan.price,
-        dataMarkup
-      )
+  const providerDataPrice = Number(selectedPlan?.price || 0);
+
+const selectedDataPrice =
+  providerDataPrice > 0
+    ? percentPrice(providerDataPrice, Number(dataMarkup || 0))
     : 0;
+
+const dataProfitPerRecipient = Math.max(
+  0,
+  selectedDataPrice - providerDataPrice
+);
+
+const dataTotalProfit =
+  dataProfitPerRecipient *
+  Number(recipientLimit || 0);
 
   /*
    * =========================================================
@@ -940,16 +949,7 @@ export default function GiveawayPage() {
                             </p>
 
                             <p className="mt-1 text-base font-bold text-emerald-400">
-                              {money(
-                                Math.max(
-                                  0,
-                                  selectedDataPrice -
-                                    Number(
-                                      selectedPlan.price ||
-                                        0
-                                    )
-                                )
-                              )}
+                              {money(dataProfitPerRecipient)}
                             </p>
                           </div>
                         </div>
@@ -983,20 +983,7 @@ export default function GiveawayPage() {
                               </div>
 
                               <p className="text-lg font-bold text-emerald-400">
-                                {money(
-                                  Math.max(
-                                    0,
-                                    selectedDataPrice -
-                                      Number(
-                                        selectedPlan.price ||
-                                          0
-                                      )
-                                  ) *
-                                    Number(
-                                      recipientLimit ||
-                                        0
-                                    )
-                                )}
+                               {money(dataTotalProfit)}
                               </p>
                             </div>
                           </div>
