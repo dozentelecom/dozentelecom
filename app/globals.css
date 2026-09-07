@@ -1234,15 +1234,18 @@
     font-size: 11px !important;
   }
 
-  /* Services heading */
-  .dashboard-content h2 {
-    width: auto !important;
-  min-width: 0 !important;
-  display: inline-flex !important;
-  padding: 10px 14px !important;
-  font-size: 14px !important;
-  white-space: nowrap !important;
-  }
+  /* =========================================================
+   SERVICES HEADING
+   ========================================================= */
+
+.dashboard-content h2 {
+  font-size: clamp(20px, 6vw, 25px) !important;
+  line-height: 1.1 !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  display: block !important;
+  white-space: normal !important;
+}
 
   /* Services description */
   .dashboard-content .section-head,
@@ -1318,30 +1321,250 @@
 }
 
 /* =========================================================
-   DESKTOP CUSTOMER DASHBOARD FIX
+   CUSTOMER DASHBOARD — DESKTOP
    ========================================================= */
 
 @media (min-width: 768px) {
+
+  /* =========================
+     MAIN CONTENT
+     ========================= */
+
+  .dashboard-content {
+    width: 100%;
+    min-width: 0;
+    padding: 32px;
+    box-sizing: border-box;
+  }
+
+  .dashboard-top {
+    width: 100%;
+    margin-bottom: 24px;
+  }
+
+
+  /* =========================
+     WALLET + KYC
+     ========================= */
+
   .dashboard-summary-grid {
     display: grid !important;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
-    gap: 14px !important;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr) !important;
+
+    gap: 16px !important;
+
+    width: 100% !important;
+
     align-items: start !important;
+
+    margin-bottom: 28px !important;
+  }
+
+  .dashboard-summary-grid > * {
+    width: 100% !important;
+    min-width: 0 !important;
   }
 
   .dashboard-summary-grid .card {
+    width: 100% !important;
+
     height: auto !important;
     min-height: 0 !important;
+
+    box-sizing: border-box !important;
   }
 
-  .service-card-grid,
-  .contact-grid {
+
+  /* =========================
+     SERVICES HEADER
+     ========================= */
+
+  .dashboard-content > .section-head {
+    width: 100%;
+
+    display: flex;
+
+    flex-direction: row;
+
+    align-items: center;
+
+    justify-content: space-between;
+
+    gap: 20px;
+
+    margin-bottom: 16px;
+  }
+
+  .dashboard-content > .section-head h2 {
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    font-size: 22px !important;
+
+    display: block !important;
+
+    white-space: normal !important;
+  }
+
+  /* Open services button */
+  .dashboard-content > .section-head > .btn {
+    width: auto !important;
+
+    min-width: 0 !important;
+
+    display: inline-flex !important;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 10px 14px !important;
+
+    font-size: 13px !important;
+
+    line-height: 1.2 !important;
+
+    white-space: nowrap !important;
+
+    margin: 0 !important;
+  }
+
+
+  /* =========================
+     SERVICES GRID
+     ========================= */
+
+  .service-card-grid {
+    display: grid !important;
+
+    grid-template-columns:
+      repeat(5, minmax(0, 1fr)) !important;
+
+    gap: 14px !important;
+
+    width: 100% !important;
+
+    margin: 0 0 28px !important;
+
     align-items: start !important;
   }
 
-  .service-card-grid .service-card,
-  .contact-grid .service-card {
+  .service-card-grid > * {
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: 100% !important;
+  }
+
+  .service-card-grid .service-card {
+    width: 100% !important;
+
+    min-width: 0 !important;
+
     height: auto !important;
+
     min-height: 0 !important;
+
+    box-sizing: border-box !important;
+
+    padding: 18px 10px !important;
+
+    margin: 0 !important;
+
+    text-align: center !important;
+  }
+
+  .service-card-grid .service-icon {
+    font-size: 28px !important;
+
+    line-height: 1 !important;
+
+    margin: 0 0 8px !important;
+  }
+
+  .service-card-grid h3 {
+    margin: 0 !important;
+
+    padding: 0 !important;
+
+    font-size: 14px !important;
+
+    line-height: 1.2 !important;
+
+    overflow-wrap: anywhere !important;
+  }
+
+
+  /* =========================
+     CONTACT & COMMUNITY
+     ========================= */
+
+  .contact-grid {
+    display: grid !important;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr)) !important;
+
+    gap: 14px !important;
+
+    width: 100% !important;
+
+    margin: 0 !important;
+
+    align-items: start !important;
+  }
+
+  .contact-grid > * {
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    max-width: 100% !important;
+  }
+
+  .contact-grid .service-card {
+    width: 100% !important;
+
+    min-width: 0 !important;
+
+    height: auto !important;
+
+    min-height: 0 !important;
+
+    box-sizing: border-box !important;
+
+    padding: 16px 12px !important;
+
+    margin: 0 !important;
+
+    text-align: center !important;
+  }
+
+  .contact-grid .service-icon {
+    font-size: 28px !important;
+
+    line-height: 1 !important;
+
+    margin: 0 0 8px !important;
+  }
+
+  .contact-grid h3 {
+    margin: 0 0 6px !important;
+
+    font-size: 14px !important;
+
+    line-height: 1.2 !important;
+  }
+
+  .contact-grid p {
+    margin: 0 !important;
+
+    font-size: 11px !important;
+
+    line-height: 1.35 !important;
   }
 }

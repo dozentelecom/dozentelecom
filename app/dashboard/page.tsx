@@ -286,11 +286,6 @@ export default async function Dashboard() {
               Services
             </h2>
 
-            <p className="muted">
-              Protected VTU services with
-              server-side PIN enforcement.
-            </p>
-
           </div>
 
           <Link
