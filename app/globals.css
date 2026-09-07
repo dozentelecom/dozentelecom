@@ -1085,7 +1085,156 @@
 
 }
 
-
 /* =========================================================
-   END OF MOBILE CUSTOMER DASHBOARD
+   FINAL CUSTOMER DASHBOARD MOBILE FIT
    ========================================================= */
+
+@media (max-width: 767px) {
+
+  html,
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dashboard-layout {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+
+  .dashboard-content {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+
+    /* Give the header enough room */
+    padding: 82px 8px 24px !important;
+
+    overflow-x: hidden;
+  }
+
+  /* Dashboard title */
+  .dashboard-content h1 {
+    font-size: clamp(27px, 8vw, 34px) !important;
+    line-height: 1.05 !important;
+    margin: 0 0 18px !important;
+    padding: 0 !important;
+  }
+
+  /* Main sections */
+  .dashboard-content section {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    margin-bottom: 18px;
+  }
+
+  /* Wallet + KYC */
+  .dashboard-summary-grid {
+    width: 100% !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .dashboard-summary-grid .card {
+    min-width: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box;
+    padding: 12px 7px !important;
+  }
+
+  .dashboard-summary-grid .wallet-balance,
+  .dashboard-summary-grid .balance {
+    font-size: clamp(18px, 6vw, 22px) !important;
+  }
+
+  .dashboard-summary-grid .btn {
+    max-width: 100%;
+    padding: 8px 5px !important;
+    font-size: 11px !important;
+  }
+
+  /* Services heading */
+  .dashboard-content h2 {
+    font-size: clamp(20px, 6vw, 25px) !important;
+    line-height: 1.1 !important;
+    margin: 0 0 8px !important;
+  }
+
+  /* Services description */
+  .dashboard-content .section-head,
+  .dashboard-content .service-head {
+    margin-bottom: 10px !important;
+  }
+
+  .dashboard-content .section-head p,
+  .dashboard-content .service-head p {
+    margin: 0 !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Open services button */
+  .dashboard-content .section-head .btn,
+  .dashboard-content .service-head .btn {
+    margin-top: 10px !important;
+  }
+
+  /* Service cards */
+  .service-card-grid {
+    width: 100% !important;
+    max-width: 100% !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    margin-top: 10px !important;
+  }
+
+  .service-card-grid > * {
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .service-card-grid .service-card {
+    width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box;
+    padding: 9px 3px !important;
+  }
+
+  .service-card-grid .service-icon {
+    font-size: clamp(18px, 5vw, 25px) !important;
+    margin-bottom: 4px !important;
+  }
+
+  .service-card-grid h3 {
+    font-size: clamp(9px, 2.6vw, 13px) !important;
+    line-height: 1.1 !important;
+  }
+
+  .service-card-grid p {
+    font-size: clamp(7px, 2vw, 10px) !important;
+    line-height: 1.15 !important;
+    margin-top: 3px !important;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 359px) {
+
+  .dashboard-content {
+    padding-left: 6px !important;
+    padding-right: 6px !important;
+  }
+
+  .service-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .dashboard-summary-grid {
+    gap: 5px !important;
+  }
+}
