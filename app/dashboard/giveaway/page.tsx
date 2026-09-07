@@ -541,6 +541,8 @@ export default function GiveawayPage() {
 
           <div className="p-5 sm:p-7 md:p-8">
 
+<div className="grid grid-cols-2 gap-3 sm:gap-4">
+
                             {/* AIRTIME */}
 
                 <button
@@ -628,7 +630,6 @@ export default function GiveawayPage() {
                   </div>
                 </button>
 
-              </div>
             </div>
 
             {/* =================================================
@@ -1223,19 +1224,14 @@ export default function GiveawayPage() {
                   </div>
                 )}
 
-                {/* =================================================
+                                              {/* =================================================
                     CREATE GIVEAWAY
                     ================================================= */}
 
                 <button
                   type="button"
-                  onClick={
-                    createGiveaway
-                  }
-                  disabled={
-                    loading ||
-                    loadingPlans
-                  }
+                  onClick={createGiveaway}
+                  disabled={loading || loadingPlans}
                   className="mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#1d70f5] px-5 text-base font-extrabold text-white shadow-lg shadow-blue-500/10 transition-all hover:bg-blue-600 hover:shadow-blue-500/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
@@ -1255,68 +1251,68 @@ export default function GiveawayPage() {
             </div>
 
           </div>
+
+          {/* =====================================================
+              GENERATED LINK
+              ===================================================== */}
+
+          {giftLink && (
+            <div className="mt-6 overflow-hidden rounded-3xl border border-emerald-500/20 bg-slate-900 shadow-xl">
+
+              <div className="border-b border-slate-800 px-5 py-5 sm:px-7">
+                <div className="flex items-center gap-3">
+
+                  <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-xl">
+                    🔗
+                  </div>
+
+                  <div>
+                    <h2 className="font-bold text-white">
+                      Giveaway Created
+                    </h2>
+                  </div>
+
+                </div>
+              </div>
+
+              <div className="p-5 sm:p-7">
+
+                <div className="rounded-2xl border border-slate-700 bg-slate-950 p-4">
+
+                  <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
+                    Giveaway Link
+                  </div>
+
+                  <div className="break-all text-sm leading-6 text-slate-300">
+                    {giftLink}
+                  </div>
+
+                </div>
+
+                <button
+                  type="button"
+                  onClick={copyLink}
+                  className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-[0.99]"
+                >
+                  📋
+                  Copy Giveaway Link
+                </button>
+
+                <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500">
+                  <span>ℹ️</span>
+
+                  <p>
+                    Recipients only need to enter
+                    their phone number to claim
+                    their gift.
+                  </p>
+                </div>
+
+              </div>
+            </div>
+                    )}
+
         </div>
-
-        {/* =====================================================
-            GENERATED LINK
-            ===================================================== */}
-
-        {giftLink && (
-          <div className="mt-6 overflow-hidden rounded-3xl border border-emerald-500/20 bg-slate-900 shadow-xl">
-
-            <div className="border-b border-slate-800 px-5 py-5 sm:px-7">
-              <div className="flex items-center gap-3">
-
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-xl">
-                  🔗
-                </div>
-
-                <div>
-                  <h2 className="font-bold text-white">
-                    Giveaway Created
-                  </h2>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="p-5 sm:p-7">
-
-              <div className="rounded-2xl border border-slate-700 bg-slate-950 p-4">
-
-                <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
-                  Giveaway Link
-                </div>
-
-                <div className="break-all text-sm leading-6 text-slate-300">
-                  {giftLink}
-                </div>
-
-              </div>
-
-              <button
-                type="button"
-                onClick={copyLink}
-                className="mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-slate-700 bg-slate-800 px-5 text-sm font-semibold text-white transition hover:bg-slate-700 active:scale-[0.99]"
-              >
-                📋
-                Copy Giveaway Link
-              </button>
-
-              <div className="mt-5 flex items-start gap-2 text-xs leading-5 text-slate-500">
-                <span>ℹ️</span>
-
-                <p>
-                  Recipients only need to enter
-                  their phone number to claim
-                  their gift.
-                </p>
-              </div>
-
-            </div>
-          </div>
-        )}
-
       </div>
     </main>
   );
