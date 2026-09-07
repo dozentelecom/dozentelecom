@@ -541,25 +541,7 @@ export default function GiveawayPage() {
 
           <div className="p-5 sm:p-7 md:p-8">
 
-            {/* =================================================
-                GIFT TYPE
-                ================================================= */}
-
-            <div className="mb-7">
-              <div className="mb-3">
-                <label className="text-sm font-semibold text-slate-200">
-                  Gift Type
-                </label>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Choose what your recipients
-                  will receive.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2.5 sm:gap-3">
-
-                {/* AIRTIME */}
+                            {/* AIRTIME */}
 
                 <button
                   type="button"
@@ -598,7 +580,7 @@ export default function GiveawayPage() {
                     </div>
 
                     <div className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">
-                      Send airtime credit
+      
                     </div>
                   </div>
                 </button>
@@ -641,7 +623,7 @@ export default function GiveawayPage() {
                     </div>
 
                     <div className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">
-                      Send a data bundle
+                     
                     </div>
                   </div>
                 </button>
@@ -732,8 +714,7 @@ export default function GiveawayPage() {
                     </div>
 
                     <p className="mt-1.5 text-xs leading-5 text-slate-400">
-                      Enter the airtime value you
-                      want each recipient to receive.
+                      
                     </p>
 
                     {airtimePrice > 0 && (
@@ -1074,7 +1055,7 @@ export default function GiveawayPage() {
 
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-100">
-                    4-digit Transaction PIN
+                   Transaction PIN
                   </label>
 
                   <input
@@ -1100,9 +1081,6 @@ export default function GiveawayPage() {
                   />
 
                   <p className="mt-1.5 text-xs leading-5 text-slate-400">
-                    🔒 Your transaction PIN is
-                    only used to authorize this
-                    giveaway.
                   </p>
                 </div>
 
