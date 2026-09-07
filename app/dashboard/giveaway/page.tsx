@@ -470,7 +470,7 @@ export default function GiveawayPage() {
         !/^\d{4}$/.test(pin)
       ) {
         setError(
-          "Enter your 4-digit transaction PIN."
+          "Enter your PIN."
         );
         return;
       }
@@ -610,24 +610,6 @@ return (
 
         <div className="p-5 sm:p-7 md:p-8">
 
-
-          {/* =================================================
-              GIFT TYPE
-              ================================================= */}
-
-          <div className="mb-7">
-            <div className="mb-3">
-              <label className="text-sm font-semibold text-slate-200">
-                Gift Type
-              </label>
-
-              <p className="mt-1 text-xs text-slate-500">
-                Choose what your recipients will receive.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-
               {/* AIRTIME */}
 
               <button
@@ -666,10 +648,6 @@ return (
                 <div className="mt-4">
                   <div className="font-semibold text-white">
                     Airtime
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-500">
-                    Send airtime credit to your recipients.
                   </div>
                 </div>
               </button>
@@ -712,10 +690,6 @@ return (
                 <div className="mt-4">
                   <div className="font-semibold text-white">
                     Data
-                  </div>
-
-                  <div className="mt-1 text-xs text-slate-500">
-                    Send a mobile data bundle to your recipients.
                   </div>
                 </div>
               </button>
@@ -772,512 +746,322 @@ return (
           </div>
 
 
-         {/* =================================================
-    GIVEAWAY FORM
-    ================================================= */}
+          {/* =================================================
+              AIRTIME
+              ================================================= */}
 
-<div className="mb-7 rounded-2xl bg-[#0b1329] p-5 text-white shadow-xl sm:p-6">
+          {type === "AIRTIME" && (
+            <div className="mb-7">
 
-  <div className="space-y-5">
+              <label className="mb-2 block text-sm font-semibold text-slate-200">
+                Airtime Amount
+              </label>
 
-    {/* =================================================
-        AIRTIME
-        ================================================= */}
+              <div className="relative">
 
-    {type === "AIRTIME" && (
-      <div>
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-500">
+                  ₦
+                </span>
 
-        <label className="mb-2 block text-sm font-bold text-slate-100">
-          Airtime Amount (₦)
-        </label>
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="100"
+                  value={amount}
+                  onChange={(e) =>
+                    setAmount(e.target.value)
+                  }
+                  className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 pl-10 pr-4 text-sm font-medium text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                />
 
-        <div className="relative">
-
-          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
-            ₦
-          </span>
-
-          <input
-            type="number"
-            min="1"
-            placeholder="100"
-            value={amount}
-            onChange={(e) =>
-              setAmount(e.target.value)
-            }
-            className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] pl-10 pr-4 text-base font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500"
-          />
-
-        </div>
-
-        <p className="mt-1.5 text-xs leading-5 text-slate-400">
-          Enter the airtime value you want each recipient to receive.
-        </p>
-
-
-        {/* AIRTIME PRICE */}
-
-        {airtimePrice > 0 && (
-          <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-
-            <div className="flex items-center justify-between gap-3">
-
-              <div>
-                <p className="text-xs text-slate-400">
-                  Amount per recipient
-                </p>
-
-                <p className="mt-1 text-lg font-bold text-white">
-                  {money(airtimePrice)}
-                </p>
               </div>
 
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-lg">
-                💰
-              </div>
+              <p className="mt-2 text-xs text-slate-500">
+                             </p>
+
+
+              {/* AIRTIME PRICE PREVIEW */}
+
+              {airtimePrice > 0 && (
+                <div className="mt-3 rounded-2xl border border-blue-500/20 bg-blue-500/5 p-4">
+
+                  <div className="flex items-center justify-between gap-4">
+
+                    <div>
+                      <div className="text-xs text-slate-500">
+                        Amount per recipient
+                      </div>
+
+                      <div className="mt-1 text-lg font-bold text-white">
+                        {money(airtimePrice)}
+                      </div>
+                    </div>
+
+                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-lg">
+                      💰
+                    </div>
+
+                  </div>
+
+                  {airtimePrice !== Number(amount) && (
+                    <div className="mt-3 border-t border-blue-500/10 pt-3 text-xs leading-5 text-slate-500">
+                      Amount rounded up using your configured
+                      airtime unit of{" "}
+                      <span className="font-semibold text-slate-400">
+                        {money(airtimeRoundUnit)}
+                      </span>
+                      .
+                    </div>
+                  )}
+
+                </div>
+              )}
 
             </div>
+          )}
 
-            {airtimePrice !== Number(amount) && (
-              <p className="mt-2 border-t border-blue-500/10 pt-2 text-xs leading-5 text-slate-400">
-                Rounded using your configured airtime unit of{" "}
-                <span className="font-semibold text-slate-300">
-                  {money(airtimeRoundUnit)}
-                </span>
-                .
-              </p>
-            )}
+
+          {/* =================================================
+              DATA
+              ================================================= */}
+
+          {type === "DATA" && (
+            <>
+
+              {/* DATA SERVICE */}
+
+              {serviceTypes.length > 0 && (
+                <div className="mb-7">
+
+                  <label className="mb-2 block text-sm font-semibold text-slate-200">
+                    Data Service
+                  </label>
+
+                  <div className="relative">
+
+                    <select
+                      value={serviceType}
+                      onChange={(e) => {
+                        setServiceType(e.target.value);
+                        setDataPlan("");
+                      }}
+                      className="h-12 w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 px-4 pr-10 text-sm font-medium text-slate-100 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                    >
+                      <option
+                        value=""
+                        className="bg-slate-900"
+                      >
+                        All available services
+                      </option>
+
+                      {serviceTypes.map((service) => (
+                        <option
+                          key={service}
+                          value={service}
+                          className="bg-slate-900"
+                        >
+                          {service}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                      ▼
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
+
+              {/* DATA PLAN */}
+
+              <div className="mb-7">
+
+                <label className="mb-2 block text-sm font-semibold text-slate-200">
+                  Data Plan
+                </label>
+
+                <div className="relative">
+
+                  <select
+                    value={dataPlan}
+                    disabled={
+                      loadingPlans || !network
+                    }
+                    onChange={(e) =>
+                      setDataPlan(e.target.value)
+                    }
+                    className="h-12 w-full appearance-none rounded-xl border border-slate-700 bg-slate-950 px-4 pr-10 text-sm font-medium text-slate-100 outline-none transition disabled:cursor-not-allowed disabled:opacity-50 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                  >
+                    <option
+                      value=""
+                      className="bg-slate-900"
+                    >
+                      {loadingPlans
+                        ? "Loading data plans..."
+                        : !network
+                        ? "Select a network first"
+                        : "Select a data plan"}
+                    </option>
+
+                    {filteredPlans.map((plan) => (
+                      <option
+                        key={plan.id}
+                        value={plan.id}
+                        className="bg-slate-900"
+                      >
+                        {plan.name}
+                        {" — "}
+                        {money(
+                          percentPrice(
+                            plan.price,
+                            dataMarkup
+                          )
+                        )}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-500">
+                    ▼
+                  </div>
+
+                </div>
+
+                {loadingPlans && network && (
+                  <p className="mt-2 text-xs text-blue-400">
+                    Loading available plans...
+                  </p>
+                )}
+
+              </div>
+
+
+              {/* SELECTED DATA PLAN */}
+
+              {selectedPlan && (
+                <div className="mb-7 overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/70">
+
+                  <div className="border-b border-slate-800 px-5 py-4">
+
+                    <div className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Selected Gift
+                    </div>
+
+                    <div className="mt-1 text-base font-bold text-white">
+                      {selectedPlan.name}
+                    </div>
+
+                  </div>
+
+                  <div className="grid grid-cols-2 divide-x divide-slate-800">
+
+                    <div className="p-5">
+                      <div className="text-xs text-slate-500">
+                        Provider price
+                      </div>
+
+                      <div className="mt-1 text-sm font-medium text-slate-300">
+                        {money(selectedPlan.price)}
+                      </div>
+                    </div>
+
+                    <div className="p-5 text-right">
+                      <div className="text-xs text-slate-500">
+                        Giveaway price
+                      </div>
+
+                      <div className="mt-1 text-xl font-bold text-blue-400">
+                        {money(selectedDataPrice)}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {dataMarkup > 0 && (
+                    <div className="border-t border-slate-800 px-5 py-3 text-xs text-slate-500">
+                      Includes your configured{" "}
+                      <span className="font-semibold text-slate-400">
+                        {dataMarkup}%
+                      </span>{" "}
+                      Data markup.
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+            </>
+          )}
+
+
+          {/* =================================================
+              RECIPIENTS
+              ================================================= */}
+
+          <div className="mb-7">
+
+            <label className="mb-2 block text-sm font-semibold text-slate-200">
+              Number of Recipients
+            </label>
+
+            <input
+              type="number"
+              min="1"
+              max="10000"
+              placeholder="10"
+              value={recipientLimit}
+              onChange={(e) =>
+                setRecipientLimit(e.target.value)
+              }
+              className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-sm font-medium text-white outline-none transition placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+            />
+
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Each phone number can claim this giveaway only once.
+            </p>
 
           </div>
-        )}
-
-      </div>
-    )}
 
 
-    {/* =================================================
-        DATA
-        ================================================= */}
+          {/* =================================================
+              PIN
+              ================================================= */}
 
-    {type === "DATA" && (
-      <>
+          <div className="mb-7">
 
-        {/* DATA SERVICE */}
-
-        {serviceTypes.length > 0 && (
-          <div>
-
-            <label className="mb-2 block text-sm font-bold text-slate-100">
-              Data Service
+            <label className="mb-2 block text-sm font-semibold text-slate-200">
+              Transaction PIN
             </label>
 
             <div className="relative">
 
-              <select
-                value={serviceType}
-                onChange={(e) => {
-                  setServiceType(e.target.value);
-                  setDataPlan("");
-                }}
-                className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-500"
-              >
-
-                <option value="">
-                  All available services
-                </option>
-
-                {serviceTypes.map((service) => (
-                  <option
-                    key={service}
-                    value={service}
-                  >
-                    {service}
-                  </option>
-                ))}
-
-              </select>
-
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-                ▼
-              </span>
+              <input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="••••"
+                value={pin}
+                onChange={(e) =>
+                  setPin(
+                    e.target.value
+                      .replace(/\D/g, "")
+                      .slice(0, 4)
+                  )
+                }
+                className="h-12 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 text-sm font-bold tracking-[0.5em] text-white outline-none transition placeholder:tracking-[0.35em] placeholder:text-slate-600 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+              />
 
             </div>
 
-          </div>
-        )}
-
-
-        {/* DATA PLAN */}
-
-        <div>
-
-          <label className="mb-2 block text-sm font-bold text-slate-100">
-            Data Plan
-          </label>
-
-          <div className="relative">
-
-            <select
-              value={dataPlan}
-              disabled={
-                loadingPlans || !network
-              }
-              onChange={(e) =>
-                setDataPlan(e.target.value)
-              }
-              className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:opacity-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
-            >
-
-              <option value="">
-                {loadingPlans
-                  ? "Loading data plans..."
-                  : !network
-                  ? "Select a network first"
-                  : "Select a data plan"}
-              </option>
-
-              {filteredPlans.map((plan) => (
-                <option
-                  key={plan.id}
-                  value={plan.id}
-                >
-                  {plan.name}
-                  {" — "}
-                  {money(
-                    percentPrice(
-                      plan.price,
-                      dataMarkup
-                    )
-                  )}
-                </option>
-              ))}
-
-            </select>
-
-            <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-              ▼
-            </span>
-
-          </div>
-
-          {loadingPlans && network && (
-            <p className="mt-2 text-xs text-blue-400">
-              Loading available plans...
-            </p>
-          )}
-
-        </div>
-
-
-        {/* SELECTED DATA PLAN */}
-
-        {selectedPlan && (
-          <div className="overflow-hidden rounded-xl border border-blue-500/20 bg-blue-500/10">
-
-            <div className="border-b border-blue-500/10 px-4 py-3">
-
-              <p className="text-xs text-slate-400">
-                Selected Gift
-              </p>
-
-              <p className="mt-1 font-bold text-white">
-                {selectedPlan.name}
-              </p>
-
-            </div>
-
-            <div className="grid grid-cols-2 divide-x divide-blue-500/10">
-
-              <div className="p-4">
-
-                <p className="text-xs text-slate-400">
-                  Provider price
-                </p>
-
-                <p className="mt-1 text-sm font-semibold text-slate-200">
-                  {money(selectedPlan.price)}
-                </p>
-
-              </div>
-
-              <div className="p-4 text-right">
-
-                <p className="text-xs text-slate-400">
-                  Giveaway price
-                </p>
-
-                <p className="mt-1 text-lg font-bold text-blue-400">
-                  {money(selectedDataPrice)}
-                </p>
-
-              </div>
-
-            </div>
-
-            {dataMarkup > 0 && (
-              <div className="border-t border-blue-500/10 px-4 py-2.5 text-xs text-slate-400">
-                Includes your configured{" "}
-                <span className="font-semibold text-slate-300">
-                  {dataMarkup}%
-                </span>{" "}
-                Data markup.
-              </div>
-            )}
-
-          </div>
-        )}
-
-      </>
-    )}
-
-
-    {/* =================================================
-        NUMBER OF RECIPIENTS
-        ================================================= */}
-
-    <div>
-
-      <label className="mb-2 block text-sm font-bold text-slate-100">
-        Number of Recipients
-      </label>
-
-      <input
-        type="number"
-        min="1"
-        max="10000"
-        placeholder="10"
-        value={recipientLimit}
-        onChange={(e) =>
-          setRecipientLimit(e.target.value)
-        }
-        className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] px-4 text-base font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500"
-      />
-
-      <p className="mt-1.5 text-xs leading-5 text-slate-400">
-        Each phone number can claim this giveaway only once.
-      </p>
-
-    </div>
-
-
-    {/* =================================================
-        TRANSACTION PIN
-        ================================================= */}
-
-    <div>
-
-      <label className="mb-2 block text-sm font-bold text-slate-100">
-        4-digit Transaction PIN
-      </label>
-
-      <input
-        type="password"
-        inputMode="numeric"
-        maxLength={4}
-        placeholder="••••"
-        value={pin}
-        onChange={(e) =>
-          setPin(
-            e.target.value
-              .replace(/\D/g, "")
-              .slice(0, 4)
-          )
-        }
-        className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] px-4 text-base font-semibold tracking-[0.45em] text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:tracking-[0.3em] focus:bg-white focus:ring-2 focus:ring-blue-500"
-      />
-
-      <p className="mt-1.5 text-xs leading-5 text-slate-400">
-        🔒 Your transaction PIN is only used to authorize this giveaway.
-      </p>
-
-    </div>
-
-
-    {/* =================================================
-        SUMMARY
-        ================================================= */}
-
-    {(type === "AIRTIME"
-      ? airtimePrice > 0
-      : !!selectedPlan) && (
-
-      <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
-
-        <div className="mb-4">
-          <p className="text-sm font-bold text-white">
-            Giveaway Summary
-          </p>
-
-          <p className="mt-1 text-xs text-slate-500">
-            Review your giveaway before creating it.
-          </p>
-        </div>
-
-        <div className="space-y-3 text-sm">
-
-          <div className="flex items-center justify-between gap-4">
-
-            <span className="text-slate-500">
-              Gift
-            </span>
-
-            <span className="text-right font-semibold text-slate-200">
-              {type === "AIRTIME"
-                ? `${money(airtimePrice)} Airtime`
-                : selectedPlan?.name}
-            </span>
-
-          </div>
-
-          <div className="flex items-center justify-between gap-4">
-
-            <span className="text-slate-500">
-              Recipients
-            </span>
-
-            <span className="font-semibold text-slate-200">
-              {recipientLimit || "—"}
-            </span>
-
-          </div>
-
-          <div className="border-t border-slate-800 pt-3">
-
-            <div className="flex items-end justify-between gap-4">
-
-              <div>
-
-                <p className="font-semibold text-white">
-                  Maximum giveaway
-                </p>
-
-                <p className="mt-1 text-xs text-slate-500">
-                  Maximum amount that may be distributed.
-                </p>
-
-              </div>
-
-              <p className="text-xl font-bold text-blue-400">
-
-                {type === "AIRTIME"
-                  ? money(
-                      airtimePrice *
-                        Number(
-                          recipientLimit || 0
-                        )
-                    )
-                  : money(
-                      selectedDataPrice *
-                        Number(
-                          recipientLimit || 0
-                        )
-                    )}
-
-              </p>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-    )}
-
-
-    {/* =================================================
-        ERROR
-        ================================================= */}
-
-    {error && (
-      <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
-
-        <div className="flex gap-3">
-
-          <span className="text-lg">
-            ⚠️
-          </span>
-
-          <div>
-            <p className="text-sm font-semibold text-red-400">
-              Unable to create giveaway
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
+              <span>🔒</span>
+              Your transaction PIN is only used to authorize this giveaway.
             </p>
 
-            <p className="mt-1 text-sm text-slate-400">
-              {error}
-            </p>
           </div>
-
-        </div>
-
-      </div>
-    )}
-
-
-    {/* =================================================
-        SUCCESS
-        ================================================= */}
-
-    {message && (
-      <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
-
-        <div className="flex gap-3">
-
-          <span className="text-lg text-emerald-400">
-            ✓
-          </span>
-
-          <div>
-            <p className="text-sm font-semibold text-emerald-400">
-              Giveaway created
-            </p>
-
-            <p className="mt-1 text-sm text-slate-400">
-              {message}
-            </p>
-          </div>
-
-        </div>
-
-      </div>
-    )}
-
-
-    {/* =================================================
-        CREATE GIVEAWAY
-        ================================================= */}
-
-    <button
-      type="button"
-      onClick={createGiveaway}
-      disabled={loading || loadingPlans}
-      className="mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#1d70f5] px-5 text-base font-extrabold text-white shadow-lg shadow-blue-500/10 transition-all hover:bg-blue-600 hover:shadow-blue-500/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
-    >
-
-      {loading ? (
-        <>
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-          Creating Giveaway...
-        </>
-      ) : (
-        <>
-          🎁
-          Create Giveaway
-        </>
-      )}
-
-    </button>
-
-
-    {/* SECURITY NOTE */}
-
-    <p className="text-center text-[11px] leading-5 text-slate-500">
-      Your transaction PIN is used only to authorize the giveaway.
-    </p>
-
-  </div>
-
-</div>
 
 
           {/* =================================================
@@ -1451,7 +1235,6 @@ return (
           </button>
 
           <p className="mt-4 text-center text-[11px] leading-5 text-slate-600">
-            Your transaction PIN is used only to authorize the giveaway.
           </p>
 
         </div>
