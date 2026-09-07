@@ -725,3 +725,348 @@
     text-align: right;
   }
 }
+
+/* =========================================================
+   MOBILE CUSTOMER DASHBOARD
+   ========================================================= */
+
+@media (max-width: 700px) {
+
+  /* -----------------------------------------
+     DASHBOARD LAYOUT
+  ----------------------------------------- */
+
+  .dashboard-layout {
+    display: block;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+  }
+
+  .dashboard-content {
+    width: 100%;
+    min-width: 0;
+    padding: 72px 12px 30px;
+  }
+
+  .dashboard-top {
+    margin-bottom: 18px;
+  }
+
+
+  /* -----------------------------------------
+     SIDEBAR
+     Completely hidden when closed.
+     Only the menu button remains.
+  ----------------------------------------- */
+
+  .dashboard-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+
+    width: 260px;
+    height: 100vh;
+    min-height: 100vh;
+
+    padding: 20px 14px;
+
+    z-index: 2000;
+
+    transform: translateX(0);
+    transition: transform 0.25s ease;
+
+    box-shadow: 15px 0 45px rgba(0, 0, 0, 0.35);
+  }
+
+  /* CLOSED = completely hidden */
+  .dashboard-sidebar.closed {
+    width: 260px;
+
+    padding: 20px 14px;
+
+    transform: translateX(-105%);
+
+    border-right: 1px solid #173b63;
+  }
+
+
+  /* -----------------------------------------
+     SIDEBAR OPEN BUTTON
+  ----------------------------------------- */
+
+  .sidebar-open-button {
+    position: fixed;
+
+    top: 16px;
+    left: 12px;
+
+    width: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    z-index: 2100;
+
+    border-radius: 10px;
+
+    font-size: 20px;
+  }
+
+
+  /* -----------------------------------------
+     SIDEBAR OVERLAY
+  ----------------------------------------- */
+
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+
+    background: rgba(0, 0, 0, 0.55);
+
+    z-index: 1900;
+  }
+
+
+  /* -----------------------------------------
+     SMALLER SIDEBAR ICONS
+  ----------------------------------------- */
+
+  .sidebar-icon {
+    width: 22px;
+    min-width: 22px;
+
+    font-size: 16px;
+  }
+
+  .sidebar-link {
+    min-height: 42px;
+    padding: 9px 10px;
+
+    gap: 10px;
+
+    font-size: 13px;
+  }
+
+  .sidebar-service-link {
+    padding: 8px 9px;
+    font-size: 12px;
+  }
+
+
+  /* -----------------------------------------
+     DASHBOARD HEADINGS
+  ----------------------------------------- */
+
+  .dashboard-content h1 {
+    font-size: 38px;
+    line-height: 1;
+    margin: 6px 0 18px;
+  }
+
+  .dashboard-content h2 {
+    font-size: 25px;
+  }
+
+  .dashboard-content h3 {
+    font-size: 18px;
+  }
+
+
+  /* -----------------------------------------
+     WALLET + KYC
+     TWO COLUMNS
+  ----------------------------------------- */
+
+  .dashboard-summary-grid {
+    display: grid;
+
+    grid-template-columns:
+      minmax(0, 1fr)
+      minmax(0, 1fr);
+
+    gap: 10px;
+
+    width: 100%;
+
+    margin-bottom: 25px;
+  }
+
+  .dashboard-summary-grid .card {
+    min-width: 0;
+
+    padding: 16px;
+
+    border-radius: 16px;
+  }
+
+
+  /* Wallet/KYC text */
+
+  .dashboard-summary-grid h2,
+  .dashboard-summary-grid h3 {
+    font-size: 17px;
+    line-height: 1.25;
+  }
+
+  .dashboard-summary-grid p {
+    font-size: 13px;
+    line-height: 1.55;
+  }
+
+
+  /* Wallet amount */
+
+  .dashboard-summary-grid .wallet-balance,
+  .dashboard-summary-grid .balance {
+    font-size: 25px;
+    font-weight: 900;
+  }
+
+
+  /* Buttons inside Wallet/KYC */
+
+  .dashboard-summary-grid .btn {
+    width: 100%;
+
+    padding: 10px 8px;
+
+    font-size: 12px;
+
+    border-radius: 10px;
+
+    white-space: nowrap;
+  }
+
+
+  /* -----------------------------------------
+     SERVICES
+     THREE COLUMNS ON PHONE
+  ----------------------------------------- */
+
+  .dashboard-services-grid {
+    display: grid;
+
+    grid-template-columns:
+      repeat(3, minmax(0, 1fr));
+
+    gap: 9px;
+
+    width: 100%;
+  }
+
+  .dashboard-services-grid .service-card {
+    min-width: 0;
+
+    padding: 13px 8px;
+
+    border-radius: 14px;
+
+    text-align: center;
+
+    overflow: hidden;
+  }
+
+
+  /* Smaller service icons */
+
+  .dashboard-services-grid .service-icon {
+    font-size: 23px;
+
+    line-height: 1;
+
+    margin-bottom: 7px;
+  }
+
+
+  /* Service names */
+
+  .dashboard-services-grid h3,
+  .dashboard-services-grid h4 {
+    font-size: 12px;
+
+    line-height: 1.25;
+
+    margin: 0;
+
+    overflow-wrap: anywhere;
+  }
+
+
+  .dashboard-services-grid p {
+    font-size: 10px;
+
+    line-height: 1.35;
+
+    margin: 5px 0 0;
+
+    color: var(--muted);
+  }
+
+
+  /* -----------------------------------------
+     GENERAL CARDS
+  ----------------------------------------- */
+
+  .dashboard-content > .card {
+    width: 100%;
+    min-width: 0;
+
+    padding: 16px;
+
+    border-radius: 16px;
+  }
+
+
+  /* -----------------------------------------
+     SERVICE SECTION HEADER
+  ----------------------------------------- */
+
+  .service-head,
+  .section-head {
+    margin-bottom: 14px;
+
+    gap: 10px;
+  }
+
+  .service-head h2,
+  .section-head h2 {
+    margin: 0;
+
+    font-size: 24px;
+  }
+
+
+  /* -----------------------------------------
+     REMOVE LARGE SERVICE GRID BEHAVIOUR
+  ----------------------------------------- */
+
+  .service-grid {
+    grid-template-columns: 1fr;
+
+    gap: 12px;
+  }
+
+
+  /* -----------------------------------------
+     SERVICE TABS
+  ----------------------------------------- */
+
+  .service-tabs {
+    gap: 5px;
+
+    padding: 5px;
+
+    margin-bottom: 12px;
+
+    border-radius: 12px;
+  }
+
+  .tab {
+    padding: 9px 11px;
+
+    font-size: 12px;
+  }
+}

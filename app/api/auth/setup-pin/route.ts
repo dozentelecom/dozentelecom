@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       );
     }
 
-    if (user.transactionPinHash) {
+    if (user.pinHash) {
       return NextResponse.json(
         {
           error: 'Transaction PIN has already been created',
@@ -53,7 +53,7 @@ export async function POST(req: Request) {
       );
     }
 
-    user.transactionPinHash = await hash(pin);
+    user.pinHash = await hash(pin);
 
     await user.save();
 
