@@ -321,54 +321,34 @@ export async function POST(req: Request) {
       );
     }
 
+const providerCost = getPlanCost(plan);
+const providerCostKobo =
+  Math.round(providerCost * 100);
 
-    const providerCost =
-      getPlanCost(plan);
+if (
+  !Number.isFinite(providerCost) ||
+  providerCost <= 0
+) {
+  return NextResponse.json(
+    {
+      error:
+        "Selected data plan has an invalid provider price",
+    },
+    { status: 400 }
+  );
+}
 
+const rates = await getRates();
 
-    if (
-      !Number.isFinite(providerCost) ||
-      providerCost <= 0
-    ) {
-      return NextResponse.json(
-        {
-          error:
-            "Selected data plan has an invalid provider price",
-        },
-        { status: 400 }
-      );
-    }
+const customerPrice = percentPrice(
+  providerCost,
+  Number(rates.data || 0)
+);
 
+const rewardPriceKobo =
+  Math.round(customerPrice * 100);
 
-    const rates =
-      await getRates();
-
-
-    /*
-     * THIS IS YOUR EXISTING PROFIT/MARKUP.
-     *
-     * If admin sets Data markup to 5%,
-     * the giveaway uses that same 5%.
-     */
-    const customerPrice =
-      percentPrice(
-        providerCost,
-        Number(rates.data || 0)
-      );
-
-
-    const providerCostKobo =
-      Math.round(
-        providerCost * 100
-      );
-
-    const rewardPriceKobo =
-      Math.round(
-        customerPrice * 100
-      );
-
-
-    const totalKobo =
+       const totalKobo =
       rewardPriceKobo *
       recipientLimit;
 

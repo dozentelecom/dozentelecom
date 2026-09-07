@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type GiveawayType = "AIRTIME" | "DATA";
+type GiftType = "AIRTIME" | "DATA";
 
 type DataPlan = {
   id: string;
@@ -14,14 +14,23 @@ type DataPlan = {
   days: string;
 };
 
-type NetworkOption = {
-  id: string;
-  name: string;
-};
+function percentPrice(cost: number, rate: number) {
+  return Math.ceil(cost * (1 + rate / 100) * 100) / 100;
+}
+
+function money(value: number) {
+  const amount = Number(value || 0);
+
+  return `₦${amount.toLocaleString("en-NG", {
+    minimumFractionDigits:
+      amount % 1 === 0 ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
 
 export default function GiveawayPage() {
   const [type, setType] =
-    useState<GiveawayType>("AIRTIME");
+    useState<GiftType>("AIRTIME");
 
   const [plans, setPlans] =
     useState<DataPlan[]>([]);
@@ -29,7 +38,14 @@ export default function GiveawayPage() {
   const [loadingPlans, setLoadingPlans] =
     useState(true);
 
-  const [network, setNetwork] = useState("");
+  const [dataMarkup, setDataMarkup] =
+    useState(0);
+
+  const [airtimeRoundUnit, setAirtimeRoundUnit] =
+    useState(10);
+
+  const [network, setNetwork] =
+    useState("");
 
   const [serviceType, setServiceType] =
     useState("");
@@ -43,7 +59,8 @@ export default function GiveawayPage() {
   const [recipientLimit, setRecipientLimit] =
     useState("");
 
-  const [pin, setPin] = useState("");
+  const [pin, setPin] =
+    useState("");
 
   const [loading, setLoading] =
     useState(false);
@@ -57,12 +74,15 @@ export default function GiveawayPage() {
   const [giftLink, setGiftLink] =
     useState("");
 
-  /* =========================================================
-     LOAD LIVE SME DATA PLANS
-     ========================================================= */
+  /*
+   * =========================================================
+   * LOAD SME DATA PLANS
+   * =========================================================
+   */
 
   useEffect(() => {
     loadPlans();
+    loadPricing();
   }, []);
 
   async function loadPlans() {
@@ -77,233 +97,330 @@ export default function GiveawayPage() {
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to load services from SME API."
+            "Unable to load data plans"
         );
       }
 
-      const rawPlans = Array.isArray(data?.plans)
-        ? data.plans
-        : Array.isArray(data?.data)
-        ? data.data
-        : Array.isArray(data)
-        ? data
-        : [];
+      const rawPlans =
+        Array.isArray(data)
+          ? data
+          : Array.isArray(data?.plans)
+          ? data.plans
+          : Array.isArray(data?.data)
+          ? data.data
+          : [];
 
       const normalized: DataPlan[] =
         rawPlans
-          .map((p: any) => ({
-            id: String(
-              p?.id ??
-                p?.plan_id ??
-                p?.data_plan ??
-                ""
-            ),
+          .map(
+            (
+              p: any,
+              index: number
+            ) => ({
+              id: String(
+                p?.id ??
+                  p?.plan_id ??
+                  p?.data_plan ??
+                  index
+              ),
 
-            name: String(
-              p?.name ??
-                p?.plan_name ??
-                p?.plan ??
-                p?.variation ??
-                p?.description ??
-                "Data Plan"
-            ),
+              name: String(
+                p?.name ??
+                  p?.plan_name ??
+                  p?.data_plan ??
+                  p?.variation ??
+                  p?.description ??
+                  "Data Plan"
+              ),
 
-            price: Number(
-              p?.price ??
-                p?.amount ??
-                p?.selling_price ??
-                p?.cost ??
-                0
-            ),
+              price: Number(
+                p?.price ??
+                  p?.amount ??
+                  p?.selling_price ??
+                  p?.cost ??
+                  0
+              ),
 
-            network: String(
-              p?.network_name ??
+              network: String(
                 p?.network ??
-                ""
-            ),
+                  p?.network_name ??
+                  p?.network_id ??
+                  ""
+              ),
 
-            networkId: String(
-              p?.network_id ??
-                p?.network ??
-                ""
-            ),
+              networkId: String(
+                p?.network_id ??
+                  p?.network ??
+                  ""
+              ),
 
-            type: String(
-              p?.type ??
-                p?.datagroup ??
-                p?.service_type ??
-                "SME"
-            ),
+              type: String(
+                p?.type ??
+                  p?.datagroup ??
+                  p?.service_type ??
+                  "SME"
+              ),
 
-            days: String(
-              p?.days ??
-                p?.validity ??
-                p?.duration ??
-                ""
-            ),
-          }))
+              days: String(
+                p?.days ??
+                  p?.validity ??
+                  p?.duration ??
+                  ""
+              ),
+            })
+          )
           .filter(
             (p: DataPlan) =>
               p.id &&
-              p.networkId
+              Number.isFinite(p.price) &&
+              p.price > 0
           );
 
       setPlans(normalized);
     } catch (err: any) {
       setError(
         err?.message ||
-          "Unable to load SME services."
+          "Unable to load data plans"
       );
     } finally {
       setLoadingPlans(false);
     }
   }
 
-  /* =========================================================
-     NETWORKS FROM LIVE API
-     ========================================================= */
+  /*
+   * =========================================================
+   * LOAD ADMIN PRICING
+   * =========================================================
+   */
+
+  async function loadPricing() {
+    try {
+      const response = await fetch(
+        "/api/admin/settings",
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (!response.ok) {
+        return;
+      }
+
+      const data =
+        await response.json();
+
+      const pricing =
+        data?.settings?.pricing ??
+        data?.pricing ??
+        data?.settings ??
+        {};
+
+      setDataMarkup(
+        Number(
+          pricing?.data ?? 0
+        )
+      );
+
+      setAirtimeRoundUnit(
+        Math.max(
+          1,
+          Number(
+            pricing?.airtimeRoundUnit ??
+              10
+          )
+        )
+      );
+    } catch {
+      /*
+       * Server-side pricing remains authoritative.
+       */
+    }
+  }
+
+  /*
+   * =========================================================
+   * NETWORK OPTIONS
+   * =========================================================
+   */
 
   const networkOptions =
-    useMemo<NetworkOption[]>(() => {
+    useMemo(() => {
       const map = new Map<
         string,
-        NetworkOption
+        string
       >();
 
       for (const plan of plans) {
-        const id = String(
-          plan.networkId || ""
-        ).trim();
+        const id =
+          plan.networkId ||
+          plan.network;
 
-        const name = String(
-          plan.network || ""
-        ).trim();
+        if (!id) continue;
 
-        if (
-          id &&
-          name &&
-          !map.has(id)
-        ) {
-          map.set(id, {
-            id,
-            name,
-          });
-        }
+        const name =
+          plan.network &&
+          !/^\d+$/.test(
+            plan.network
+          )
+            ? plan.network
+            : id === "1"
+            ? "MTN"
+            : id === "2"
+            ? "Airtel"
+            : id === "3"
+            ? "GLO"
+            : id === "4"
+            ? "9mobile"
+            : `Network ${id}`;
+
+        map.set(id, name);
       }
 
       return Array.from(
-        map.values()
+        map.entries()
+      ).map(
+        ([id, name]) => ({
+          id,
+          name,
+        })
       );
     }, [plans]);
 
-  /* =========================================================
-     SERVICE TYPES FROM LIVE API
-     ========================================================= */
+  /*
+   * =========================================================
+   * SERVICE TYPES
+   * =========================================================
+   */
 
   const serviceTypes =
     useMemo(() => {
-      const set = new Set<string>();
+      if (!network) return [];
 
-      for (const plan of plans) {
-        if (
-          String(plan.networkId) ===
-          String(network)
-        ) {
-          const value =
-            String(plan.type || "").trim();
+      const values =
+        new Set<string>();
 
-          if (value) {
-            set.add(value);
+      plans
+        .filter(
+          (p: DataPlan) =>
+            p.networkId === network ||
+            p.network === network
+        )
+        .forEach(
+          (p: DataPlan) => {
+            if (p.type) {
+              values.add(p.type);
+            }
           }
-        }
-      }
+        );
 
-      return Array.from(set);
+      return Array.from(values);
     }, [plans, network]);
 
-  /* =========================================================
-     FILTERED DATA PLANS
-     ========================================================= */
+  /*
+   * =========================================================
+   * FILTERED DATA PLANS
+   * =========================================================
+   */
 
   const filteredPlans =
     useMemo(() => {
-      return plans.filter((plan) => {
-        const networkMatch =
-          String(plan.networkId) ===
-          String(network);
+      return plans.filter(
+        (p: DataPlan) => {
+          const networkMatch =
+            !network ||
+            p.networkId === network ||
+            p.network === network;
 
-        if (!networkMatch) {
-          return false;
+          const typeMatch =
+            !serviceType ||
+            p.type === serviceType;
+
+          return (
+            networkMatch &&
+            typeMatch
+          );
         }
-
-        if (!serviceType) {
-          return true;
-        }
-
-        return (
-          String(plan.type)
-            .toLowerCase() ===
-          String(serviceType)
-            .toLowerCase()
-        );
-      });
+      );
     }, [
       plans,
       network,
       serviceType,
     ]);
 
-  /* =========================================================
-     SELECTED PLAN
-     ========================================================= */
+  /*
+   * =========================================================
+   * SELECTED DATA PLAN
+   * =========================================================
+   */
 
   const selectedPlan =
     useMemo(() => {
       return plans.find(
-        (plan) =>
-          String(plan.id) ===
-          String(dataPlan)
+        (p: DataPlan) =>
+          p.id === dataPlan
       );
-    }, [plans, dataPlan]);
+    }, [
+      plans,
+      dataPlan,
+    ]);
 
-  /* =========================================================
-     RESET DATA FIELDS WHEN NETWORK CHANGES
-     ========================================================= */
+  /*
+   * =========================================================
+   * DATA CUSTOMER PRICE
+   * =========================================================
+   */
 
-  function changeNetwork(
-    value: string
-  ) {
-    setNetwork(value);
-    setServiceType("");
-    setDataPlan("");
-  }
+  const selectedDataPrice =
+    selectedPlan
+      ? percentPrice(
+          selectedPlan.price,
+          dataMarkup
+        )
+      : 0;
 
-  /* =========================================================
-     CHANGE GIVEAWAY TYPE
-     ========================================================= */
+  /*
+   * =========================================================
+   * AIRTIME PRICE
+   * =========================================================
+   */
 
-  function changeType(
-    value: GiveawayType
-  ) {
-    setType(value);
+  const airtimePrice =
+    useMemo(() => {
+      const value =
+        Number(amount);
 
-    setNetwork("");
-    setServiceType("");
-    setDataPlan("");
-    setAmount("");
+      if (
+        !Number.isFinite(
+          value
+        ) ||
+        value <= 0
+      ) {
+        return 0;
+      }
 
-    setError("");
-    setMessage("");
-  }
+      return (
+        Math.ceil(
+          value /
+            airtimeRoundUnit
+        ) *
+        airtimeRoundUnit
+      );
+    }, [
+      amount,
+      airtimeRoundUnit,
+    ]);
 
-  /* =========================================================
-     CREATE GIVEAWAY
-     ========================================================= */
+  /*
+   * =========================================================
+   * CREATE GIVEAWAY
+   * =========================================================
+   */
 
   async function createGiveaway() {
     try {
@@ -313,7 +430,18 @@ export default function GiveawayPage() {
 
       if (!network) {
         setError(
-          "Please select a network."
+          "Select a network."
+        );
+        return;
+      }
+
+      if (
+        type === "AIRTIME" &&
+        (!amount ||
+          Number(amount) <= 0)
+      ) {
+        setError(
+          "Enter a valid airtime amount."
         );
         return;
       }
@@ -323,43 +451,18 @@ export default function GiveawayPage() {
         !dataPlan
       ) {
         setError(
-          "Please select a data plan."
+          "Select a data plan."
         );
         return;
       }
 
       if (
-        type === "AIRTIME"
-      ) {
-        const airtimeAmount =
-          Number(amount);
-
-        if (
-          !Number.isFinite(
-            airtimeAmount
-          ) ||
-          airtimeAmount <= 0
-        ) {
-          setError(
-            "Enter a valid airtime amount."
-          );
-          return;
-        }
-      }
-
-      const recipients =
-        Number(
-          recipientLimit
-        );
-
-      if (
-        !Number.isInteger(
-          recipients
-        ) ||
-        recipients < 1
+        !recipientLimit ||
+        Number(recipientLimit) <
+          1
       ) {
         setError(
-          "Enter a valid number of recipients."
+          "Enter the number of recipients."
         );
         return;
       }
@@ -380,12 +483,10 @@ export default function GiveawayPage() {
           "/api/giveaway/create",
           {
             method: "POST",
-
             headers: {
               "Content-Type":
                 "application/json",
             },
-
             body: JSON.stringify({
               type,
 
@@ -393,8 +494,7 @@ export default function GiveawayPage() {
                 Number(network),
 
               amount:
-                type ===
-                "AIRTIME"
+                type === "AIRTIME"
                   ? Number(amount)
                   : undefined,
 
@@ -404,7 +504,9 @@ export default function GiveawayPage() {
                   : undefined,
 
               recipientLimit:
-                recipients,
+                Number(
+                  recipientLimit
+                ),
 
               pin,
             }),
@@ -417,7 +519,7 @@ export default function GiveawayPage() {
       if (!response.ok) {
         throw new Error(
           data?.error ||
-            "Unable to create giveaway."
+            "Unable to create giveaway"
         );
       }
 
@@ -427,7 +529,7 @@ export default function GiveawayPage() {
 
       if (!token) {
         throw new Error(
-          "Giveaway was created but no sharing link was returned."
+          "Giveaway was created but no gift link was returned."
         );
       }
 
@@ -437,167 +539,141 @@ export default function GiveawayPage() {
       setGiftLink(link);
 
       setMessage(
-        "Giveaway created successfully."
+        "🎉 Giveaway created successfully!"
       );
 
       setPin("");
     } catch (err: any) {
       setError(
         err?.message ||
-          "Unable to create giveaway."
+          "Unable to create giveaway"
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =========================================================
-     COPY LINK
-     ========================================================= */
+  /*
+   * =========================================================
+   * COPY LINK
+   * =========================================================
+   */
 
   async function copyLink() {
     if (!giftLink) return;
 
-    try {
-      await navigator.clipboard.writeText(
-        giftLink
-      );
+    await navigator.clipboard.writeText(
+      giftLink
+    );
 
-      setMessage(
-        "Giveaway link copied to clipboard."
-      );
-    } catch {
-      setError(
-        "Unable to copy the link. Please copy it manually."
-      );
-    }
+    setMessage(
+      "Giveaway link copied!"
+    );
   }
 
-  /* =========================================================
-     FORMAT PRICE
-     ========================================================= */
-
-  function money(value: number) {
-    return `₦${Number(
-      value || 0
-    ).toLocaleString()}`;
-  }
-
-  /* =========================================================
-     UI
-     ========================================================= */
+  /*
+   * =========================================================
+   * UI
+   * =========================================================
+   */
 
   return (
-    <main className="min-h-screen bg-slate-50 px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto w-full max-w-4xl">
+    <main className="min-h-screen p-5 md:p-8">
+      <div className="max-w-3xl mx-auto">
 
         {/* HEADER */}
 
         <div className="mb-8">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-blue-100 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700">
-            <span>🎁</span>
-            DOZENTELECOM GIVEAWAY
+          <div className="flex items-center gap-3 mb-2">
+
+            <div className="h-11 w-11 rounded-2xl border flex items-center justify-center text-2xl">
+              🎁
+            </div>
+
+            <div>
+              <h1 className="text-3xl font-bold">
+                Create Giveaway
+              </h1>
+
+              <p className="text-sm text-gray-500">
+                Send Airtime or Data to
+                multiple recipients through
+                one secure link.
+              </p>
+            </div>
+
           </div>
-
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900 md:text-4xl">
-            Create a Giveaway
-          </h1>
-
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500 md:text-base">
-            Create one secure sharing link and
-            send Airtime or Data to multiple
-            recipients. Each phone number can
-            claim the giveaway only once.
-          </p>
         </div>
 
-        {/* MAIN CARD */}
+        {/* FORM */}
 
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-
-          {/* CARD HEADER */}
-
-          <div className="border-b border-slate-100 bg-gradient-to-r from-slate-900 to-slate-800 px-6 py-6 text-white md:px-8">
-            <div className="flex items-start gap-4">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl">
-                🎁
-              </div>
-
-              <div>
-                <h2 className="text-lg font-semibold">
-                  Giveaway Details
-                </h2>
-
-                <p className="mt-1 text-sm text-slate-300">
-                  Choose what you want to give and
-                  configure your recipients.
-                </p>
-              </div>
-            </div>
-          </div>
-
+        <div className="rounded-3xl border shadow-sm overflow-hidden">
           <div className="p-6 md:p-8">
 
-            {/* GIVEAWAY TYPE */}
+            {/* GIFT TYPE */}
 
-            <div className="mb-8">
-              <label className="mb-3 block text-sm font-semibold text-slate-800">
-                What would you like to give?
+            <div className="mb-6">
+
+              <label className="block text-sm font-semibold mb-2">
+                Gift Type
               </label>
 
               <div className="grid grid-cols-2 gap-3">
 
                 <button
                   type="button"
-                  onClick={() =>
-                    changeType(
+                  onClick={() => {
+                    setType(
                       "AIRTIME"
-                    )
-                  }
-                  className={`rounded-2xl border-2 p-4 text-left transition ${
-                    type === "AIRTIME"
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                    );
+                    setDataPlan("");
+                    setServiceType("");
+                  }}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    type ===
+                    "AIRTIME"
+                      ? "border-current"
+                      : ""
                   }`}
                 >
-                  <div className="mb-2 text-2xl">
+                  <div className="text-xl mb-1">
                     📱
                   </div>
 
-                  <div className="font-semibold text-slate-900">
+                  <div className="font-semibold">
                     Airtime
                   </div>
 
-                  <div className="mt-1 text-xs text-slate-500">
-                    Send airtime directly to
-                    recipients.
+                  <div className="text-xs text-gray-500">
+                    Send airtime credit
                   </div>
                 </button>
 
                 <button
                   type="button"
-                  onClick={() =>
-                    changeType(
+                  onClick={() => {
+                    setType(
                       "DATA"
-                    )
-                  }
-                  className={`rounded-2xl border-2 p-4 text-left transition ${
-                    type === "DATA"
-                      ? "border-blue-600 bg-blue-50"
-                      : "border-slate-200 bg-white hover:border-slate-300"
+                    );
+                    setAmount("");
+                  }}
+                  className={`rounded-2xl border p-4 text-left transition ${
+                    type ===
+                    "DATA"
+                      ? "border-current"
+                      : ""
                   }`}
                 >
-                  <div className="mb-2 text-2xl">
-                    📶
+                  <div className="text-xl mb-1">
+                    🌐
                   </div>
 
-                  <div className="font-semibold text-slate-900">
+                  <div className="font-semibold">
                     Data
                   </div>
 
-                  <div className="mt-1 text-xs text-slate-500">
-                    Send a live SMEAPI data
-                    plan.
+                  <div className="text-xs text-gray-500">
+                    Send a data bundle
                   </div>
                 </button>
 
@@ -607,26 +683,24 @@ export default function GiveawayPage() {
             {/* NETWORK */}
 
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-semibold text-slate-800">
+
+              <label className="block text-sm font-semibold mb-2">
                 Network
               </label>
 
               <select
                 value={network}
-                onChange={(e) =>
-                  changeNetwork(
+                onChange={(e) => {
+                  setNetwork(
                     e.target.value
-                  )
-                }
-                disabled={
-                  loadingPlans
-                }
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50"
+                  );
+                  setDataPlan("");
+                  setServiceType("");
+                }}
+                className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none"
               >
                 <option value="">
-                  {loadingPlans
-                    ? "Loading networks..."
-                    : "Select network"}
+                  Select network
                 </option>
 
                 {networkOptions.map(
@@ -641,348 +715,267 @@ export default function GiveawayPage() {
                 )}
               </select>
 
-              <p className="mt-2 text-xs text-slate-400">
-                Networks are loaded automatically
-                from the live SMEAPI catalogue.
-              </p>
             </div>
+
+            {/* AIRTIME */}
+
+            {type ===
+              "AIRTIME" && (
+              <div className="mb-6">
+
+                <label className="block text-sm font-semibold mb-2">
+                  Airtime Amount
+                </label>
+
+                <input
+                  type="number"
+                  min="1"
+                  placeholder="100"
+                  value={amount}
+                  onChange={(e) =>
+                    setAmount(
+                      e.target.value
+                    )
+                  }
+                  className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none"
+                />
+
+                {airtimePrice >
+                  0 && (
+                  <div className="mt-3 rounded-xl border p-3">
+
+                    <div className="text-xs text-gray-500">
+                      Amount to be used
+                    </div>
+
+                    <div className="font-bold text-lg">
+                      {money(
+                        airtimePrice
+                      )}
+                    </div>
+
+                    {airtimePrice !==
+                      Number(
+                        amount
+                      ) && (
+                      <div className="text-xs text-gray-500 mt-1">
+                        Rounded using your
+                        configured airtime
+                        unit of{" "}
+                        {money(
+                          airtimeRoundUnit
+                        )}
+                      </div>
+                    )}
+
+                  </div>
+                )}
+
+              </div>
+            )}
 
             {/* DATA */}
 
             {type === "DATA" && (
               <>
-                {/* SERVICE TYPE */}
+                {serviceTypes.length >
+                  0 && (
+                  <div className="mb-6">
+
+                    <label className="block text-sm font-semibold mb-2">
+                      Data Service
+                    </label>
+
+                    <select
+                      value={
+                        serviceType
+                      }
+                      onChange={(e) => {
+                        setServiceType(
+                          e.target.value
+                        );
+                        setDataPlan("");
+                      }}
+                      className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none"
+                    >
+                      <option value="">
+                        All available
+                        services
+                      </option>
+
+                      {serviceTypes.map(
+                        (
+                          service
+                        ) => (
+                          <option
+                            key={
+                              service
+                            }
+                            value={
+                              service
+                            }
+                          >
+                            {service}
+                          </option>
+                        )
+                      )}
+                    </select>
+
+                  </div>
+                )}
 
                 <div className="mb-6">
-                  <label className="mb-2 block text-sm font-semibold text-slate-800">
-                    Service Type
-                  </label>
 
-                  <select
-                    value={
-                      serviceType
-                    }
-                    onChange={(e) => {
-                      setServiceType(
-                        e.target.value
-                      );
-                      setDataPlan("");
-                    }}
-                    disabled={
-                      !network ||
-                      loadingPlans
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50"
-                  >
-                    <option value="">
-                      {!network
-                        ? "Select a network first"
-                        : "Select service type"}
-                    </option>
-
-                    {serviceTypes.map(
-                      (service) => (
-                        <option
-                          key={service}
-                          value={service}
-                        >
-                          {service}
-                        </option>
-                      )
-                    )}
-                  </select>
-                </div>
-
-                {/* DATA PLAN */}
-
-                <div className="mb-6">
-                  <label className="mb-2 block text-sm font-semibold text-slate-800">
+                  <label className="block text-sm font-semibold mb-2">
                     Data Plan
                   </label>
 
                   <select
-                    value={dataPlan}
-                    onChange={(e) =>
-                      setDataPlan(
-                        e.target.value
-                      )
+                    value={
+                      dataPlan
                     }
                     disabled={
-                      !network ||
-                      !serviceType ||
-                      loadingPlans
+                      loadingPlans ||
+                      !network
                     }
-                    className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 disabled:bg-slate-50"
+                    onChange={(e) =>
+                      setDataPlan(
+                        e.target
+                          .value
+                      )
+                    }
+                    className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none disabled:opacity-50"
                   >
                     <option value="">
-                      {!network
+                      {loadingPlans
+                        ? "Loading data plans..."
+                        : !network
                         ? "Select a network first"
-                        : !serviceType
-                        ? "Select service type first"
-                        : loadingPlans
-                        ? "Loading plans..."
-                        : filteredPlans.length ===
-                          0
-                        ? "No plans available"
-                        : "Select data plan"}
+                        : "Select a data plan"}
                     </option>
 
                     {filteredPlans.map(
-                      (plan) => (
+                      (
+                        plan
+                      ) => (
                         <option
-                          key={plan.id}
-                          value={plan.id}
+                          key={
+                            plan.id
+                          }
+                          value={
+                            plan.id
+                          }
                         >
                           {plan.name}
-                          {plan.days
-                            ? ` • ${plan.days}`
-                            : ""}{" "}
-                          —{" "}
+                          {" — "}
                           {money(
-                            plan.price
+                            percentPrice(
+                              plan.price,
+                              dataMarkup
+                            )
                           )}
                         </option>
                       )
                     )}
+
                   </select>
+
                 </div>
 
-                {/* SELECTED PLAN SUMMARY */}
-
                 {selectedPlan && (
-                  <div className="mb-6 rounded-2xl border border-blue-100 bg-blue-50/60 p-5">
-                    <div className="mb-3 flex items-center justify-between">
-                      <span className="text-xs font-semibold uppercase tracking-wide text-blue-600">
-                        Selected Plan
-                      </span>
+                  <div className="mb-6 rounded-2xl border p-5">
 
-                      <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-600">
-                        SMEAPI
-                      </span>
+                    <div className="text-sm text-gray-500 mb-1">
+                      Selected Gift
                     </div>
 
-                    <div className="flex items-end justify-between gap-4">
+                    <div className="font-bold text-lg">
+                      {
+                        selectedPlan.name
+                      }
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between gap-4">
+
                       <div>
-                        <p className="font-semibold text-slate-900">
-                          {selectedPlan.name}
-                        </p>
-
-                        {selectedPlan.days && (
-                          <p className="mt-1 text-xs text-slate-500">
-                            Validity:{" "}
-                            {
-                              selectedPlan.days
-                            }
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="text-right">
-                        <p className="text-xs text-slate-500">
+                        <div className="text-xs text-gray-500">
                           Provider price
-                        </p>
+                        </div>
 
-                        <p className="text-xl font-bold text-slate-900">
+                        <div className="text-sm">
                           {money(
                             selectedPlan.price
                           )}
-                        </p>
+                        </div>
                       </div>
+
+                      <div className="text-right">
+                        <div className="text-xs text-gray-500">
+                          Customer/Giveaway
+                          price
+                        </div>
+
+                        <div className="text-xl font-bold">
+                          {money(
+                            selectedDataPrice
+                          )}
+                        </div>
+                      </div>
+
                     </div>
+
+                    {dataMarkup >
+                      0 && (
+                      <div className="text-xs text-gray-500 mt-3">
+                        Includes your
+                        configured{" "}
+                        {dataMarkup}%
+                        Data markup.
+                      </div>
+                    )}
+
                   </div>
                 )}
+
               </>
             )}
 
-            {/* AIRTIME */}
-
-            {type === "AIRTIME" && (
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-semibold text-slate-800">
-                  Airtime Amount
-                </label>
-
-                <div className="relative">
-                  <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-slate-400">
-                    ₦
-                  </span>
-
-                  <input
-                    type="number"
-                    min="1"
-                    inputMode="numeric"
-                    placeholder="100"
-                    value={amount}
-                    onChange={(e) =>
-                      setAmount(
-                        e.target.value
-                      )
-                    }
-                    className="w-full rounded-xl border border-slate-200 bg-white py-3.5 pl-9 pr-4 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
-                  />
-                </div>
-
-                <p className="mt-2 text-xs text-slate-400">
-                  Airtime amounts are processed
-                  using your configured SMEAPI
-                  airtime settings.
-                </p>
-              </div>
-            )}
-
-            {/* RECIPIENT COUNT */}
+            {/* RECIPIENTS */}
 
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-semibold text-slate-800">
+
+              <label className="block text-sm font-semibold mb-2">
                 Number of Recipients
               </label>
 
               <input
                 type="number"
                 min="1"
-                inputMode="numeric"
                 placeholder="10"
                 value={
                   recipientLimit
                 }
                 onChange={(e) =>
                   setRecipientLimit(
-                    e.target.value
+                    e.target
+                      .value
                   )
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none"
               />
 
-              <p className="mt-2 text-xs text-slate-400">
-                Each recipient can successfully
-                claim this giveaway only once.
+              <p className="text-xs text-gray-500 mt-2">
+                Each phone number can claim
+                this giveaway only once.
               </p>
+
             </div>
-
-            {/* GIVEAWAY SUMMARY */}
-
-            {(selectedPlan ||
-              (type === "AIRTIME" &&
-                Number(amount) > 0)) &&
-              Number(
-                recipientLimit
-              ) > 0 && (
-                <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="mb-4 flex items-center gap-2">
-                    <span className="text-lg">
-                      📋
-                    </span>
-
-                    <h3 className="font-semibold text-slate-900">
-                      Giveaway Summary
-                    </h3>
-                  </div>
-
-                  <div className="space-y-3 text-sm">
-
-                    <div className="flex justify-between gap-4">
-                      <span className="text-slate-500">
-                        Gift type
-                      </span>
-
-                      <span className="font-medium text-slate-900">
-                        {type ===
-                        "AIRTIME"
-                          ? "Airtime"
-                          : "Data"}
-                      </span>
-                    </div>
-
-                    <div className="flex justify-between gap-4">
-                      <span className="text-slate-500">
-                        Network
-                      </span>
-
-                      <span className="font-medium text-slate-900">
-                        {networkOptions.find(
-                          (n) =>
-                            n.id ===
-                            network
-                        )?.name ||
-                          "—"}
-                      </span>
-                    </div>
-
-                    {selectedPlan && (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-slate-500">
-                          Data plan
-                        </span>
-
-                        <span className="max-w-[60%] text-right font-medium text-slate-900">
-                          {
-                            selectedPlan.name
-                          }
-                        </span>
-                      </div>
-                    )}
-
-                    {type ===
-                      "AIRTIME" && (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-slate-500">
-                          Gift per recipient
-                        </span>
-
-                        <span className="font-semibold text-slate-900">
-                          {money(
-                            Number(
-                              amount
-                            )
-                          )}
-                        </span>
-                      </div>
-                    )}
-
-                    {selectedPlan && (
-                      <div className="flex justify-between gap-4">
-                        <span className="text-slate-500">
-                          Provider price
-                        </span>
-
-                        <span className="font-semibold text-slate-900">
-                          {money(
-                            selectedPlan.price
-                          )}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="border-t border-slate-200 pt-3">
-                      <div className="flex justify-between gap-4">
-                        <span className="font-medium text-slate-700">
-                          Recipients
-                        </span>
-
-                        <span className="font-bold text-slate-900">
-                          {
-                            recipientLimit
-                          }
-                        </span>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  <div className="mt-4 rounded-xl bg-white p-3 text-xs leading-5 text-slate-500">
-                    Your wallet is charged when a
-                    recipient successfully claims a
-                    gift. The final customer price is
-                    calculated by your server-side
-                    giveaway pricing rules.
-                  </div>
-                </div>
-              )}
 
             {/* PIN */}
 
             <div className="mb-6">
-              <label className="mb-2 block text-sm font-semibold text-slate-800">
+
+              <label className="block text-sm font-semibold mb-2">
                 Transaction PIN
               </label>
 
@@ -990,8 +983,7 @@ export default function GiveawayPage() {
                 type="password"
                 inputMode="numeric"
                 maxLength={4}
-                autoComplete="off"
-                placeholder="Enter 4-digit PIN"
+                placeholder="••••"
                 value={pin}
                 onChange={(e) =>
                   setPin(
@@ -1006,36 +998,101 @@ export default function GiveawayPage() {
                       )
                   )
                 }
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3.5 text-center text-lg tracking-[0.5em] text-slate-900 outline-none transition focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10"
+                className="w-full rounded-xl border px-4 py-3 bg-transparent outline-none tracking-[0.4em]"
               />
 
-              <p className="mt-2 text-xs text-slate-400">
-                Your PIN is used only to authorize
-                the giveaway creation.
-              </p>
             </div>
 
-            {/* ERROR */}
+            {/* SUMMARY */}
 
-            {error && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-                <span className="text-lg">
-                  ⚠️
-                </span>
+            {(type ===
+              "AIRTIME"
+              ? airtimePrice >
+                0
+              : !!selectedPlan) && (
+              <div className="rounded-2xl border p-5 mb-6">
 
-                <p>{error}</p>
+                <div className="text-sm font-semibold mb-4">
+                  Giveaway Summary
+                </div>
+
+                <div className="space-y-3 text-sm">
+
+                  <div className="flex justify-between gap-4">
+                    <span className="text-gray-500">
+                      Gift
+                    </span>
+
+                    <span className="font-medium text-right">
+                      {type ===
+                      "AIRTIME"
+                        ? `${money(
+                            airtimePrice
+                          )} Airtime`
+                        : selectedPlan?.name}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between gap-4">
+
+                    <span className="text-gray-500">
+                      Recipients
+                    </span>
+
+                    <span className="font-medium">
+                      {recipientLimit ||
+                        "—"}
+                    </span>
+
+                  </div>
+
+                  <div className="border-t pt-3 flex justify-between gap-4">
+
+                    <span className="font-semibold">
+                      Maximum giveaway
+                      value
+                    </span>
+
+                    <span className="font-bold">
+
+                      {type ===
+                      "AIRTIME"
+                        ? money(
+                            airtimePrice *
+                              Number(
+                                recipientLimit ||
+                                  0
+                              )
+                          )
+                        : money(
+                            selectedDataPrice *
+                              Number(
+                                recipientLimit ||
+                                  0
+                              )
+                          )}
+
+                    </span>
+
+                  </div>
+
+                </div>
               </div>
             )}
 
-            {/* SUCCESS */}
+            {/* ERRORS */}
+
+            {error && (
+              <div className="rounded-xl border p-4 mb-4 text-sm">
+                {error}
+              </div>
+            )}
+
+            {/* SUCCESS MESSAGE */}
 
             {message && (
-              <div className="mb-5 flex items-start gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 p-4 text-sm text-emerald-700">
-                <span className="text-lg">
-                  ✓
-                </span>
-
-                <p>{message}</p>
+              <div className="rounded-xl border p-4 mb-4 text-sm">
+                {message}
               </div>
             )}
 
@@ -1050,17 +1107,17 @@ export default function GiveawayPage() {
                 loading ||
                 loadingPlans
               }
-              className="w-full rounded-xl bg-slate-900 px-5 py-4 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="w-full rounded-xl px-5 py-4 font-semibold disabled:opacity-50"
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                  Creating Giveaway...
-                </span>
-              ) : (
-                "🎁 Create Giveaway"
-              )}
+              {loading
+                ? "Creating Giveaway..."
+                : "🎁 Create Giveaway"}
             </button>
+
+            <div className="mt-4 text-center text-xs text-gray-500">
+              Your transaction PIN is used
+              only to authorize the giveaway.
+            </div>
 
           </div>
         </div>
@@ -1068,101 +1125,49 @@ export default function GiveawayPage() {
         {/* GENERATED LINK */}
 
         {giftLink && (
-          <div className="mt-6 overflow-hidden rounded-3xl border border-emerald-100 bg-white shadow-sm">
+          <div className="mt-6 rounded-3xl border p-6 md:p-8">
 
-            <div className="border-b border-emerald-100 bg-emerald-50 px-6 py-5">
-              <div className="flex items-center gap-3">
-                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-100 text-xl">
-                  ✓
-                </div>
+            <div className="flex items-center gap-3 mb-4">
 
-                <div>
-                  <h2 className="font-bold text-slate-900">
-                    Giveaway Ready
-                  </h2>
-
-                  <p className="text-sm text-slate-500">
-                    Your sharing link has been
-                    created successfully.
-                  </p>
-                </div>
+              <div className="text-3xl">
+                🔗
               </div>
-            </div>
 
-            <div className="p-6">
+              <div>
+                <h2 className="font-bold text-lg">
+                  Giveaway Created
+                </h2>
 
-              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Giveaway Link
-              </label>
-
-              <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p className="break-all text-sm font-medium text-slate-700">
-                  {giftLink}
+                <p className="text-sm text-gray-500">
+                  Share this link with your
+                  recipients.
                 </p>
               </div>
 
-              <button
-                type="button"
-                onClick={
-                  copyLink
-                }
-                className="w-full rounded-xl bg-slate-900 px-5 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800"
-              >
-                📋 Copy Giveaway Link
-              </button>
-
-              <div className="mt-5 rounded-2xl border border-blue-100 bg-blue-50 p-4">
-                <p className="text-sm font-semibold text-slate-800">
-                  How it works
-                </p>
-
-                <ul className="mt-2 space-y-2 text-xs leading-5 text-slate-600">
-                  <li>
-                    • Share this link with your
-                    recipients.
-                  </li>
-
-                  <li>
-                    • They open the link and enter
-                    their Nigerian phone number.
-                  </li>
-
-                  <li>
-                    • Each phone number can claim
-                    only once.
-                  </li>
-
-                  <li>
-                    • The gift is delivered through
-                    SMEAPI after successful
-                    validation.
-                  </li>
-                </ul>
-              </div>
-
             </div>
+
+            <div className="rounded-xl border p-4 break-all text-sm mb-4">
+              {giftLink}
+            </div>
+
+            <button
+              type="button"
+              onClick={
+                copyLink
+              }
+              className="w-full rounded-xl px-5 py-3 font-semibold"
+            >
+              📋 Copy Giveaway Link
+            </button>
+
+            <p className="text-xs text-gray-500 text-center mt-4">
+              Recipients only need to enter
+              their phone number to claim their
+              gift.
+            </p>
+
           </div>
         )}
-
-        {/* SECURITY NOTE */}
-
-        <div className="mt-6 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <span className="text-lg">
-            🔒
-          </span>
-
-          <div>
-            <p className="text-sm font-semibold text-slate-800">
-              Secure Giveaway
-            </p>
-
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Giveaway claims are validated on the
-              server. A phone number cannot claim
-              the same giveaway more than once.
-            </p>
-          </div>
-        </div>
 
       </div>
     </main>
