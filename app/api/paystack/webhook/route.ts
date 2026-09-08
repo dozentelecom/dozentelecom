@@ -11,7 +11,18 @@ import {
 } from "@/lib/models";
 import { creditWallet } from "@/lib/ledger";
 
+export async function GET() {
+  console.log("=== PAYSTACK WEBHOOK GET TEST ===");
+
+  return NextResponse.json({
+    ok: true,
+    message: "Paystack webhook route is live",
+  });
+}
+
 export async function POST(req: Request) {
+ console.log("=== PAYSTACK WEBHOOK POST RECEIVED ===");
+
   try {
     /* =========================================================
        READ RAW BODY
