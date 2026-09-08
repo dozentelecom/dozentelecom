@@ -1568,3 +1568,650 @@
     line-height: 1.35 !important;
   }
 }
+
+/* =========================================================
+   DOZENTELECOM FLOATING ACTIONS
+   BOTTOM RIGHT
+   ========================================================= */
+
+.dt-floating-actions {
+  position: fixed !important;
+
+  right: 18px !important;
+  left: auto !important;
+
+  bottom: calc(
+    18px + env(safe-area-inset-bottom)
+  ) !important;
+
+  z-index: 99999;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  gap: 10px;
+
+  pointer-events: none;
+}
+
+
+/* =========================================================
+   BUTTON
+   ========================================================= */
+
+.dt-floating-button {
+  width: 50px;
+  height: 50px;
+
+  padding: 0;
+
+  border: none;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  cursor: pointer;
+
+  color: #ffffff;
+
+  pointer-events: auto;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.35),
+    0 2px 8px rgba(0, 0, 0, 0.20);
+
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+
+/* =========================================================
+   HOVER
+   ========================================================= */
+
+.dt-floating-button:hover {
+  transform: translateY(-3px);
+
+  box-shadow:
+    0 12px 30px rgba(0, 0, 0, 0.40),
+    0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+
+/* =========================================================
+   CLICK
+   ========================================================= */
+
+.dt-floating-button:active {
+  transform: scale(0.92);
+}
+
+
+/* =========================================================
+   INSTALL
+   ========================================================= */
+
+.dt-install-button {
+  background: #c90000;
+}
+
+
+/* =========================================================
+   WHATSAPP
+   ========================================================= */
+
+.dt-support-button {
+  background: #25d366;
+}
+
+
+/* =========================================================
+   ICON
+   ========================================================= */
+
+.dt-floating-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  width: 100%;
+  height: 100%;
+
+  font-size: 24px;
+  line-height: 1;
+
+  font-weight: 700;
+}
+
+
+/* =========================================================
+   MOBILE — STILL BOTTOM RIGHT
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .dt-floating-actions {
+    right: 12px !important;
+    left: auto !important;
+
+    bottom: calc(
+      12px + env(safe-area-inset-bottom)
+    ) !important;
+
+    gap: 8px;
+  }
+
+  .dt-floating-button {
+    width: 46px;
+    height: 46px;
+  }
+
+  .dt-floating-icon {
+    font-size: 21px;
+  }
+}
+
+/* =========================================================
+   DOZENTELECOM NOTIFICATIONS
+   TOP RIGHT
+   ========================================================= */
+
+.dt-notification-bell {
+  position: fixed !important;
+
+  top: 18px !important;
+  right: 18px !important;
+
+  left: auto !important;
+  bottom: auto !important;
+
+  width: 48px !important;
+  height: 48px !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: 1px solid #29425d !important;
+  border-radius: 50% !important;
+
+  background: #0c1b2d !important;
+  color: #ffffff !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+
+  cursor: pointer !important;
+
+  z-index: 99998 !important;
+
+  box-shadow:
+    0 8px 25px rgba(0, 0, 0, 0.35) !important;
+}
+
+.dt-notification-bell:hover {
+  transform: translateY(-2px);
+}
+
+.dt-bell-icon {
+  font-size: 21px;
+  line-height: 1;
+}
+
+.dt-notification-badge {
+  position: absolute;
+
+  top: -4px;
+  right: -4px;
+
+  min-width: 20px;
+  height: 20px;
+
+  padding: 0 5px;
+
+  border-radius: 999px;
+
+  background: #c90000;
+  color: #ffffff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 10px;
+  font-weight: 800;
+
+  border: 2px solid #0c1b2d;
+}
+
+
+/* =========================================================
+   NOTIFICATION PANEL
+   ========================================================= */
+
+.dt-notification-panel {
+  position: fixed;
+
+  top: 78px;
+  right: 18px;
+
+  left: auto;
+
+  width: min(390px, calc(100vw - 36px));
+
+  max-height: 70vh;
+
+  overflow: hidden;
+
+  background: #0c1b2d;
+  color: #ffffff;
+
+  border: 1px solid #29425d;
+  border-radius: 16px;
+
+  z-index: 99997;
+
+  box-shadow:
+    0 18px 55px rgba(0, 0, 0, 0.45);
+}
+
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+
+.dt-notification-header {
+  display: flex;
+
+  align-items: center;
+  justify-content: space-between;
+
+  padding: 16px;
+
+  border-bottom: 1px solid #1e3650;
+}
+
+.dt-notification-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dt-notification-header strong {
+  font-size: 16px;
+}
+
+.dt-notification-header span {
+  color: #9fb2c8;
+
+  font-size: 11px;
+}
+
+.dt-notification-header > button {
+  width: 32px;
+  height: 32px;
+
+  border: 0;
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.06);
+
+  color: #ffffff;
+
+  font-size: 22px;
+
+  cursor: pointer;
+}
+
+
+/* =========================================================
+   LIST
+   ========================================================= */
+
+.dt-notification-list {
+  max-height: calc(70vh - 70px);
+
+  overflow-y: auto;
+}
+
+
+/* =========================================================
+   NOTIFICATION ITEM
+   ========================================================= */
+
+.dt-notification-item {
+  position: relative;
+
+  width: 100%;
+
+  padding: 14px 16px;
+
+  border: 0;
+  border-bottom: 1px solid #1e3650;
+
+  background: transparent;
+
+  color: #ffffff;
+
+  display: flex;
+
+  align-items: flex-start;
+
+  gap: 11px;
+
+  text-align: left;
+
+  cursor: pointer;
+}
+
+.dt-notification-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.dt-notification-item.unread {
+  background: rgba(201, 0, 0, 0.08);
+}
+
+
+/* =========================================================
+   ITEM ICON
+   ========================================================= */
+
+.dt-notification-item-icon {
+  width: 36px;
+  height: 36px;
+
+  flex: 0 0 36px;
+
+  border-radius: 50%;
+
+  background: rgba(255, 255, 255, 0.07);
+
+  display: flex;
+
+  align-items: center;
+  justify-content: center;
+
+  font-size: 17px;
+}
+
+
+/* =========================================================
+   ITEM CONTENT
+   ========================================================= */
+
+.dt-notification-item-content {
+  min-width: 0;
+
+  flex: 1;
+}
+
+.dt-notification-item-content strong {
+  display: block;
+
+  margin-bottom: 4px;
+
+  font-size: 13px;
+}
+
+.dt-notification-item-content p {
+  margin: 0 0 6px;
+
+  color: #9fb2c8;
+
+  font-size: 12px;
+
+  line-height: 1.5;
+}
+
+.dt-notification-item-content small {
+  color: #6f849b;
+
+  font-size: 10px;
+}
+
+
+/* =========================================================
+   UNREAD DOT
+   ========================================================= */
+
+.dt-notification-unread-dot {
+  width: 8px;
+  height: 8px;
+
+  flex: 0 0 8px;
+
+  margin-top: 5px;
+
+  border-radius: 50%;
+
+  background: #c90000;
+}
+
+
+/* =========================================================
+   EMPTY
+   ========================================================= */
+
+.dt-notification-empty {
+  padding: 45px 20px;
+
+  text-align: center;
+
+  color: #9fb2c8;
+
+  font-size: 13px;
+}
+
+.dt-notification-empty-icon {
+  margin-bottom: 10px;
+
+  font-size: 30px;
+}
+
+.dt-notification-empty strong {
+  display: block;
+
+  margin-bottom: 5px;
+
+  color: #ffffff;
+}
+
+.dt-notification-empty p {
+  margin: 0;
+}
+
+
+/* =========================================================
+   MOBILE
+   ========================================================= */
+
+@media (max-width: 700px) {
+  .dt-notification-bell {
+    top: 15px !important;
+    right: 12px !important;
+
+    left: auto !important;
+
+    width: 42px !important;
+    height: 42px !important;
+  }
+
+  .dt-bell-icon {
+    font-size: 19px;
+  }
+
+  .dt-notification-panel {
+    top: 67px;
+
+    right: 12px;
+    left: auto;
+
+    width: calc(100vw - 24px);
+
+    max-height: 72vh;
+  }
+}
+
+/* =========================================================
+   ADMIN NOTIFICATIONS
+   ========================================================= */
+
+.admin-notifications-page {
+  min-height: 100vh;
+  padding: 30px;
+  color: var(--text);
+}
+
+.admin-notifications-header {
+  margin-bottom: 25px;
+}
+
+.admin-notifications-header h1 {
+  margin: 0 0 8px;
+  font-size: 30px;
+}
+
+.admin-notifications-header p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-notification-card {
+  width: 100%;
+  max-width: 900px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 25px;
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.25);
+}
+
+.admin-notification-section {
+  margin-bottom: 25px;
+}
+
+.admin-notification-section h2 {
+  margin: 0 0 7px;
+  font-size: 21px;
+}
+
+.admin-notification-section p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.admin-notification-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.admin-notification-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-notification-field label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.admin-notification-field input,
+.admin-notification-field select,
+.admin-notification-field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #071525;
+  color: var(--text);
+  padding: 12px 13px;
+  font: inherit;
+  outline: none;
+}
+
+.admin-notification-field input:focus,
+.admin-notification-field select:focus,
+.admin-notification-field textarea:focus {
+  border-color: #c90000;
+}
+
+.admin-notification-field textarea {
+  resize: vertical;
+  min-height: 140px;
+}
+
+.admin-notification-field small {
+  text-align: right;
+  color: var(--muted);
+}
+
+.admin-notification-full {
+  grid-column: 1 / -1;
+}
+
+.admin-notification-error,
+.admin-notification-success {
+  margin-top: 20px;
+  padding: 13px 15px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.admin-notification-error {
+  background: rgba(201, 0, 0, 0.12);
+  border: 1px solid rgba(201, 0, 0, 0.35);
+  color: #ffb4b4;
+}
+
+.admin-notification-success {
+  background: rgba(37, 211, 102, 0.1);
+  border: 1px solid rgba(37, 211, 102, 0.3);
+  color: #9ff0bb;
+}
+
+.admin-notification-send {
+  margin-top: 20px;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 22px;
+  background: #c90000;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.admin-notification-send:hover {
+  opacity: 0.9;
+}
+
+.admin-notification-send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 700px) {
+  .admin-notifications-page {
+    padding: 18px 12px;
+  }
+
+  .admin-notification-card {
+    padding: 18px;
+  }
+
+  .admin-notification-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-notification-full {
+    grid-column: auto;
+  }
+
+  .admin-notifications-header h1 {
+    font-size: 25px;
+  }
+}

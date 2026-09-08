@@ -1,8 +1,14 @@
+```ts
 import { NextResponse } from "next/server";
+
 import { db } from "@/lib/db";
-import { Settings } from "@/lib/models";
+import { Settings, User } from "@/lib/models";
 import { currentUserId } from "@/lib/session";
-import { User } from "@/lib/models";
+import {
+  DEFAULTS,
+  assertRate,
+  RateKey,
+} from "@/lib/pricing";
 
 async function requireAdminApi() {
   const id = await currentUserId();
@@ -33,36 +39,29 @@ export async function GET() {
       );
     }
 
-    let settings: any = await Settings.findOne({
-      key: "default"
-    }).lean();
-
-    if (!settings) {
-      settings = {
-        key: "default",
+    const settings: any =
+      (await Settings.findOne({
+        key: "pricing",
+      }).lean()) || {
+        key: "pricing",
         rates: {
-          data: 0,
-          electricity: 0,
-          cable: 0,
-          education: 0,
-          airtimeToCash: 0,
-          funding: 0,
-          airtimeRoundUnit: 100
-        }
+          ...DEFAULTS,
+        },
       };
-    }
 
     return NextResponse.json({
       success: true,
-      settings
+      settings,
     });
-
   } catch (error: any) {
-    console.error("ADMIN SETTINGS GET ERROR:", error);
+    console.error(
+      "ADMIN SETTINGS GET ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Unable to load settings"
+        error: "Unable to load settings",
       },
       { status: 500 }
     );
@@ -82,55 +81,101 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    const rates = {
-      data: Number(body.data ?? 0),
-      electricity: Number(body.electricity ?? 0),
-      cable: Number(body.cable ?? 0),
-      education: Number(body.education ?? 0),
-      airtimeToCash: Number(body.airtimeToCash ?? 0),
-      funding: Number(body.funding ?? 0),
-      airtimeRoundUnit: Number(body.airtimeRoundUnit ?? 100)
+    const rates: any = {
+      ...DEFAULTS,
     };
 
-    for (const [key, value] of Object.entries(rates)) {
-      if (!Number.isFinite(value as number)) {
+    for (
+      const key of Object.keys(DEFAULTS)
+    ) {
+      if (body[key] === undefined) {
+        continue;
+      }
+
+      const value = Number(body[key]);
+
+      if (!Number.isFinite(value)) {
         return NextResponse.json(
           {
-            error: `Invalid value for ${key}`
+            error: `Invalid value for ${key}`,
           },
           { status: 400 }
         );
       }
+
+      if (key === "airtimeRoundUnit") {
+        if (value < 1) {
+          return NextResponse.json(
+            {
+              error:
+                "Airtime round unit must be at least ₦1",
+            },
+            { status: 400 }
+          );
+        }
+
+        rates[key] = value;
+        continue;
+      }
+
+      try {
+        assertRate(
+          key as RateKey,
+          value
+        );
+      } catch (error: any) {
+        return NextResponse.json(
+          {
+            error:
+              error?.message ||
+              `Invalid rate for ${key}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      rates[key] = value;
     }
 
-    const settings = await Settings.findOneAndUpdate(
-      { key: "default" },
-      {
-        $set: {
-          key: "default",
-          rates
+    await db();
+
+    const settings =
+      await Settings.findOneAndUpdate(
+        {
+          key: "pricing",
+        },
+        {
+          $set: {
+            key: "pricing",
+            rates,
+          },
+        },
+        {
+          new: true,
+          upsert: true,
         }
-      },
-      {
-        new: true,
-        upsert: true
-      }
-    );
+      );
 
     return NextResponse.json({
       success: true,
-      message: "Settings saved successfully",
-      settings
+      message:
+        "Settings saved successfully",
+      settings,
     });
-
   } catch (error: any) {
-    console.error("ADMIN SETTINGS SAVE ERROR:", error);
+    console.error(
+      "ADMIN SETTINGS SAVE ERROR:",
+      error
+    );
 
     return NextResponse.json(
       {
-        error: "Unable to save settings"
+        error:
+          error?.message ||
+          "Unable to save settings",
       },
       { status: 500 }
     );
   }
 }
+```

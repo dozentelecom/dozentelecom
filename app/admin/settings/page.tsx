@@ -1,3 +1,4 @@
+```tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ export default function AdminSettingsPage() {
     education: 15,
     airtimeToCash: 20,
     funding: 1.5,
+    withdrawal: 0,
     airtimeRoundUnit: 10,
   });
 
@@ -29,31 +31,46 @@ export default function AdminSettingsPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "Unable to load settings");
+        throw new Error(
+          data.error || "Unable to load settings"
+        );
       }
 
       if (data.settings?.rates) {
         setSettings({
-          data: Number(data.settings.rates.data ?? 0),
+          data: Number(
+            data.settings.rates.data ?? 5
+          ),
+
           electricity: Number(
-            data.settings.rates.electricity ?? 0
+            data.settings.rates.electricity ?? 4
           ),
-          cable: Number(data.settings.rates.cable ?? 0),
+
+          cable: Number(
+            data.settings.rates.cable ?? 4
+          ),
+
           education: Number(
-            data.settings.rates.education ?? 0
+            data.settings.rates.education ?? 15
           ),
+
           airtimeToCash: Number(
-            data.settings.rates.airtimeToCash ?? 0
+            data.settings.rates.airtimeToCash ?? 20
           ),
+
           funding: Number(
-            data.settings.rates.funding ?? 0
+            data.settings.rates.funding ?? 1.5
           ),
+
+          withdrawal: Number(
+            data.settings.rates.withdrawal ?? 0
+          ),
+
           airtimeRoundUnit: Number(
-            data.settings.rates.airtimeRoundUnit ?? 100
+            data.settings.rates.airtimeRoundUnit ?? 10
           ),
         });
       }
-
     } catch (err: any) {
       setError(
         err.message || "Unable to load settings"
@@ -73,7 +90,9 @@ export default function AdminSettingsPage() {
     }));
   }
 
-  async function saveSettings(e: React.FormEvent) {
+  async function saveSettings(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
 
     setSaving(true);
@@ -103,7 +122,6 @@ export default function AdminSettingsPage() {
       setMessage(
         "Settings saved successfully."
       );
-
     } catch (err: any) {
       setError(
         err.message || "Unable to save settings"
@@ -117,6 +135,7 @@ export default function AdminSettingsPage() {
     return (
       <main className="dashboard-content">
         <h1>Admin Settings</h1>
+
         <p className="muted">
           Loading settings...
         </p>
@@ -155,7 +174,6 @@ export default function AdminSettingsPage() {
         onSubmit={saveSettings}
         className="card"
       >
-
         <h2>Service Rates</h2>
 
         <p className="muted">
@@ -171,9 +189,14 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="5"
               value={settings.data}
               onChange={(e) =>
-                update("data", e.target.value)
+                update(
+                  "data",
+                  e.target.value
+                )
               }
             />
           </label>
@@ -185,6 +208,8 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="4"
               value={settings.electricity}
               onChange={(e) =>
                 update(
@@ -202,9 +227,14 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="4"
               value={settings.cable}
               onChange={(e) =>
-                update("cable", e.target.value)
+                update(
+                  "cable",
+                  e.target.value
+                )
               }
             />
           </label>
@@ -216,6 +246,8 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="15"
               value={settings.education}
               onChange={(e) =>
                 update(
@@ -233,6 +265,8 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="20"
               value={settings.airtimeToCash}
               onChange={(e) =>
                 update(
@@ -250,6 +284,8 @@ export default function AdminSettingsPage() {
               className="input"
               type="number"
               step="0.01"
+              min="0"
+              max="3"
               value={settings.funding}
               onChange={(e) =>
                 update(
@@ -258,6 +294,29 @@ export default function AdminSettingsPage() {
                 )
               }
             />
+          </label>
+
+          <label className="field">
+            <span>Withdrawal Fee (%)</span>
+
+            <input
+              className="input"
+              type="number"
+              step="0.01"
+              min="0"
+              max="5"
+              value={settings.withdrawal}
+              onChange={(e) =>
+                update(
+                  "withdrawal",
+                  e.target.value
+                )
+              }
+            />
+
+            <small className="muted">
+              Maximum allowed: 5%
+            </small>
           </label>
 
           <label className="field">
@@ -295,3 +354,4 @@ export default function AdminSettingsPage() {
     </main>
   );
 }
+```

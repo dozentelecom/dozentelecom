@@ -242,6 +242,7 @@ const SettingsSchema = new Schema(
       education: Number,
       airtimeToCash: Number,
       funding: Number,
+      withdrawal: Number,
       airtimeRoundUnit: Number,
     },
   },
@@ -580,6 +581,183 @@ GiveawayClaimSchema.index(
 );
 
 /* =========================================================
+   CUSTOMER WITHDRAWAL
+   ========================================================= */
+
+const WithdrawalSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    reference: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    /* Amount customer requested */
+    amountKobo: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    /* Withdrawal fee */
+    feeKobo: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+
+    /* Amount actually sent to customer */
+    payoutKobo: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "PENDING",
+        "PROCESSING",
+        "SUCCESS",
+        "FAILED",
+        "REVERSED",
+      ],
+      default: "PENDING",
+      index: true,
+    },
+
+    /* Nigerian bank information */
+    bankCode: {
+      type: String,
+      required: true,
+    },
+
+    bankName: {
+      type: String,
+      required: true,
+    },
+
+    accountNumber: {
+      type: String,
+      required: true,
+    },
+
+    accountName: {
+      type: String,
+      required: true,
+    },
+
+    /* Paystack recipient */
+    recipientCode: {
+      type: String,
+    },
+
+    /* Paystack transfer */
+    paystackReference: {
+      type: String,
+      index: true,
+    },
+
+    paystackTransferCode: {
+      type: String,
+    },
+
+    paystackData: {
+      type: Schema.Types.Mixed,
+    },
+
+    reason: {
+      type: String,
+    },
+
+    error: {
+      type: String,
+    },
+
+    completedAt: {
+      type: Date,
+    },
+
+    failedAt: {
+      type: Date,
+    },
+
+    reversedAt: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/* =========================================================
+   NOTIFICATION
+========================================================= */
+
+const NotificationSchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+      default: null,
+    },
+
+    title: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    type: {
+      type: String,
+      enum: [
+        "GENERAL",
+        "ANNOUNCEMENT",
+        "TRANSACTION",
+        "FUNDING",
+        "SECURITY",
+        "PROMOTION",
+      ],
+      default: "GENERAL",
+    },
+
+    read: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
+    link: {
+      type: String,
+      default: "",
+    },
+
+    expiresAt: {
+      type: Date,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/* =========================================================
    MODELS
    ========================================================= */
 
@@ -620,3 +798,11 @@ export const GiveawayClaim =
 export const ProfitWithdrawal =
   models.ProfitWithdrawal ||
   model("ProfitWithdrawal", ProfitWithdrawalSchema);
+
+export const Withdrawal =
+  models.Withdrawal ||
+  model("Withdrawal", WithdrawalSchema);
+
+export const Notification =
+  models.Notification ||
+  model("Notification", NotificationSchema);

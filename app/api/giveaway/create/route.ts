@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 
 import { db } from "@/lib/db";
-import { Giveaway } from "@/lib/models";
+import { Giveaway, Wallet } from "@/lib/models";
 import { currentUserId } from "@/lib/session";
 import { requirePin } from "@/lib/authz";
 import { smeapi, ProviderError } from "@/lib/smeapi";
@@ -190,22 +190,36 @@ export async function POST(req: Request) {
        * Total amount that may be distributed.
        */
       const totalKobo =
-        rewardPriceKobo *
-        recipientLimit;
+  rewardPriceKobo *
+  recipientLimit;
 
+await db();
 
-      /*
-       * Check wallet balance before
-       * creating the giveaway.
-       *
-       * We don't debit the wallet yet.
-       * Each successful claim will debit
-       * the creator's wallet.
-       */
-      await db();
+const wallet = await Wallet.findOne({
+  userId,
+});
 
-      const token =
-        crypto.randomBytes(24).toString("hex");
+const balanceKobo = Number(
+  wallet?.balanceKobo || 0
+);
+
+if (balanceKobo < totalKobo) {
+  return NextResponse.json(
+    {
+      error: "INSUFFICIENT_BALANCE",
+      message:
+        "Insufficient wallet balance to create this giveaway.",
+      requiredKobo: totalKobo,
+      balanceKobo,
+      requiredAmount: totalKobo / 100,
+      balance: balanceKobo / 100,
+    },
+    { status: 400 }
+  );
+}
+
+const token =
+  crypto.randomBytes(24).toString("hex");
 
       const giveaway =
         await Giveaway.create({
@@ -349,15 +363,36 @@ const rewardPriceKobo =
   Math.round(customerPrice * 100);
 
        const totalKobo =
-      rewardPriceKobo *
-      recipientLimit;
+  rewardPriceKobo *
+  recipientLimit;
 
+await db();
 
-    await db();
+const wallet = await Wallet.findOne({
+  userId,
+});
 
+const balanceKobo = Number(
+  wallet?.balanceKobo || 0
+);
 
-    const token =
-      crypto.randomBytes(24).toString("hex");
+if (balanceKobo < totalKobo) {
+  return NextResponse.json(
+    {
+      error: "INSUFFICIENT_BALANCE",
+      message:
+        "Insufficient wallet balance to create this giveaway.",
+      requiredKobo: totalKobo,
+      balanceKobo,
+      requiredAmount: totalKobo / 100,
+      balance: balanceKobo / 100,
+    },
+    { status: 400 }
+  );
+}
+
+const token =
+  crypto.randomBytes(24).toString("hex");
 
 
     const giveaway =

@@ -168,10 +168,14 @@ const token = String(rawToken || "").trim();
 
     try {
       claim = await GiveawayClaim.create({
-        giveawayId: giveaway._id,
-        phone,
-        status: "PROCESSING",
-      });
+  giveawayId: giveaway._id,
+  creatorId: giveaway.creatorId,
+  phone,
+  type: giveaway.type,
+  network: giveaway.network,
+  amountKobo: giveaway.rewardPriceKobo,
+  status: "PROCESSING",
+});
     } catch (error: any) {
       if (error?.code === 11000) {
         return NextResponse.json(
@@ -254,7 +258,7 @@ const token = String(rawToken || "").trim();
     }
 
     await startServiceTransaction({
-      userId: String(giveaway.userId),
+      userId: String(giveaway.creatorId),
       service:
         giveaway.type === "AIRTIME"
           ? "GIVEAWAY_AIRTIME"
@@ -349,7 +353,7 @@ const token = String(rawToken || "").trim();
 
       const plan = plans.find(
         (p: any) =>
-          getPlanId(p) === String(giveaway.dataPlanId)
+          getPlanId(p) === String(giveaway.dataPlan)
       );
 
       if (!plan) {
@@ -373,7 +377,7 @@ const token = String(rawToken || "").trim();
 
       const result = await smeapi.data({
         network: Number(giveaway.network),
-        data_plan: Number(giveaway.dataPlanId),
+        data_plan: Number(giveaway.dataPlan),
         phone,
         ported_number: false,
         ref: reference,

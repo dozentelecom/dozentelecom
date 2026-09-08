@@ -18,7 +18,9 @@ export async function GET() {
         ),
       },
     });
-  } catch (e: any) {
+} catch (e: any) {
+    console.error("GIVEAWAY PRICING ERROR:", e);
+
     const status =
       e?.message === "UNAUTHORIZED"
         ? 401

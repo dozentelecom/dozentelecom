@@ -62,12 +62,28 @@ export default async function Dashboard() {
               )}
             </h2>
 
-            <Link
-              className="btn primary"
-              href="/dashboard/fund"
-            >
-              Fund wallet
-            </Link>
+            <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    marginTop: "12px",
+  }}
+>
+  <Link
+    className="btn primary"
+    href="/dashboard/fund"
+  >
+    Fund wallet
+  </Link>
+
+  <Link
+    className="btn"
+    href="/dashboard/withdrawal"
+  >
+    Withdraw
+  </Link>
+</div>
 
           </div>
 

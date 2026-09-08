@@ -6,6 +6,7 @@ import {
   Funding,
   User,
   ProfitWithdrawal,
+  Withdrawal,
 } from "@/lib/models";
 import { creditWallet } from "@/lib/ledger";
 
@@ -27,13 +28,19 @@ export async function POST(req: Request) {
       console.error(
         "=== PAYSTACK WEBHOOK ERROR ==="
       );
+
       console.error(
         "PAYSTACK_SECRET_KEY is missing"
       );
 
       return NextResponse.json(
-        { error: "Webhook configuration error" },
-        { status: 500 }
+        {
+          error:
+            "Webhook configuration error",
+        },
+        {
+          status: 500,
+        }
       );
     }
 
@@ -59,8 +66,12 @@ export async function POST(req: Request) {
       );
 
       return NextResponse.json(
-        { error: "Invalid signature" },
-        { status: 401 }
+        {
+          error: "Invalid signature",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
@@ -74,8 +85,12 @@ export async function POST(req: Request) {
       e = JSON.parse(raw);
     } catch {
       return NextResponse.json(
-        { error: "Invalid JSON" },
-        { status: 400 }
+        {
+          error: "Invalid JSON",
+        },
+        {
+          status: 400,
+        }
       );
     }
 
@@ -99,7 +114,9 @@ export async function POST(req: Request) {
       "transfer.reversed",
     ];
 
-    if (transferEvents.includes(e.event)) {
+    if (
+      transferEvents.includes(e.event)
+    ) {
       const data = e.data || {};
 
       const reference = String(
@@ -107,8 +124,12 @@ export async function POST(req: Request) {
       ).trim();
 
       if (reference) {
-        const withdrawal: any =
-          await ProfitWithdrawal.findOne({
+        /* =====================================================
+           CUSTOMER WITHDRAWAL
+           ===================================================== */
+
+        const customerWithdrawal: any =
+          await Withdrawal.findOne({
             $or: [
               {
                 reference,
@@ -120,73 +141,367 @@ export async function POST(req: Request) {
             ],
           });
 
-        if (withdrawal) {
-          withdrawal.paystackData = data;
+        if (customerWithdrawal) {
+          console.log(
+            "=== CUSTOMER WITHDRAWAL WEBHOOK ==="
+          );
+
+          console.log({
+            reference,
+            withdrawalReference:
+              customerWithdrawal.reference,
+            event: e.event,
+            status:
+              customerWithdrawal.status,
+            userId:
+              String(
+                customerWithdrawal.userId
+              ),
+          });
+
+          /* ===================================================
+             SAVE PAYSTACK TRANSFER DATA
+             =================================================== */
+
+          customerWithdrawal.paystackData =
+            data;
 
           if (data.transfer_code) {
-            withdrawal.paystackTransferCode =
+            customerWithdrawal.paystackTransferCode =
               data.transfer_code;
           }
+
+          /* ===================================================
+             SUCCESS
+             =================================================== */
 
           if (
             e.event ===
             "transfer.success"
           ) {
-            withdrawal.status =
-              "SUCCESS";
+            /*
+             * Never move a completed withdrawal
+             * backwards.
+             */
 
-            withdrawal.completedAt =
-              new Date();
+            if (
+              customerWithdrawal.status !==
+                "SUCCESS" &&
+              customerWithdrawal.status !==
+                "FAILED" &&
+              customerWithdrawal.status !==
+                "REVERSED"
+            ) {
+              customerWithdrawal.status =
+                "SUCCESS";
 
-            withdrawal.error = undefined;
+              customerWithdrawal.completedAt =
+                new Date();
+
+              customerWithdrawal.error =
+                undefined;
+
+              await customerWithdrawal.save();
+
+              console.log(
+                "=== CUSTOMER WITHDRAWAL SUCCESS ==="
+              );
+
+              console.log({
+                reference,
+                amountKobo:
+                  customerWithdrawal.amountKobo,
+                payoutKobo:
+                  customerWithdrawal.payoutKobo,
+              });
+            }
           }
+
+          /* ===================================================
+             FAILED / REVERSED
+             =================================================== */
 
           if (
             e.event ===
-            "transfer.failed"
-          ) {
-            withdrawal.status =
-              "FAILED";
-
-            withdrawal.error =
-              data.reason ||
-              data.failures ||
-              "Paystack transfer failed";
-          }
-
-          if (
+              "transfer.failed" ||
             e.event ===
-            "transfer.reversed"
+              "transfer.reversed"
           ) {
-            withdrawal.status =
-              "REVERSED";
+            const shouldRefund =
+              customerWithdrawal.status ===
+                "PENDING" ||
+              customerWithdrawal.status ===
+                "PROCESSING";
 
-            withdrawal.error =
-              data.reason ||
-              "Paystack transfer was reversed";
+            /*
+             * Only PENDING/PROCESSING withdrawals
+             * are eligible for a refund.
+             *
+             * This prevents duplicate webhook events
+             * from refunding the customer twice.
+             */
+
+            if (shouldRefund) {
+              const refundReference =
+                `withdrawal_refund_${customerWithdrawal.reference}`;
+
+              try {
+                /* =========================================
+                   REFUND FULL AMOUNT
+                   ========================================= */
+
+                await creditWallet(
+                  String(
+                    customerWithdrawal.userId
+                  ),
+                  Number(
+                    customerWithdrawal.amountKobo
+                  ),
+                  refundReference,
+                  {
+                    withdrawalId:
+                      customerWithdrawal._id.toString(),
+
+                    withdrawalReference:
+                      customerWithdrawal.reference,
+
+                    reason:
+                      e.event ===
+                      "transfer.reversed"
+                        ? "Paystack withdrawal reversed"
+                        : "Paystack withdrawal failed",
+
+                    paystack:
+                      data,
+                  }
+                );
+
+                console.log(
+                  "=== CUSTOMER WITHDRAWAL REFUNDED ==="
+                );
+
+                console.log({
+                  reference,
+                  refundKobo:
+                    customerWithdrawal.amountKobo,
+                });
+              } catch (refundError: any) {
+                /*
+                 * If the refund ledger reference already
+                 * exists, the refund has already happened.
+                 *
+                 * This protects against duplicate Paystack
+                 * webhook deliveries.
+                 */
+
+                const message =
+                  String(
+                    refundError?.message ||
+                      ""
+                  );
+
+                const duplicate =
+                  message
+                    .toLowerCase()
+                    .includes(
+                      "duplicate"
+                    ) ||
+                  message
+                    .toLowerCase()
+                    .includes(
+                      "e11000"
+                    );
+
+                if (!duplicate) {
+                  console.error(
+                    "=== CUSTOMER WITHDRAWAL REFUND FAILED ==="
+                  );
+
+                  console.error(
+                    refundError
+                  );
+
+                  /*
+                   * Leave withdrawal as PROCESSING
+                   * so Paystack can retry the webhook and
+                   * the refund can be attempted again.
+                   */
+
+                  return NextResponse.json(
+                    {
+                      error:
+                        "Withdrawal refund failed",
+                    },
+                    {
+                      status: 500,
+                    }
+                  );
+                }
+
+                console.log(
+                  "=== WITHDRAWAL REFUND ALREADY EXISTS ==="
+                );
+              }
+
+              /* =========================================
+                 MARK WITHDRAWAL FAILED / REVERSED
+                 ========================================= */
+
+              customerWithdrawal.status =
+                e.event ===
+                "transfer.reversed"
+                  ? "REVERSED"
+                  : "FAILED";
+
+              customerWithdrawal.error =
+                data.reason ||
+                data.failures ||
+                (
+                  e.event ===
+                  "transfer.reversed"
+                    ? "Paystack transfer was reversed"
+                    : "Paystack transfer failed"
+                );
+
+              customerWithdrawal.failedAt =
+                new Date();
+
+              if (
+                e.event ===
+                "transfer.reversed"
+              ) {
+                customerWithdrawal.reversedAt =
+                  new Date();
+              }
+
+              await customerWithdrawal.save();
+
+              console.log(
+                "=== CUSTOMER WITHDRAWAL STATUS UPDATED ==="
+              );
+
+              console.log({
+                reference,
+                status:
+                  customerWithdrawal.status,
+              });
+            } else {
+              /*
+               * Already terminal.
+               * Do not refund again.
+               */
+
+              console.log(
+                "=== CUSTOMER WITHDRAWAL ALREADY PROCESSED ==="
+              );
+
+              console.log({
+                reference,
+                status:
+                  customerWithdrawal.status,
+              });
+
+              await customerWithdrawal.save();
+            }
           }
+        } else {
+          /* ===================================================
+             ADMIN / PROFIT WITHDRAWAL
+             =================================================== */
 
-          await withdrawal.save();
+          const profitWithdrawal: any =
+            await ProfitWithdrawal.findOne({
+              $or: [
+                {
+                  reference,
+                },
+                {
+                  paystackReference:
+                    reference,
+                },
+              ],
+            });
 
-          console.log(
-            "=== PROFIT WITHDRAWAL UPDATED ==="
-          );
+          if (profitWithdrawal) {
+            profitWithdrawal.paystackData =
+              data;
 
-          console.log({
-            reference,
-            status:
-              withdrawal.status,
-          });
+            if (data.transfer_code) {
+              profitWithdrawal.paystackTransferCode =
+                data.transfer_code;
+            }
+
+            if (
+              e.event ===
+              "transfer.success"
+            ) {
+              profitWithdrawal.status =
+                "SUCCESS";
+
+              profitWithdrawal.completedAt =
+                new Date();
+
+              profitWithdrawal.error =
+                undefined;
+            }
+
+            if (
+              e.event ===
+              "transfer.failed"
+            ) {
+              profitWithdrawal.status =
+                "FAILED";
+
+              profitWithdrawal.error =
+                data.reason ||
+                data.failures ||
+                "Paystack transfer failed";
+            }
+
+            if (
+              e.event ===
+              "transfer.reversed"
+            ) {
+              profitWithdrawal.status =
+                "REVERSED";
+
+              profitWithdrawal.error =
+                data.reason ||
+                "Paystack transfer was reversed";
+            }
+
+            await profitWithdrawal.save();
+
+            console.log(
+              "=== PROFIT WITHDRAWAL UPDATED ==="
+            );
+
+            console.log({
+              reference,
+              status:
+                profitWithdrawal.status,
+            });
+          } else {
+            console.log(
+              "=== TRANSFER REFERENCE NOT FOUND ==="
+            );
+
+            console.log({
+              reference,
+              event: e.event,
+            });
+          }
         }
       }
     }
-
 
     /* =========================================================
        WALLET FUNDING
        ========================================================= */
 
-    if (e.event === "charge.success") {
+    if (
+      e.event === "charge.success"
+    ) {
       const data = e.data || {};
 
       const reference = String(
@@ -238,7 +553,6 @@ export async function POST(req: Request) {
       }
     }
 
-
     /* =========================================================
        DEDICATED VIRTUAL ACCOUNT SUCCESS
        ========================================================= */
@@ -252,12 +566,6 @@ export async function POST(req: Request) {
       console.log(
         "=== DVA ASSIGNMENT SUCCESS EVENT ==="
       );
-
-      /*
-      ---------------------------------------------------------
-      CUSTOMER INFORMATION
-      ---------------------------------------------------------
-      */
 
       const customer =
         d.customer || {};
@@ -276,12 +584,6 @@ export async function POST(req: Request) {
             d.customer_code ||
             ""
         ).trim();
-
-      /*
-      ---------------------------------------------------------
-      DVA INFORMATION
-      ---------------------------------------------------------
-      */
 
       const accountNumber =
         String(
@@ -325,37 +627,15 @@ export async function POST(req: Request) {
         bankName,
       });
 
-      /*
-      ---------------------------------------------------------
-      MAKE SURE PAYSTACK ACTUALLY SENT THE ACCOUNT
-      ---------------------------------------------------------
-      */
-
       if (!accountNumber) {
         console.error(
           "=== DVA SUCCESS EVENT HAS NO ACCOUNT NUMBER ==="
-        );
-
-        console.error(
-          JSON.stringify(d, null, 2)
         );
 
         return NextResponse.json({
           ok: true,
         });
       }
-
-      /*
-      ---------------------------------------------------------
-      FIND USER
-      ---------------------------------------------------------
-
-      We first try the Paystack customer code.
-
-      If that isn't available, we fall back
-      to the customer's email.
-      ---------------------------------------------------------
-      */
 
       const conditions: any[] = [];
 
@@ -377,21 +657,10 @@ export async function POST(req: Request) {
           "=== DVA USER IDENTIFICATION FAILED ==="
         );
 
-        console.error({
-          email,
-          customerCode,
-        });
-
         return NextResponse.json({
           ok: true,
         });
       }
-
-      /*
-      ---------------------------------------------------------
-      UPDATE USER
-      ---------------------------------------------------------
-      */
 
       const updatedUser =
         await User.findOneAndUpdate(
@@ -422,21 +691,10 @@ export async function POST(req: Request) {
           }
         ).lean() as any;
 
-      /*
-      ---------------------------------------------------------
-      LOG RESULT
-      ---------------------------------------------------------
-      */
-
       if (!updatedUser) {
         console.error(
           "=== DVA USER NOT FOUND ==="
         );
-
-        console.error({
-          email,
-          customerCode,
-        });
 
         return NextResponse.json({
           ok: true,
@@ -454,12 +712,6 @@ export async function POST(req: Request) {
         email:
           updatedUser.email,
 
-        kycStatus:
-          updatedUser.kyc?.status,
-
-        kycType:
-          updatedUser.kyc?.type,
-
         customerCode:
           updatedUser.kyc?.customerCode,
 
@@ -476,7 +728,6 @@ export async function POST(req: Request) {
           updatedUser.kyc?.dvaStatus,
       });
     }
-
 
     /* =========================================================
        DEDICATED VIRTUAL ACCOUNT FAILED
@@ -558,7 +809,6 @@ export async function POST(req: Request) {
         );
       }
     }
-
 
     /* =========================================================
        ACKNOWLEDGE PAYSTACK

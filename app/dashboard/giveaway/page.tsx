@@ -308,28 +308,6 @@ export default function GiveawayPage() {
 
   /*
    * =========================================================
-   * DATA CUSTOMER PRICE
-   * =========================================================
-   */
-
-  const providerDataPrice = Number(selectedPlan?.price || 0);
-
-const selectedDataPrice =
-  providerDataPrice > 0
-    ? percentPrice(providerDataPrice, Number(dataMarkup || 0))
-    : 0;
-
-const dataProfitPerRecipient = Math.max(
-  0,
-  selectedDataPrice - providerDataPrice
-);
-
-const dataTotalProfit =
-  dataProfitPerRecipient *
-  Number(recipientLimit || 0);
-
-  /*
-   * =========================================================
    * AIRTIME PRICE
    * =========================================================
    */
@@ -520,9 +498,7 @@ const dataTotalProfit =
     <main className="min-h-screen bg-slate-950 px-4 py-6 text-slate-100 sm:px-6 md:px-8 md:py-10">
       <div className="mx-auto w-full max-w-4xl">
 
-        {/* =====================================================
-            HEADER
-            ===================================================== */}
+        {/* HEADER */}
 
         <div className="mb-7 flex items-start gap-4">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-slate-700 bg-slate-900 text-2xl shadow-lg">
@@ -542,110 +518,100 @@ const dataTotalProfit =
           </div>
         </div>
 
-        {/* =====================================================
-            MAIN FORM CARD
-            ===================================================== */}
+        {/* MAIN FORM CARD */}
 
         <div className="overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 shadow-2xl">
 
           <div className="p-5 sm:p-7 md:p-8">
 
-<div className="grid grid-cols-2 gap-3 sm:gap-4">
+            {/* GIFT TYPE */}
 
-                            {/* AIRTIME */}
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setType("AIRTIME");
-                    setDataPlan("");
-                    setServiceType("");
-                  }}
-                  className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
-                    type === "AIRTIME"
-                      ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
-                      : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
-                        type === "AIRTIME"
-                          ? "bg-blue-500/15"
-                          : "bg-slate-800"
-                      }`}
-                    >
-                      📱
-                    </div>
+              {/* AIRTIME */}
 
-                    {type === "AIRTIME" && (
-                      <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
-                        Selected
-                      </span>
-                    )}
+              <button
+                type="button"
+                onClick={() => {
+                  setType("AIRTIME");
+                  setDataPlan("");
+                  setServiceType("");
+                }}
+                className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
+                  type === "AIRTIME"
+                    ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
+                    : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
+                      type === "AIRTIME"
+                        ? "bg-blue-500/15"
+                        : "bg-slate-800"
+                    }`}
+                  >
+                    📱
                   </div>
 
-                  <div className="mt-3 sm:mt-4">
-                    <div className="truncate text-sm font-semibold text-white sm:text-base">
-                      Airtime
-                    </div>
+                  {type === "AIRTIME" && (
+                    <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
+                      Selected
+                    </span>
+                  )}
+                </div>
 
-                    <div className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">
-      
-                    </div>
+                <div className="mt-3 sm:mt-4">
+                  <div className="truncate text-sm font-semibold text-white sm:text-base">
+                    Airtime
                   </div>
-                </button>
+                </div>
+              </button>
 
-                {/* DATA */}
+              {/* DATA */}
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    setType("DATA");
-                    setAmount("");
-                  }}
-                  className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
-                    type === "DATA"
-                      ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
-                      : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
-                        type === "DATA"
-                          ? "bg-blue-500/15"
-                          : "bg-slate-800"
-                      }`}
-                    >
-                      🌐
-                    </div>
-
-                    {type === "DATA" && (
-                      <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
-                        Selected
-                      </span>
-                    )}
+              <button
+                type="button"
+                onClick={() => {
+                  setType("DATA");
+                  setAmount("");
+                }}
+                className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
+                  type === "DATA"
+                    ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
+                    : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
+                      type === "DATA"
+                        ? "bg-blue-500/15"
+                        : "bg-slate-800"
+                    }`}
+                  >
+                    🌐
                   </div>
 
-                  <div className="mt-3 sm:mt-4">
-                    <div className="truncate text-sm font-semibold text-white sm:text-base">
-                      Data
-                    </div>
+                  {type === "DATA" && (
+                    <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
+                      Selected
+                    </span>
+                  )}
+                </div>
 
-                    <div className="mt-1 text-[10px] leading-4 text-slate-500 sm:text-xs">
-                     
-                    </div>
+                <div className="mt-3 sm:mt-4">
+                  <div className="truncate text-sm font-semibold text-white sm:text-base">
+                    Data
                   </div>
-                </button>
+                </div>
+              </button>
 
             </div>
 
-            {/* =================================================
-                NETWORK
-                ================================================= */}
+            {/* NETWORK */}
 
-            <div className="mb-7">
+            <div className="mb-7 mt-7">
               <label className="mb-2 block text-sm font-semibold text-slate-200">
                 Network
               </label>
@@ -686,17 +652,13 @@ const dataTotalProfit =
               </div>
             </div>
 
-            {/* =================================================
-                GIVEAWAY FORM
-                ================================================= */}
+            {/* GIVEAWAY FORM */}
 
             <div className="mb-7 rounded-2xl bg-[#0b1329] p-5 text-white shadow-xl sm:p-6">
 
               <div className="space-y-5">
 
-                {/* =================================================
-                    AIRTIME
-                    ================================================= */}
+                {/* AIRTIME */}
 
                 {type === "AIRTIME" && (
                   <div>
@@ -722,10 +684,6 @@ const dataTotalProfit =
                         className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] pl-10 pr-4 text-base font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
-
-                    <p className="mt-1.5 text-xs leading-5 text-slate-400">
-                      
-                    </p>
 
                     {airtimePrice > 0 && (
                       <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
@@ -768,16 +726,13 @@ const dataTotalProfit =
                   </div>
                 )}
 
-                {/* =================================================
-                    DATA
-                    ================================================= */}
+                {/* DATA */}
 
                 {type === "DATA" && (
                   <>
                     {/* DATA SERVICE */}
 
-                    {serviceTypes.length >
-                      0 && (
+                    {serviceTypes.length > 0 && (
                       <div>
                         <label className="mb-2 block text-sm font-bold text-slate-100">
                           Data Service
@@ -785,16 +740,12 @@ const dataTotalProfit =
 
                         <div className="relative">
                           <select
-                            value={
-                              serviceType
-                            }
+                            value={serviceType}
                             onChange={(e) => {
                               setServiceType(
                                 e.target.value
                               );
-                              setDataPlan(
-                                ""
-                              );
+                              setDataPlan("");
                             }}
                             className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-500"
                           >
@@ -806,12 +757,8 @@ const dataTotalProfit =
                             {serviceTypes.map(
                               (service) => (
                                 <option
-                                  key={
-                                    service
-                                  }
-                                  value={
-                                    service
-                                  }
+                                  key={service}
+                                  value={service}
                                 >
                                   {service}
                                 </option>
@@ -835,9 +782,7 @@ const dataTotalProfit =
 
                       <div className="relative">
                         <select
-                          value={
-                            dataPlan
-                          }
+                          value={dataPlan}
                           disabled={
                             loadingPlans ||
                             !network
@@ -860,12 +805,8 @@ const dataTotalProfit =
                           {filteredPlans.map(
                             (plan) => (
                               <option
-                                key={
-                                  plan.id
-                                }
-                                value={
-                                  plan.id
-                                }
+                                key={plan.id}
+                                value={plan.id}
                               >
                                 {plan.name}
                                 {" — "}
@@ -897,118 +838,22 @@ const dataTotalProfit =
                     {/* SELECTED DATA PLAN */}
 
                     {selectedPlan && (
-                      <div className="overflow-hidden rounded-xl border border-blue-500/20 bg-blue-500/10">
+                      <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-4">
 
-                        <div className="border-b border-blue-500/10 px-4 py-4">
-                          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                            Selected Gift
-                          </p>
+                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                          Selected Gift
+                        </p>
 
-                          <p className="mt-1 text-base font-bold text-white">
-                            {
-                              selectedPlan.name
-                            }
-                          </p>
-                        </div>
-
-                        <div className="grid grid-cols-1 divide-y divide-blue-500/10 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-
-                          {/* PROVIDER PRICE */}
-
-                          <div className="p-4">
-                            <p className="text-xs text-slate-400">
-                              Provider price
-                            </p>
-
-                            <p className="mt-1 text-base font-semibold text-slate-200">
-                              {money(
-                                selectedPlan.price
-                              )}
-                            </p>
-                          </div>
-
-                          {/* GIVEAWAY PRICE */}
-
-                          <div className="p-4">
-                            <p className="text-xs text-slate-400">
-                              Giveaway price
-                            </p>
-
-                            <p className="mt-1 text-base font-bold text-blue-400">
-                              {money(
-                                selectedDataPrice
-                              )}
-                            </p>
-                          </div>
-
-                          {/* PROFIT */}
-
-                          <div className="p-4">
-                            <p className="text-xs text-slate-400">
-                              Profit per recipient
-                            </p>
-
-                            <p className="mt-1 text-base font-bold text-emerald-400">
-                              {money(dataProfitPerRecipient)}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* TOTAL PROFIT */}
-
-                        {Number(
-                          recipientLimit
-                        ) > 0 && (
-                          <div className="border-t border-blue-500/10 bg-emerald-500/5 px-4 py-3">
-                            <div className="flex items-center justify-between gap-4">
-
-                              <div>
-                                <p className="text-xs font-medium text-slate-400">
-                                  Estimated total profit
-                                </p>
-
-                                <p className="mt-0.5 text-[11px] text-slate-500">
-                                  Based on{" "}
-                                  {
-                                    recipientLimit
-                                  }{" "}
-                                  recipient
-                                  {Number(
-                                    recipientLimit
-                                  ) === 1
-                                    ? ""
-                                    : "s"}
-                                  .
-                                </p>
-                              </div>
-
-                              <p className="text-lg font-bold text-emerald-400">
-                               {money(dataTotalProfit)}
-                              </p>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* MARKUP NOTE */}
-
-                        {dataMarkup > 0 && (
-                          <div className="border-t border-blue-500/10 px-4 py-3 text-xs text-slate-400">
-                            Includes your configured{" "}
-                            <span className="font-semibold text-slate-300">
-                              {dataMarkup}%
-                            </span>{" "}
-                            Data markup.
-                          </div>
-                        )}
+                        <p className="mt-1 text-base font-bold text-white">
+                          {selectedPlan.name}
+                        </p>
 
                       </div>
                     )}
                   </>
                 )}
 
-                {/* =================================================
-                    NUMBER OF RECIPIENTS
-                    ================================================= */}
+                {/* NUMBER OF RECIPIENTS */}
 
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-100">
@@ -1020,9 +865,7 @@ const dataTotalProfit =
                     min="1"
                     max="10000"
                     placeholder="10"
-                    value={
-                      recipientLimit
-                    }
+                    value={recipientLimit}
                     onChange={(e) =>
                       setRecipientLimit(
                         e.target.value
@@ -1037,13 +880,11 @@ const dataTotalProfit =
                   </p>
                 </div>
 
-                {/* =================================================
-                    TRANSACTION PIN
-                    ================================================= */}
+                {/* TRANSACTION PIN */}
 
                 <div>
                   <label className="mb-2 block text-sm font-bold text-slate-100">
-                   Transaction PIN
+                    Transaction PIN
                   </label>
 
                   <input
@@ -1067,14 +908,9 @@ const dataTotalProfit =
                     }
                     className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] px-4 text-base font-semibold tracking-[0.45em] text-slate-900 outline-none transition placeholder:text-slate-400 placeholder:tracking-[0.3em] focus:bg-white focus:ring-2 focus:ring-blue-500"
                   />
-
-                  <p className="mt-1.5 text-xs leading-5 text-slate-400">
-                  </p>
                 </div>
 
-                {/* =================================================
-                    SUMMARY
-                    ================================================= */}
+                {/* SUMMARY */}
 
                 {(type === "AIRTIME"
                   ? airtimePrice > 0
@@ -1134,8 +970,7 @@ const dataTotalProfit =
                           </div>
 
                           <p className="text-xl font-bold text-blue-400">
-                            {type ===
-                            "AIRTIME"
+                            {type === "AIRTIME"
                               ? money(
                                   airtimePrice *
                                     Number(
@@ -1144,7 +979,15 @@ const dataTotalProfit =
                                     )
                                 )
                               : money(
-                                  selectedDataPrice *
+                                  percentPrice(
+                                    Number(
+                                      selectedPlan?.price ||
+                                        0
+                                    ),
+                                    Number(
+                                      dataMarkup || 0
+                                    )
+                                  ) *
                                     Number(
                                       recipientLimit ||
                                         0
@@ -1159,9 +1002,7 @@ const dataTotalProfit =
                   </div>
                 )}
 
-                {/* =================================================
-                    ERROR
-                    ================================================= */}
+                {/* ERROR */}
 
                 {error && (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-4">
@@ -1185,9 +1026,7 @@ const dataTotalProfit =
                   </div>
                 )}
 
-                {/* =================================================
-                    SUCCESS
-                    ================================================= */}
+                {/* SUCCESS */}
 
                 {message && (
                   <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4">
@@ -1211,14 +1050,15 @@ const dataTotalProfit =
                   </div>
                 )}
 
-                                              {/* =================================================
-                    CREATE GIVEAWAY
-                    ================================================= */}
+                {/* CREATE GIVEAWAY */}
 
                 <button
                   type="button"
                   onClick={createGiveaway}
-                  disabled={loading || loadingPlans}
+                  disabled={
+                    loading ||
+                    loadingPlans
+                  }
                   className="mt-2 flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-[#1d70f5] px-5 text-base font-extrabold text-white shadow-lg shadow-blue-500/10 transition-all hover:bg-blue-600 hover:shadow-blue-500/20 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {loading ? (
@@ -1239,9 +1079,7 @@ const dataTotalProfit =
 
           </div>
 
-          {/* =====================================================
-              GENERATED LINK
-              ===================================================== */}
+          {/* GENERATED LINK */}
 
           {giftLink && (
             <div className="mt-6 overflow-hidden rounded-3xl border border-emerald-500/20 bg-slate-900 shadow-xl">
@@ -1293,11 +1131,12 @@ const dataTotalProfit =
                     their phone number to claim
                     their gift.
                   </p>
+
                 </div>
 
               </div>
             </div>
-                    )}
+          )}
 
         </div>
       </div>
