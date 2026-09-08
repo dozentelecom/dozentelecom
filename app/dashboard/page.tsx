@@ -20,6 +20,7 @@ export default async function Dashboard() {
   await db();
 
   const u: any = await User.findById(id).lean();
+
   const w: any = await Wallet.findOne({
     userId: id,
   }).lean();
@@ -41,7 +42,7 @@ export default async function Dashboard() {
             </h1>
           </div>
 
-	<NotificationBell />
+          <NotificationBell />
         </div>
 
         <div className="dashboard-summary-grid">
@@ -66,131 +67,153 @@ export default async function Dashboard() {
             </h2>
 
             <div
-  style={{
-    display: "flex",
-    gap: "10px",
-    flexWrap: "wrap",
-    marginTop: "12px",
-  }}
->
-  <Link
-    className="btn primary"
-    href="/dashboard/fund"
-  >
-    Fund wallet
-  </Link>
+              style={{
+                display: "flex",
+                gap: "10px",
+                flexWrap: "wrap",
+                marginTop: "12px",
+              }}
+            >
+              <Link
+                className="btn primary"
+                href="/dashboard/fund"
+              >
+                Fund wallet
+              </Link>
 
-  <Link
-    className="btn"
-    href="/dashboard/withdrawal"
-  >
-    Withdraw
-  </Link>
-</div>
+              <Link
+                className="btn"
+                href="/dashboard/withdrawal"
+              >
+                Withdraw
+              </Link>
+            </div>
 
           </div>
 
           {/* KYC / VIRTUAL ACCOUNT */}
-          <div className="card">
+          <div
+  className={
+    u?.kyc?.status === "VERIFIED" &&
+    u?.kyc?.accountNumber
+      ? "card virtual-account-wrapper"
+      : "card"
+  }
+>
 
-            {u?.kyc?.status === "VERIFIED" ? (
-              <>
+  {u?.kyc?.status === "VERIFIED" ? (
 
-                <h3>
-                  Identity verified
-                </h3>
+    <>
 
-                <p className="muted">
-                  Your identity has been successfully
-                  verified.
-                </p>
+      {/* ACCOUNT HAS BEEN GENERATED */}
+      {u?.kyc?.accountNumber ? (
 
-                {u?.kyc?.accountNumber ? (
+        <div
+          style={{
+            marginTop: "0",
+            padding: "20px",
+            borderRadius: "16px",
+            background: "#111827",
+            color: "#ffffff",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow:
+              "0 10px 30px rgba(0,0,0,0.15)",
+          }}
+        >
 
-                  /*
-                   * ACCOUNT HAS BEEN GENERATED
-                   */
-                  <div
-                    style={{
-                      marginTop: "18px",
-                      padding: "18px",
-                      borderRadius: "12px",
-                      border: "1px solid #e5e7eb",
-                      background: "#f9fafb",
-                    }}
-                  >
 
                     <div
-                      className="muted"
                       style={{
-                        fontSize: "13px",
-                        marginBottom: "6px",
+                        display: "flex",
+                        alignItems: "flex-start",
+                        justifyContent: "space-between",
+                        gap: "16px",
+                        flexWrap: "wrap",
                       }}
                     >
-                      Virtual Account
+
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color:
+                              "rgba(255,255,255,0.65)",
+                            marginBottom: "5px",
+                          }}
+                        >
+                          Virtual Account
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "17px",
+                            fontWeight: 700,
+                            color: "#ffffff",
+                          }}
+                        >
+                          {u?.kyc?.bankName ||
+                            "Paystack-Titan"}
+                        </div>
+                      </div>
+
+                      {u?.kyc?.dvaStatus && (
+                        <div
+                          style={{
+                            whiteSpace: "nowrap",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            color:
+                              u.kyc.dvaStatus ===
+                              "ACTIVE"
+                                ? "#22c55e"
+                                : "#f59e0b",
+                          }}
+                        >
+                          {u.kyc.dvaStatus ===
+                          "ACTIVE"
+                            ? "● Account Active"
+                            : `● ${u.kyc.dvaStatus}`}
+                        </div>
+                      )}
+
                     </div>
 
                     <div
                       style={{
-                        fontSize: "13px",
-                        fontWeight: 600,
-                        marginBottom: "5px",
-                      }}
-                    >
-                      {u?.kyc?.bankName ||
-                        "Paystack"}
-                    </div>
-
-                    <h2
-                      style={{
-                        margin: "4px 0",
-                        letterSpacing: "1px",
+                        marginTop: "24px",
+                        fontSize: "30px",
+                        lineHeight: 1.1,
+                        fontWeight: 800,
+                        letterSpacing: "2px",
+                        color: "#ffffff",
                       }}
                     >
                       {u.kyc.accountNumber}
-                    </h2>
+                    </div>
 
-                    <p
+                    <div
                       style={{
-                        margin: 0,
+                        marginTop: "10px",
+                        fontSize: "14px",
                         fontWeight: 600,
+                        color:
+                          "rgba(255,255,255,0.85)",
+                        textTransform: "uppercase",
                       }}
                     >
                       {u?.kyc?.accountName ||
                         u?.name ||
                         ""}
-                    </p>
-
-                    {u?.kyc?.dvaStatus && (
-                      <div
-                        style={{
-                          marginTop: "10px",
-                          fontSize: "12px",
-                          color:
-                            u.kyc.dvaStatus ===
-                            "ACTIVE"
-                              ? "#15803d"
-                              : "#b45309",
-                          fontWeight: 600,
-                        }}
-                      >
-                        {u.kyc.dvaStatus ===
-                        "ACTIVE"
-                          ? "● Account Active"
-                          : `● ${u.kyc.dvaStatus}`}
-                      </div>
-                    )}
+                    </div>
 
                   </div>
 
                 ) : u?.kyc?.dvaStatus === "PENDING" ? (
 
-                  /*
-                   * ACCOUNT GENERATION IS STILL PROCESSING
-                   */
+                  /* ACCOUNT GENERATION IS STILL PROCESSING */
                   <div
                     style={{
-                      marginTop: "18px",
+                      marginTop: "0",
                       padding: "18px",
                       borderRadius: "12px",
                       border:
@@ -235,13 +258,10 @@ export default async function Dashboard() {
 
                 ) : (
 
-                  /*
-                   * VERIFIED BUT ACCOUNT HAS NOT
-                   * BEEN REQUESTED YET
-                   */
+                  /* VERIFIED BUT ACCOUNT HAS NOT BEEN REQUESTED YET */
                   <div
                     style={{
-                      marginTop: "18px",
+                      marginTop: "0",
                     }}
                   >
 
@@ -250,7 +270,7 @@ export default async function Dashboard() {
                       Paystack virtual account.
                     </p>
 
-                   <GenerateAccountButton />
+                    <GenerateAccountButton />
 
                     <p
                       className="muted"
@@ -269,6 +289,7 @@ export default async function Dashboard() {
                 )}
 
               </>
+
             ) : (
 
               <>
@@ -300,11 +321,9 @@ export default async function Dashboard() {
         <div className="section-head">
 
           <div>
-
             <h2>
               Services
             </h2>
-
           </div>
 
           <Link
@@ -324,20 +343,20 @@ export default async function Dashboard() {
             ["Electricity", "⚡"],
             ["Education", "🎓"],
             ["Airtime to Cash", "💸"],
-	    ["Giveaway", "🎁"],
+            ["Giveaway", "🎁"],
           ].map(([x, icon]) => (
 
             <Link
-  href={
-    x === "Airtime to Cash"
-      ? "/dashboard/airtime-to-cash"
-      : x === "Giveaway"
-      ? "/dashboard/giveaway"
-      : "/dashboard/services"
-  }
-  className="card service-card"
-  key={x}
->
+              href={
+                x === "Airtime to Cash"
+                  ? "/dashboard/airtime-to-cash"
+                  : x === "Giveaway"
+                  ? "/dashboard/giveaway"
+                  : "/dashboard/services"
+              }
+              className="card service-card"
+              key={x}
+            >
 
               <div className="service-icon">
                 {icon}
@@ -349,8 +368,8 @@ export default async function Dashboard() {
 
               <p className="muted">
                 {x === "Giveaway"
-          ? "Send Airtime or Data as a gift"
-          : "Open secure form"}
+                  ? "Send Airtime or Data as a gift"
+                  : "Open secure form"}
               </p>
 
             </Link>
@@ -359,10 +378,12 @@ export default async function Dashboard() {
 
         </div>
 
-	                {/* CONTACT & COMMUNITY */}
+        {/* CONTACT & COMMUNITY */}
 
         <div className="section-head">
+
           <div>
+
             <h2>
               Contact & Community
             </h2>
@@ -371,7 +392,9 @@ export default async function Dashboard() {
               Need help? Contact our support team or
               join our WhatsApp community.
             </p>
+
           </div>
+
         </div>
 
         <div className="contact-grid">
@@ -383,6 +406,7 @@ export default async function Dashboard() {
             rel="noopener noreferrer"
             className="card service-card"
           >
+
             <div className="service-icon">
               💬
             </div>
@@ -394,6 +418,7 @@ export default async function Dashboard() {
             <p className="muted">
               Message us directly on WhatsApp
             </p>
+
           </a>
 
           {/* WHATSAPP GROUP */}
@@ -403,6 +428,7 @@ export default async function Dashboard() {
             rel="noopener noreferrer"
             className="card service-card"
           >
+
             <div className="service-icon">
               👥
             </div>
@@ -415,6 +441,7 @@ export default async function Dashboard() {
               Join our community for updates and
               announcements
             </p>
+
           </a>
 
           {/* EMAIL SUPPORT */}
@@ -422,6 +449,7 @@ export default async function Dashboard() {
             href="mailto:ajibadeayodeji07@gmail.com"
             className="card service-card"
           >
+
             <div className="service-icon">
               ✉️
             </div>
@@ -433,6 +461,7 @@ export default async function Dashboard() {
             <p className="muted">
               Contact our support team by email
             </p>
+
           </a>
 
         </div>

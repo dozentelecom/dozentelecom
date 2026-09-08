@@ -3485,42 +3485,11 @@
 }
 
 .virtual-account-wrapper .muted {
-  color: rgba(255, 255, 255, 0.65);
+  color: rgba(255, 255, 255, 0.65) !important;
 }
 
 .virtual-account-wrapper h2,
 .virtual-account-wrapper h3,
 .virtual-account-wrapper p {
   color: #ffffff;
-}
-
-/* Force dark background on the wrapper and all nested elements */
-.virtual-account-wrapper,
-.virtual-account-wrapper * {
-  background-color: #0f172a !important;
-  color: #ffffff !important;
-}
-
-/* Card container border and radius */
-.virtual-account-wrapper {
-  border: 1px solid #334155 !important;
-  border-radius: 12px !important;
-  padding: 16px !important;
-}
-
-/* Subtext / Muted text (Bank Name & Account Number) */
-.virtual-account-wrapper .muted,
-.virtual-account-wrapper span,
-.virtual-account-wrapper p {
-  color: #94a3b8 !important; /* Soft silver for readability */
-}
-
-/* Main title / Account Name */
-.virtual-account-wrapper h1,
-.virtual-account-wrapper h2,
-.virtual-account-wrapper h3,
-.virtual-account-wrapper strong,
-.virtual-account-wrapper b {
-  color: #ffffff !important;
-  font-weight: 700 !important;
 }
