@@ -494,155 +494,37 @@ export async function POST(req: Request) {
         data.amount || 0
       );
 
-      console.log(
-        "=== PAYSTACK CHARGE SUCCESS ==="
-      );
-
-      console.log({
-        reference,
-        amountKobo,
-        channel:
-          data.channel || null,
-        currency:
-          data.currency || null,
-        customerEmail:
-          data.customer?.email ||
-          data.email ||
-          null,
-        customerCode:
-          data.customer?.customer_code ||
-          data.customer_code ||
-          null,
-        receiverAccount:
-          data.authorization
-            ?.receiver_bank_account_number ||
-          data.receiver_bank_account_number ||
-          data.dedicated_account
-            ?.account_number ||
-          null,
-      });
-
-      if (
-        !reference ||
-        amountKobo <= 0
-      ) {
-        console.error(
-          "=== INVALID CHARGE.SUCCESS DATA ==="
-        );
-
-        return NextResponse.json({
-          ok: true,
-        });
-      }
-
-      /* =======================================================
-         1. CHECK NORMAL FUNDING RECORD
-         ======================================================= */
-
-      const f: any =
-        await Funding.findOne({
-          reference,
-        });
-
-      if (f) {
-        console.log(
-          "=== EXISTING FUNDING RECORD FOUND ==="
-        );
-
-        /*
-         * Verify the amount before crediting.
-         */
-
-        if (
-          f.status !== "CREDITED" &&
-          amountKobo ===
-            Number(f.grossKobo)
-        ) {
-          await creditWallet(
-            String(f.userId),
-            Number(f.creditKobo),
-            `FUND-${f.reference}`,
-            {
-              source:
-                "PAYSTACK_FUNDING",
-
-              paystack: data,
-
-              feeKobo:
-                f.feeKobo,
-            }
-          );
-
-          f.status = "CREDITED";
-
-          f.providerData =
-            data;
-
-          await f.save();
-
-          console.log(
-            "=== NORMAL FUNDING WALLET CREDITED ==="
-          );
-
-          console.log({
-            userId:
-              String(f.userId),
-
-            reference:
-              f.reference,
-
-            grossKobo:
-              f.grossKobo,
-
-            creditKobo:
-              f.creditKobo,
-          });
-        } else if (
-          f.status !== "CREDITED"
-        ) {
-          console.error(
-            "=== FUNDING AMOUNT MISMATCH ==="
-          );
-
-          console.error({
-            reference,
-            webhookAmountKobo:
-              amountKobo,
-            fundingGrossKobo:
-              f.grossKobo,
-          });
-        }
-
-        return NextResponse.json({
-          ok: true,
-        });
-      }
-
-      /* =======================================================
-         2. DIRECT DVA FUNDING
-         ======================================================= */
-
-      console.log(
-        "=== NO FUNDING RECORD FOUND ==="
-      );
-
-      console.log(
-        "=== CHECKING DIRECT DVA FUNDING ==="
-      );
+      const channel = String(
+        data.channel || ""
+      ).trim().toLowerCase();
 
       /*
-       * Paystack can identify the receiving
-       * dedicated account through the
-       * authorization object.
+       * DVA transactions use Paystack's
+       * dedicated_nuban channel.
+       *
+       * IMPORTANT:
+       * Handle DVA transactions before looking
+       * for a normal Funding record. A DVA charge
+       * must never be blocked by a Funding record
+       * with the same reference.
        */
 
       const receiverAccountNumber =
         String(
           data.authorization
             ?.receiver_bank_account_number ||
+            data.metadata?.receiver_account_number ||
             data.receiver_bank_account_number ||
             data.dedicated_account
               ?.account_number ||
+            ""
+        ).trim();
+
+      const receiverBank =
+        String(
+          data.authorization?.receiver_bank ||
+            data.metadata?.receiver_bank ||
+            data.receiver_bank ||
             ""
         ).trim();
 
@@ -657,75 +539,45 @@ export async function POST(req: Request) {
 
       const customerCode =
         String(
-          data.customer
-            ?.customer_code ||
+          data.customer?.customer_code ||
             data.customer_code ||
             ""
         ).trim();
 
+      const isDvaCharge =
+        channel === "dedicated_nuban" ||
+        Boolean(receiverAccountNumber);
+
       console.log(
-        "=== DVA IDENTIFICATION DATA ==="
+        "=== PAYSTACK CHARGE SUCCESS ==="
       );
 
       console.log({
-        receiverAccountNumber,
-        customerEmail,
-        customerCode,
+        reference,
+        amountKobo,
+        amountNaira:
+          amountKobo / 100,
+        channel,
+        currency:
+          data.currency || null,
+        receiverAccountNumber:
+          receiverAccountNumber || null,
+        receiverBank:
+          receiverBank || null,
+        customerEmail:
+          customerEmail || null,
+        customerCode:
+          customerCode || null,
+        isDvaCharge,
       });
 
-      /* =======================================================
-         FIND USER
-         ======================================================= */
-
-      const conditions: any[] = [];
-
-      /*
-       * BEST MATCH:
-       * Dedicated virtual account number.
-       */
-
       if (
-        receiverAccountNumber
-      ) {
-        conditions.push({
-          "kyc.accountNumber":
-            receiverAccountNumber,
-        });
-      }
-
-      /*
-       * SECOND MATCH:
-       * Paystack customer code.
-       */
-
-      if (customerCode) {
-        conditions.push({
-          "kyc.customerCode":
-            customerCode,
-        });
-      }
-
-      /*
-       * THIRD MATCH:
-       * Customer email.
-       */
-
-      if (customerEmail) {
-        conditions.push({
-          email:
-            customerEmail,
-        });
-      }
-
-      if (
-        conditions.length === 0
+        !reference ||
+        !Number.isInteger(amountKobo) ||
+        amountKobo <= 0
       ) {
         console.error(
-          "=== DVA USER IDENTIFICATION FAILED ==="
-        );
-
-        console.error(
-          "Paystack charge.success did not contain enough customer/account information."
+          "=== INVALID CHARGE.SUCCESS DATA ==="
         );
 
         return NextResponse.json({
@@ -733,73 +585,258 @@ export async function POST(req: Request) {
         });
       }
 
-      const user: any =
-        await User.findOne({
-          $or: conditions,
-        }).lean();
+      /* =======================================================
+         1. DIRECT DVA FUNDING
+         ======================================================= */
 
-      if (!user) {
-        console.error(
-          "=== DVA USER NOT FOUND ==="
+      if (isDvaCharge) {
+        console.log(
+          "=== DIRECT DVA FUNDING ==="
         );
 
-        console.error({
+        console.log({
           receiverAccountNumber,
+          receiverBank,
           customerEmail,
           customerCode,
+          reference,
+          amountKobo,
+          amountNaira:
+            amountKobo / 100,
         });
 
-        return NextResponse.json({
-          ok: true,
-        });
-      }
+        if (
+          !receiverAccountNumber &&
+          !customerCode &&
+          !customerEmail
+        ) {
+          console.error(
+            "=== DVA USER IDENTIFICATION FAILED ==="
+          );
 
-      console.log(
-        "=== DVA USER FOUND ==="
-      );
+          return NextResponse.json({
+            ok: true,
+          });
+        }
 
-      console.log({
-        userId:
-          String(user._id),
+        /*
+         * Find the user by the dedicated account
+         * number first. This is the strongest and
+         * safest identifier for DVA funding.
+         *
+         * We support both string and numeric values
+         * because older records may have been stored
+         * with a different MongoDB type.
+         */
 
-        email:
-          user.email,
+        let user: any = null;
 
-        accountNumber:
-          user.kyc?.accountNumber,
+        if (receiverAccountNumber) {
+          const accountConditions: any[] = [
+            {
+              "kyc.accountNumber":
+                receiverAccountNumber,
+            },
+          ];
 
-        customerCode:
-          user.kyc?.customerCode,
-      });
+          if (/^\d+$/.test(receiverAccountNumber)) {
+            accountConditions.push({
+              "kyc.accountNumber":
+                Number(receiverAccountNumber),
+            });
+          }
 
-      /* =======================================================
-         IDEMPOTENCY CHECK
-         ======================================================= */
+          user =
+            await User.findOne({
+              $or: accountConditions,
+            });
+        }
 
-      const dvaReference =
-        `DVA-${reference}`;
+        /*
+         * Fallback to Paystack customer code.
+         */
 
-      const existingLedger =
-        await Ledger.findOne({
-          reference:
-            dvaReference,
-        });
+        if (!user && customerCode) {
+          user =
+            await User.findOne({
+              "kyc.customerCode":
+                customerCode,
+            });
+        }
 
-      if (existingLedger) {
+        /*
+         * Final fallback: customer email.
+         * Case-insensitive exact match.
+         */
+
+        if (!user && customerEmail) {
+          const escapedEmail =
+            customerEmail.replace(
+              /[.*+?^${}()|[\]\\]/g,
+              "\\$&"
+            );
+
+          user =
+            await User.findOne({
+              email: {
+                $regex:
+                  `^${escapedEmail}$`,
+                $options: "i",
+              },
+            });
+        }
+
+        if (!user) {
+          console.error(
+            "=== DVA USER NOT FOUND ==="
+          );
+
+          console.error({
+            receiverAccountNumber,
+            customerEmail,
+            customerCode,
+            reference,
+          });
+
+          return NextResponse.json({
+            ok: true,
+          });
+        }
+
         console.log(
-          "=== DVA PAYMENT ALREADY CREDITED ==="
+          "=== DVA USER FOUND ==="
+        );
+
+        console.log({
+          userId:
+            String(user._id),
+          email:
+            user.email,
+          accountNumber:
+            user.kyc?.accountNumber,
+          customerCode:
+            user.kyc?.customerCode,
+        });
+
+        /* =====================================================
+           IDEMPOTENCY CHECK
+           ===================================================== */
+
+        const dvaReference =
+          `DVA-${reference}`;
+
+        const existingLedger =
+          await Ledger.findOne({
+            reference:
+              dvaReference,
+          });
+
+        if (existingLedger) {
+          console.log(
+            "=== DVA PAYMENT ALREADY CREDITED ==="
+          );
+
+          console.log({
+            userId:
+              String(user._id),
+            paystackReference:
+              reference,
+            ledgerReference:
+              dvaReference,
+            amountKobo,
+          });
+
+          return NextResponse.json({
+            ok: true,
+          });
+        }
+
+        /* =====================================================
+           CREDIT CUSTOMER WALLET
+           ===================================================== */
+
+        await creditWallet(
+          String(user._id),
+          amountKobo,
+          dvaReference,
+          {
+            source:
+              "PAYSTACK_DEDICATED_VIRTUAL_ACCOUNT",
+
+            paystackReference:
+              reference,
+
+            receiverAccountNumber,
+
+            receiverBank,
+
+            customerEmail,
+
+            customerCode,
+
+            paystack:
+              data,
+          }
+        );
+
+        console.log(
+          "========================================"
+        );
+
+        console.log(
+          "=== DVA WALLET CREDITED SUCCESSFULLY ==="
         );
 
         console.log({
           userId:
             String(user._id),
 
-          paystackReference:
-            reference,
+          email:
+            user.email,
+
+          accountNumber:
+            user.kyc?.accountNumber,
+
+          reference,
+
+          amountKobo,
+
+          amountNaira:
+            amountKobo / 100,
 
           ledgerReference:
             dvaReference,
+        });
 
+        console.log(
+          "========================================"
+        );
+
+        return NextResponse.json({
+          ok: true,
+        });
+      }
+
+      /* =======================================================
+         2. NORMAL WALLET FUNDING
+         ======================================================= */
+
+      console.log(
+        "=== NORMAL PAYSTACK FUNDING ==="
+      );
+
+      const f: any =
+        await Funding.findOne({
+          reference,
+        });
+
+      if (!f) {
+        console.error(
+          "=== FUNDING RECORD NOT FOUND ==="
+        );
+
+        console.error({
+          reference,
           amountKobo,
         });
 
@@ -808,61 +845,80 @@ export async function POST(req: Request) {
         });
       }
 
-      /* =======================================================
-         CREDIT CUSTOMER WALLET
-         ======================================================= */
-
-      await creditWallet(
-        String(user._id),
-        amountKobo,
-        dvaReference,
-        {
-          source:
-            "PAYSTACK_DEDICATED_VIRTUAL_ACCOUNT",
-
-          paystackReference:
-            reference,
-
-          receiverAccountNumber,
-
-          customerEmail,
-
-          customerCode,
-
-          paystack:
-            data,
-        }
-      );
-
       console.log(
-        "========================================"
+        "=== EXISTING FUNDING RECORD FOUND ==="
       );
 
-      console.log(
-        "=== DVA WALLET CREDITED SUCCESSFULLY ==="
-      );
+      /*
+       * Verify the amount before crediting.
+       */
 
-      console.log({
-        userId:
-          String(user._id),
+      if (
+        f.status !== "CREDITED" &&
+        amountKobo ===
+          Number(f.grossKobo)
+      ) {
+        await creditWallet(
+          String(f.userId),
+          Number(f.creditKobo),
+          `FUND-${f.reference}`,
+          {
+            source:
+              "PAYSTACK_FUNDING",
 
-        email:
-          user.email,
+            paystack: data,
 
-        accountNumber:
-          user.kyc?.accountNumber,
+            feeKobo:
+              f.feeKobo,
+          }
+        );
 
-        reference,
+        f.status = "CREDITED";
 
-        amountKobo,
+        f.providerData =
+          data;
 
-        amountNaira:
-          amountKobo / 100,
+        f.paystackReference =
+          reference;
+
+        await f.save();
+
+        console.log(
+          "=== NORMAL FUNDING WALLET CREDITED ==="
+        );
+
+        console.log({
+          userId:
+            String(f.userId),
+
+          reference:
+            f.reference,
+
+          grossKobo:
+            f.grossKobo,
+
+          creditKobo:
+            f.creditKobo,
+        });
+      } else if (
+        f.status !== "CREDITED"
+      ) {
+        console.error(
+          "=== FUNDING AMOUNT MISMATCH ==="
+        );
+
+        console.error({
+          reference,
+          webhookAmountKobo:
+            amountKobo,
+          fundingGrossKobo:
+            f.grossKobo,
+        });
+      }
+
+      return NextResponse.json({
+        ok: true,
       });
-
-      console.log(
-        "========================================"
-      );
     }
 
     /* =========================================================
