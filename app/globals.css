@@ -3477,3 +3477,19 @@
     align-items: center;
   }
 }
+
+.virtual-account-wrapper {
+  background: #111827 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.virtual-account-wrapper .muted {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.virtual-account-wrapper h2,
+.virtual-account-wrapper h3,
+.virtual-account-wrapper p {
+  color: #ffffff;
+}
