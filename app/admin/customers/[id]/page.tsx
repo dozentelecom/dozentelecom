@@ -10,6 +10,8 @@ import {
   Funding,
 } from "@/lib/models";
 
+export const dynamic = "force-dynamic";
+
 export default async function CustomerDetailsPage({
   params,
 }: {
@@ -49,347 +51,650 @@ export default async function CustomerDetailsPage({
       .limit(100)
       .lean();
 
+  const balanceKobo =
+    Number(wallet?.balanceKobo || 0);
+
   const balance =
-    Number(wallet?.balanceKobo || 0) / 100;
+    balanceKobo / 100;
+
+  const vipLevel =
+    user.vipLevel || "NORMAL";
+
+  const kycStatus =
+    user.kyc?.status || "PENDING";
+
+  const totalTransactions =
+    transactions.length;
+
+  const successfulTransactions =
+    transactions.filter(
+      (tx) =>
+        ["SUCCESS", "COMPLETED"].includes(
+          String(
+            tx.status || ""
+          ).toUpperCase()
+        )
+    ).length;
+
+  const totalProfitKobo =
+    transactions.reduce(
+      (sum, tx) =>
+        sum +
+        Number(
+          tx.profitKobo || 0
+        ),
+      0
+    );
+
+  const totalFundingKobo =
+    funding.reduce(
+      (sum, item) =>
+        sum +
+        Number(
+          item.creditKobo || 0
+        ),
+      0
+    );
+
+  function money(kobo: number) {
+    return `₦${(
+      Number(kobo || 0) / 100
+    ).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  function formatDate(
+    value: any
+  ) {
+    if (!value) return "—";
+
+    return new Date(
+      value
+    ).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function formatService(
+    service?: string
+  ) {
+    if (!service) return "—";
+
+    return service
+      .replace(/[_-]/g, " ")
+      .replace(
+        /\b\w/g,
+        (letter) =>
+          letter.toUpperCase()
+      );
+  }
+
+  function statusClass(
+    status?: string
+  ) {
+    const normalized =
+      String(
+        status || ""
+      ).toLowerCase();
+
+    return `transaction-status ${normalized}`;
+  }
 
   return (
-    <main className="dashboard-content">
+    <div className="admin-dashboard-layout">
+      <main className="admin-dashboard-content">
+        {/* HEADER */}
 
-      <div className="dashboard-top">
+        <div className="admin-dashboard-top">
+          <Link
+            href="/admin/customers"
+            className="btn"
+          >
+            ← Customers
+          </Link>
 
-        <Link
-          href="/admin/customers"
-          className="btn"
-        >
-          ← Customers
-        </Link>
+          <div
+            style={{
+              marginTop: 20,
+            }}
+          >
+            <div className="eyebrow">
+              CUSTOMER MANAGEMENT
+            </div>
 
-        <div className="eyebrow">
-          CUSTOMER
+            <h1>
+              {user.name ||
+                "Unnamed customer"}
+            </h1>
+
+            <p className="muted">
+              {user.email ||
+                "No email address"}
+            </p>
+          </div>
         </div>
 
-        <h1>{user.name}</h1>
+        {/* CUSTOMER OVERVIEW */}
 
-        <p className="muted">
-          {user.email}
-        </p>
+        <div className="admin-customer-overview-grid">
+          <div className="card">
+            <span className="muted">
+              Wallet Balance
+            </span>
 
-      </div>
+            <h2>
+              {money(
+                balanceKobo
+              )}
+            </h2>
+          </div>
 
-      {/* Customer information */}
+          <div className="card">
+            <span className="muted">
+              Membership
+            </span>
 
-      <div className="grid">
+            <div
+              className={`admin-customer-vip ${vipLevel.toLowerCase()}`}
+              style={{
+                marginTop: 10,
+                width: "fit-content",
+              }}
+            >
+              {vipLevel}
+            </div>
+          </div>
 
-        <div className="card">
-          <h3>Customer Information</h3>
+          <div className="card">
+            <span className="muted">
+              KYC Status
+            </span>
 
-          <p>
-            <strong>Name:</strong>{" "}
-            {user.name}
-          </p>
+            <h3
+              style={{
+                marginTop: 8,
+              }}
+            >
+              {kycStatus}
+            </h3>
+          </div>
 
-          <p>
-            <strong>Email:</strong>{" "}
-            {user.email}
-          </p>
+          <div className="card">
+            <span className="muted">
+              Account Created
+            </span>
 
-          <p>
-            <strong>Phone:</strong>{" "}
-            {user.phone ||
-              user.phoneNumber ||
-              "—"}
-          </p>
-
-          <p>
-            <strong>KYC:</strong>{" "}
-            {user.kyc?.status ||
-              "PENDING"}
-          </p>
+            <p
+              style={{
+                marginTop: 8,
+              }}
+            >
+              {formatDate(
+                user.createdAt
+              )}
+            </p>
+          </div>
         </div>
 
-        <div className="card">
-          <h3>Wallet</h3>
+        {/* CUSTOMER INFORMATION */}
 
-          <h2>
-            ₦
-            {balance.toLocaleString(
-              undefined,
-              {
-                minimumFractionDigits: 2,
-              }
-            )}
-          </h2>
-        </div>
+        <div className="admin-customer-details-grid">
+          <div className="card">
+            <h2>
+              Customer Information
+            </h2>
 
-        <div className="card">
-          <h3>Dedicated Account</h3>
+            <div className="admin-customer-detail-list">
+              <div>
+                <span className="muted">
+                  Full Name
+                </span>
 
-          {user.kyc?.accountNumber ? (
-            <>
-              <p>
-                <strong>Bank:</strong>{" "}
-                {user.kyc.bankName ||
-                  "—"}
-              </p>
+                <strong>
+                  {user.name || "—"}
+                </strong>
+              </div>
 
-              <h2>
-                {user.kyc.accountNumber}
-              </h2>
+              <div>
+                <span className="muted">
+                  Email
+                </span>
 
-              <p>
-                {user.kyc.accountName}
-              </p>
+                <strong>
+                  {user.email || "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  Phone
+                </span>
+
+                <strong>
+                  {user.phone ||
+                    user.phoneNumber ||
+                    "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  Account Role
+                </span>
+
+                <strong>
+                  {user.role ||
+                    "customer"}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  VIP Level
+                </span>
+
+                <strong>
+                  {vipLevel}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  KYC Status
+                </span>
+
+                <strong>
+                  {kycStatus}
+                </strong>
+              </div>
+            </div>
+          </div>
+
+          {/* WALLET */}
+
+          <div className="card">
+            <h2>
+              Wallet
+            </h2>
+
+            <div
+              style={{
+                marginTop: 15,
+              }}
+            >
+              <span className="muted">
+                Available Balance
+              </span>
+
+              <h1>
+                {money(
+                  balanceKobo
+                )}
+              </h1>
 
               <p className="muted">
-                DVA:{" "}
-                {user.kyc.dvaStatus ||
-                  "—"}
+                Currency:{" "}
+                {wallet?.currency ||
+                  "NGN"}
               </p>
-            </>
+            </div>
+          </div>
+        </div>
+
+        {/* CUSTOMER STATISTICS */}
+
+        <div className="card">
+          <h2>
+            Customer Statistics
+          </h2>
+
+          <div className="admin-customer-stat-grid">
+            <div>
+              <span className="muted">
+                VTU Transactions
+              </span>
+
+              <strong>
+                {totalTransactions.toLocaleString(
+                  "en-NG"
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span className="muted">
+                Successful
+              </span>
+
+              <strong>
+                {successfulTransactions.toLocaleString(
+                  "en-NG"
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span className="muted">
+                Transaction Profit
+              </span>
+
+              <strong>
+                {money(
+                  totalProfitKobo
+                )}
+              </strong>
+            </div>
+
+            <div>
+              <span className="muted">
+                Total Funding
+              </span>
+
+              <strong>
+                {money(
+                  totalFundingKobo
+                )}
+              </strong>
+            </div>
+          </div>
+        </div>
+
+        {/* DEDICATED ACCOUNT */}
+
+        <div className="card">
+          <h2>
+            Dedicated Account
+          </h2>
+
+          {user.kyc?.accountNumber ? (
+            <div className="admin-customer-detail-list">
+              <div>
+                <span className="muted">
+                  Bank
+                </span>
+
+                <strong>
+                  {user.kyc.bankName ||
+                    "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  Account Number
+                </span>
+
+                <strong>
+                  {user.kyc.accountNumber}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  Account Name
+                </span>
+
+                <strong>
+                  {user.kyc.accountName ||
+                    "—"}
+                </strong>
+              </div>
+
+              <div>
+                <span className="muted">
+                  DVA Status
+                </span>
+
+                <strong>
+                  {user.kyc.dvaStatus ||
+                    "—"}
+                </strong>
+              </div>
+            </div>
           ) : (
             <p className="muted">
-              No dedicated account assigned.
+              No dedicated account
+              assigned.
             </p>
           )}
         </div>
 
-      </div>
+        {/* ADMIN CONTROLS */}
 
-      {/* VTU Transactions */}
+        <div className="card">
+          <h2>
+            Account Controls
+          </h2>
 
-      <div className="card">
+          <p className="muted">
+            Administrative actions will
+            appear here once their
+            protected endpoints and
+            audit logging are enabled.
+          </p>
 
-        <h2>Transaction History</h2>
+          <div className="admin-customer-control-grid">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled
+            >
+              Change VIP Level
+            </button>
 
-        <div className="admin-table-wrapper">
+            <button
+              type="button"
+              className="secondary-button"
+              disabled
+            >
+              Block Account
+            </button>
 
-          <table className="admin-table">
-
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Service</th>
-                <th>Reference</th>
-                <th>Amount</th>
-                <th>Cost</th>
-                <th>Profit</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              {transactions.map(
-                (tx) => (
-
-                  <tr
-                    key={String(
-                      tx._id
-                    )}
-                  >
-
-                    <td>
-                      {tx.createdAt
-                        ? new Date(
-                            tx.createdAt
-                          ).toLocaleString()
-                        : "—"}
-                    </td>
-
-                    <td>
-                      {tx.service ||
-                        "—"}
-                    </td>
-
-                    <td>
-                      {tx.externalReference ||
-                        "—"}
-                    </td>
-
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          tx.amountKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
-
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          tx.costKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
-
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          tx.profitKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
-
-                    <td>
-                      {tx.status ||
-                        "—"}
-                    </td>
-
-                  </tr>
-
-                )
-              )}
-
-            </tbody>
-
-          </table>
-
-          {transactions.length === 0 && (
-            <p className="muted">
-              This customer has not made
-              any VTU transactions yet.
-            </p>
-          )}
-
+            <button
+              type="button"
+              className="secondary-button"
+              disabled
+            >
+              Wallet Adjustment
+            </button>
+          </div>
         </div>
 
-      </div>
+        {/* VTU TRANSACTIONS */}
 
-      {/* Funding History */}
+        <div className="card">
+          <h2>
+            Transaction History
+          </h2>
 
-      <div className="card">
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Service</th>
+                  <th>Reference</th>
+                  <th>Amount</th>
+                  <th>Cost</th>
+                  <th>Profit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
 
-        <h2>Funding History</h2>
-
-        <div className="admin-table-wrapper">
-
-          <table className="admin-table">
-
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Reference</th>
-                <th>Gross</th>
-                <th>Fee</th>
-                <th>Wallet Credit</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-
-            <tbody>
-
-              {funding.map(
-                (item) => (
-
-                  <tr
-                    key={String(
-                      item._id
-                    )}
-                  >
-
-                    <td>
-                      {item.createdAt
-                        ? new Date(
-                            item.createdAt
-                          ).toLocaleString()
-                        : "—"}
-                    </td>
-
-                    <td>
-                      {item.reference ||
-                        "—"}
-                    </td>
-
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          item.grossKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
+              <tbody>
+                {transactions.map(
+                  (tx) => (
+                    <tr
+                      key={String(
+                        tx._id
                       )}
-                    </td>
+                    >
+                      <td>
+                        {formatDate(
+                          tx.createdAt
+                        )}
+                      </td>
 
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          item.feeKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
+                      <td>
+                        {formatService(
+                          tx.service
+                        )}
+                      </td>
 
-                    <td>
-                      ₦
-                      {(
-                        Number(
-                          item.creditKobo ||
-                            0
-                        ) / 100
-                      ).toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
+                      <td>
+                        {tx.externalReference ||
+                          "—"}
+                      </td>
 
-                    <td>
-                      {item.status ||
-                        "—"}
-                    </td>
+                      <td>
+                        {money(
+                          Number(
+                            tx.amountKobo ||
+                              0
+                          )
+                        )}
+                      </td>
 
-                  </tr>
+                      <td>
+                        {money(
+                          Number(
+                            tx.costKobo ||
+                              0
+                          )
+                        )}
+                      </td>
 
-                )
-              )}
+                      <td>
+                        {money(
+                          Number(
+                            tx.profitKobo ||
+                              0
+                          )
+                        )}
+                      </td>
 
-            </tbody>
+                      <td>
+                        <span
+                          className={statusClass(
+                            tx.status
+                          )}
+                        >
+                          {tx.status ||
+                            "UNKNOWN"}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
 
-          </table>
-
-          {funding.length === 0 && (
-            <p className="muted">
-              No wallet funding records.
-            </p>
-          )}
-
+            {transactions.length ===
+              0 && (
+              <p className="muted">
+                This customer has not
+                made any VTU transactions
+                yet.
+              </p>
+            )}
+          </div>
         </div>
 
-      </div>
+        {/* FUNDING HISTORY */}
 
-    </main>
+        <div className="card">
+          <h2>
+            Funding History
+          </h2>
+
+          <div className="admin-table-wrapper">
+            <table className="admin-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Reference</th>
+                  <th>Gross</th>
+                  <th>Fee</th>
+                  <th>Wallet Credit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+
+              <tbody>
+                {funding.map(
+                  (item) => (
+                    <tr
+                      key={String(
+                        item._id
+                      )}
+                    >
+                      <td>
+                        {formatDate(
+                          item.createdAt
+                        )}
+                      </td>
+
+                      <td>
+                        {item.reference ||
+                          "—"}
+                      </td>
+
+                      <td>
+                        {money(
+                          Number(
+                            item.grossKobo ||
+                              0
+                          )
+                        )}
+                      </td>
+
+                      <td>
+                        {money(
+                          Number(
+                            item.feeKobo ||
+                              0
+                          )
+                        )}
+                      </td>
+
+                      <td>
+                        {money(
+                          Number(
+                            item.creditKobo ||
+                              0
+                          )
+                        )}
+                      </td>
+
+                      <td>
+                        <span
+                          className={statusClass(
+                            item.status
+                          )}
+                        >
+                          {item.status ||
+                            "UNKNOWN"}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                )}
+              </tbody>
+            </table>
+
+            {funding.length ===
+              0 && (
+              <p className="muted">
+                No wallet funding
+                records.
+              </p>
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

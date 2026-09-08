@@ -1,3 +1,4 @@
+
 import mongoose, { Schema, models, model } from "mongoose";
 
 /* =========================================================
@@ -11,43 +12,26 @@ const KycSchema = new Schema(
       default: "PENDING",
     },
 
-    type: {
-      type: String,
-    },
+    type: String,
 
-    reference: {
-      type: String,
-    },
+    reference: String,
 
-    verifiedAt: {
-      type: Date,
-    },
+    verifiedAt: Date,
 
-    accountNumber: {
-      type: String,
-    },
+    accountNumber: String,
 
-    accountName: {
-      type: String,
-    },
+    accountName: String,
 
-    bankName: {
-      type: String,
-    },
+    bankName: String,
 
-    customerCode: {
-      type: String,
-    },
+    customerCode: String,
 
-    dvaStatus: {
-      type: String,
-    },
+    dvaStatus: String,
   },
   {
     _id: false,
   }
 );
-
 
 /* =========================================================
    USER
@@ -66,13 +50,9 @@ const UserSchema = new Schema(
       index: true,
     },
 
-    phone: {
-      type: String,
-    },
+    phone: String,
 
-    phoneNumber: {
-      type: String,
-    },
+    phoneNumber: String,
 
     passwordHash: String,
 
@@ -83,6 +63,17 @@ const UserSchema = new Schema(
     role: {
       type: String,
       default: "customer",
+    },
+
+    /* =========================
+       VIP MEMBERSHIP
+       ========================= */
+
+    vipLevel: {
+      type: String,
+      enum: ["NORMAL", "VIP1", "VIP2", "VIP3"],
+      default: "NORMAL",
+      index: true,
     },
 
     /* =========================
@@ -126,7 +117,6 @@ const UserSchema = new Schema(
   }
 );
 
-
 /* =========================================================
    WALLET
    ========================================================= */
@@ -153,7 +143,6 @@ const WalletSchema = new Schema(
     timestamps: true,
   }
 );
-
 
 /* =========================================================
    LEDGER
@@ -185,7 +174,6 @@ const LedgerSchema = new Schema(
     timestamps: true,
   }
 );
-
 
 /* =========================================================
    TRANSACTION
@@ -222,7 +210,6 @@ const TxSchema = new Schema(
   }
 );
 
-
 /* =========================================================
    SETTINGS
    ========================================================= */
@@ -236,21 +223,137 @@ const SettingsSchema = new Schema(
     },
 
     rates: {
+      /* =========================
+         NORMAL SERVICE RATES
+         ========================= */
+
       data: Number,
+
       electricity: Number,
+
       cable: Number,
+
       education: Number,
+
       airtimeToCash: Number,
+
       funding: Number,
+
       withdrawal: Number,
+
       airtimeRoundUnit: Number,
+
+      /* =========================
+         VIP MEMBERSHIP PRICES
+         ========================= */
+
+      vip1Price: {
+        type: Number,
+        default: 5000,
+      },
+
+      vip2Price: {
+        type: Number,
+        default: 15000,
+      },
+
+      vip3Price: {
+        type: Number,
+        default: 30000,
+      },
+
+      /* =========================
+         VIP1 SERVICE RATES
+         ========================= */
+
+      vip1Data: {
+        type: Number,
+        default: 4,
+      },
+
+      vip1Electricity: {
+        type: Number,
+        default: 3,
+      },
+
+      vip1Cable: {
+        type: Number,
+        default: 3,
+      },
+
+      vip1Education: {
+        type: Number,
+        default: 12,
+      },
+
+      vip1AirtimeToCash: {
+        type: Number,
+        default: 18,
+      },
+
+      /* =========================
+         VIP2 SERVICE RATES
+         ========================= */
+
+      vip2Data: {
+        type: Number,
+        default: 3,
+      },
+
+      vip2Electricity: {
+        type: Number,
+        default: 2,
+      },
+
+      vip2Cable: {
+        type: Number,
+        default: 2,
+      },
+
+      vip2Education: {
+        type: Number,
+        default: 10,
+      },
+
+      vip2AirtimeToCash: {
+        type: Number,
+        default: 15,
+      },
+
+      /* =========================
+         VIP3 SERVICE RATES
+         ========================= */
+
+      vip3Data: {
+        type: Number,
+        default: 2,
+      },
+
+      vip3Electricity: {
+        type: Number,
+        default: 1,
+      },
+
+      vip3Cable: {
+        type: Number,
+        default: 1,
+      },
+
+      vip3Education: {
+        type: Number,
+        default: 8,
+      },
+
+      vip3AirtimeToCash: {
+        type: Number,
+        default: 12,
+      },
     },
   },
   {
     timestamps: true,
   }
 );
-
 
 /* =========================================================
    AIRTIME TO CASH
@@ -296,7 +399,6 @@ const ATCSchema = new Schema(
   }
 );
 
-
 /* =========================================================
    FUNDING
    ========================================================= */
@@ -329,7 +431,6 @@ const FundingSchema = new Schema(
     timestamps: true,
   }
 );
-
 
 /* =========================================================
    PROFIT WITHDRAWAL
@@ -393,7 +494,6 @@ const ProfitWithdrawalSchema = new Schema(
   }
 );
 
-
 /* =========================================================
    GIVEAWAY
    ========================================================= */
@@ -425,28 +525,17 @@ const GiveawaySchema = new Schema(
       required: true,
     },
 
-    /* Airtime amount in Naira */
-    airtimeAmount: {
-      type: Number,
-    },
+    airtimeAmount: Number,
 
-    /* Data plan ID */
-    dataPlan: {
-      type: Number,
-    },
+    dataPlan: Number,
 
-    /* Data plan name shown to recipients */
-    dataPlanName: {
-      type: String,
-    },
+    dataPlanName: String,
 
-    /* Provider cost at time giveaway was created */
     providerCostKobo: {
       type: Number,
       required: true,
     },
 
-    /* Price charged/reserved from creator wallet per recipient */
     rewardPriceKobo: {
       type: Number,
       required: true,
@@ -476,15 +565,12 @@ const GiveawaySchema = new Schema(
       index: true,
     },
 
-    expiresAt: {
-      type: Date,
-    },
+    expiresAt: Date,
   },
   {
     timestamps: true,
   }
 );
-
 
 /* =========================================================
    GIVEAWAY CLAIM
@@ -538,17 +624,11 @@ const GiveawayClaimSchema = new Schema(
       index: true,
     },
 
-    providerReference: {
-      type: String,
-    },
+    providerReference: String,
 
-    providerResponse: {
-      type: Schema.Types.Mixed,
-    },
+    providerResponse: Schema.Types.Mixed,
 
-    error: {
-      type: String,
-    },
+    error: String,
 
     claimedAt: {
       type: Date,
@@ -560,15 +640,9 @@ const GiveawayClaimSchema = new Schema(
   }
 );
 
-
 /*
- * VERY IMPORTANT:
- *
- * The same phone number can only claim once
+ * Same phone can only claim once
  * from the same giveaway.
- *
- * This also protects against two simultaneous
- * claim requests.
  */
 GiveawayClaimSchema.index(
   {
@@ -600,21 +674,18 @@ const WithdrawalSchema = new Schema(
       index: true,
     },
 
-    /* Amount customer requested */
     amountKobo: {
       type: Number,
       required: true,
       min: 1,
     },
 
-    /* Withdrawal fee */
     feeKobo: {
       type: Number,
       required: true,
       min: 0,
     },
 
-    /* Amount actually sent to customer */
     payoutKobo: {
       type: Number,
       required: true,
@@ -634,7 +705,6 @@ const WithdrawalSchema = new Schema(
       index: true,
     },
 
-    /* Nigerian bank information */
     bankCode: {
       type: String,
       required: true,
@@ -655,44 +725,26 @@ const WithdrawalSchema = new Schema(
       required: true,
     },
 
-    /* Paystack recipient */
-    recipientCode: {
-      type: String,
-    },
+    recipientCode: String,
 
-    /* Paystack transfer */
     paystackReference: {
       type: String,
       index: true,
     },
 
-    paystackTransferCode: {
-      type: String,
-    },
+    paystackTransferCode: String,
 
-    paystackData: {
-      type: Schema.Types.Mixed,
-    },
+    paystackData: Schema.Types.Mixed,
 
-    reason: {
-      type: String,
-    },
+    reason: String,
 
-    error: {
-      type: String,
-    },
+    error: String,
 
-    completedAt: {
-      type: Date,
-    },
+    completedAt: Date,
 
-    failedAt: {
-      type: Date,
-    },
+    failedAt: Date,
 
-    reversedAt: {
-      type: Date,
-    },
+    reversedAt: Date,
   },
   {
     timestamps: true,
@@ -701,7 +753,7 @@ const WithdrawalSchema = new Schema(
 
 /* =========================================================
    NOTIFICATION
-========================================================= */
+   ========================================================= */
 
 const NotificationSchema = new Schema(
   {
@@ -748,14 +800,146 @@ const NotificationSchema = new Schema(
       default: "",
     },
 
-    expiresAt: {
+    expiresAt: Date,
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/* =========================================================
+   SAVED BENEFICIARY
+   ========================================================= */
+
+const BeneficiarySchema = new Schema(
+  {
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 50,
+    },
+
+    bankCode: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    bankName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    accountNumber: {
+      type: String,
+      required: true,
+      trim: true,
+      match: /^\d{10}$/,
+    },
+
+    accountName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    lastVerifiedAt: {
       type: Date,
+      default: Date.now,
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
     timestamps: true,
   }
 );
+
+BeneficiarySchema.index(
+  {
+    userId: 1,
+    bankCode: 1,
+    accountNumber: 1,
+  },
+  {
+    unique: true,
+  }
+);
+
+/* =========================================================
+   ADMIN AUDIT LOG
+   ========================================================= */
+
+const AuditLogSchema = new Schema(
+  {
+    adminId: {
+      type: Schema.Types.ObjectId,
+      index: true,
+      required: true,
+    },
+
+    action: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    targetType: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    targetId: {
+      type: String,
+      index: true,
+    },
+
+    description: {
+      type: String,
+      required: true,
+    },
+
+    previousValue: {
+      type: Schema.Types.Mixed,
+    },
+
+    newValue: {
+      type: Schema.Types.Mixed,
+    },
+
+    ipAddress: {
+      type: String,
+    },
+
+    userAgent: {
+      type: String,
+    },
+
+    metadata: {
+      type: Schema.Types.Mixed,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export const AuditLog =
+  models.AuditLog ||
+  model("AuditLog", AuditLogSchema);
 
 /* =========================================================
    MODELS
@@ -771,10 +955,12 @@ export const Ledger =
   models.Ledger || model("Ledger", LedgerSchema);
 
 export const Transaction =
-  models.Transaction || model("Transaction", TxSchema);
+  models.Transaction ||
+  model("Transaction", TxSchema);
 
 export const Funding =
-  models.Funding || model("Funding", FundingSchema);
+  models.Funding ||
+  model("Funding", FundingSchema);
 
 export const AirtimeToCash =
   models.AirtimeToCash ||
@@ -790,10 +976,7 @@ export const Giveaway =
 
 export const GiveawayClaim =
   models.GiveawayClaim ||
-  model(
-    "GiveawayClaim",
-    GiveawayClaimSchema
-  );
+  model("GiveawayClaim", GiveawayClaimSchema);
 
 export const ProfitWithdrawal =
   models.ProfitWithdrawal ||
@@ -806,3 +989,7 @@ export const Withdrawal =
 export const Notification =
   models.Notification ||
   model("Notification", NotificationSchema);
+
+export const Beneficiary =
+  models.Beneficiary ||
+  model("Beneficiary", BeneficiarySchema);

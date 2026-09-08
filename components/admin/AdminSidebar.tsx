@@ -174,6 +174,76 @@ export default function AdminSidebar() {
             )}
           </Link>
 
+	   {/* AUDIT-LOGS */}
+	   <Link
+  href="/admin/audit-logs"
+  className="admin-sidebar-link"
+>
+  <span className="admin-sidebar-icon">
+    🛡️
+  </span>
+
+  <span>
+    Audit Logs
+  </span>
+</Link>
+
+	  {/* SERVICE-CONTROLS */}
+<Link
+  href="/admin/service-controls"
+  className="admin-sidebar-link"
+>
+  <span className="admin-sidebar-icon">
+    ⚙️
+  </span>
+
+  <span>
+    Service Controls
+  </span>
+</Link>
+
+	{/* PROVIDER CONTROLS */}
+<Link
+  href="/admin/provider-controls"
+  className={`admin-sidebar-link ${
+    pathname.startsWith("/admin/provider-controls")
+      ? "active"
+      : ""
+  }`}
+  title="Provider Controls"
+>
+  <span className="admin-sidebar-icon">
+    🔌
+  </span>
+
+  {open && (
+    <span>
+      Provider Controls
+    </span>
+  )}
+</Link>
+
+{/* DATA PLANS */}
+<Link
+  href="/admin/data-plans"
+  className={`admin-sidebar-link ${
+    pathname.startsWith("/admin/data-plans")
+      ? "active"
+      : ""
+  }`}
+  title="Data Plans"
+>
+  <span className="admin-sidebar-icon">
+    📶
+  </span>
+
+  {open && (
+    <span>
+      Data Plans
+    </span>
+  )}
+</Link>
+
           {/* NOTIFICATIONS */}
           <Link
             href="/admin/notifications"

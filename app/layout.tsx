@@ -1,7 +1,6 @@
 import "./globals.css";
 import PWAProvider from "@/components/pwa/PWAProvider";
 import FloatingActions from "@/components/floating/FloatingActions";
-import NotificationBell from "@/components/notifications/NotificationBell";
 
 export const metadata = {
   title: "Dozentelecom | Premium VTU",
@@ -19,9 +18,6 @@ export default function Layout({
     <html lang="en">
       <body suppressHydrationWarning>
         {children}
-
-	 <NotificationBell />
-
 
         <PWAProvider />
 

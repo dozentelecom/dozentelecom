@@ -8,10 +8,21 @@ import {
 import { requirePin } from "@/lib/authz";
 import { currentUserId } from "@/lib/session";
 import { getRates } from "@/lib/settings";
-import { percentPrice } from "@/lib/pricing";
+import {
+  percentPrice,
+  getVipRate,
+} from "@/lib/pricing";
+
+import { db } from "@/lib/db";
+import { User } from "@/lib/models";
+
+import {
+  assertServiceEnabled,
+} from "@/lib/serviceControl";
 
 import {
   startServiceTransaction,
+  processServiceTransaction,
   completeServiceTransaction,
   failServiceTransaction,
 } from "@/lib/serviceTransaction";
@@ -72,6 +83,26 @@ function providerFailed(result: any) {
   );
 }
 
+function providerSuccess(result: any) {
+  const values = [
+    result?.success,
+    result?.status,
+    result?.data?.success,
+    result?.data?.status,
+  ];
+
+  return values.some(
+    (v) =>
+      v === true ||
+      [
+        "success",
+        "successful",
+        "completed",
+        "complete",
+      ].includes(String(v).toLowerCase())
+  );
+}
+
 function providerReference(result: any) {
   return (
     result?.data?.reference ||
@@ -91,64 +122,126 @@ export async function POST(req: Request) {
 
     await requirePin(String(b.pin || ""));
 
-    const userId = await currentUserId();
+    const userId =
+      await currentUserId();
 
     if (!userId) {
       return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
+        {
+          error: "UNAUTHORIZED",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
-    const serviceType = String(
-      b.service_type || ""
-    ).toLowerCase();
+    /*
+     * =========================================================
+     * LOAD CUSTOMER VIP LEVEL
+     * =========================================================
+     */
 
-    const providerCode = String(
-      b.provider_code || ""
-    ).trim();
+    await db();
 
-    if (!serviceType || !providerCode) {
+    const user: any =
+      await User.findById(userId)
+        .select("vipLevel")
+        .lean();
+
+    const vipLevel =
+      user?.vipLevel || "NORMAL";
+
+    const serviceType =
+      String(
+        b.service_type || ""
+      ).toLowerCase();
+
+    const providerCode =
+      String(
+        b.provider_code || ""
+      ).trim();
+
+    if (
+      !serviceType ||
+      !providerCode
+    ) {
       return NextResponse.json(
         {
           error:
             "service_type and provider_code are required",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    const rates = await getRates();
-
     /*
-     * ============================
-     * ELECTRICITY
-     * ============================
+     * =========================================================
+     * SERVICE CONTROL
+     * =========================================================
      */
 
     if (
       serviceType === "electricity"
     ) {
-      const meterNumber = String(
-        b.meter_number || ""
+      await assertServiceEnabled(
+        "electricity"
       );
+    }
 
-      const meterType = String(
-        b.meter_type || ""
+    if (
+      serviceType === "cabletv"
+    ) {
+      await assertServiceEnabled(
+        "cable"
       );
+    }
 
-      const inputAmount = Number(
-        b.amount
+    if (
+      serviceType === "education"
+    ) {
+      await assertServiceEnabled(
+        "education"
       );
+    }
 
-      const phone = String(
-        b.phone || ""
-      );
+    const rates =
+      await getRates();
+
+    /*
+     * =========================================================
+     * ELECTRICITY
+     * =========================================================
+     */
+
+    if (
+      serviceType ===
+      "electricity"
+    ) {
+      const meterNumber =
+        String(
+          b.meter_number || ""
+        );
+
+      const meterType =
+        String(
+          b.meter_type || ""
+        );
+
+      const inputAmount =
+        Number(b.amount);
+
+      const phone =
+        String(b.phone || "");
 
       if (
         !meterNumber ||
         !meterType ||
-        !Number.isFinite(inputAmount) ||
+        !Number.isFinite(
+          inputAmount
+        ) ||
         inputAmount <= 0 ||
         !/^[0-9]{11}$/.test(phone)
       ) {
@@ -157,21 +250,38 @@ export async function POST(req: Request) {
             error:
               "meter number, meter type, valid amount and phone are required",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
+
+      /*
+       * VIP electricity rate.
+       */
+
+      const markup =
+        getVipRate(
+          rates,
+          vipLevel,
+          "electricity"
+        );
 
       const customerPrice =
         percentPrice(
           inputAmount,
-          Number(rates.electricity || 0)
+          markup
         );
 
       const customerKobo =
-        Math.round(customerPrice * 100);
+        Math.round(
+          customerPrice * 100
+        );
 
       const providerCostKobo =
-        Math.round(inputAmount * 100);
+        Math.round(
+          inputAmount * 100
+        );
 
       reference =
         `electricity-${Date.now()}-${Math.random()
@@ -181,56 +291,66 @@ export async function POST(req: Request) {
       await startServiceTransaction({
         userId,
         service: "ELECTRICITY",
-        amountKobo: customerKobo,
+        amountKobo:
+          customerKobo,
         reference,
         metadata: {
           providerCode,
           meterNumber,
           meterType,
           phone,
-          providerCost: inputAmount,
+          vipLevel,
+          markup,
+          providerCost:
+            inputAmount,
           customerPrice,
         },
+      });
+
+      await processServiceTransaction({
+        reference,
       });
 
       let result: any;
 
       try {
-        result = await wisesub.purchase({
-          service_type: "electricity",
-          provider_code: providerCode,
-          meter_number: meterNumber,
-          meter_type: meterType,
-          amount: inputAmount,
-          phone,
-          reference,
-        });
+        result =
+          await wisesub.purchase({
+            service_type:
+              "electricity",
+            provider_code:
+              providerCode,
+            meter_number:
+              meterNumber,
+            meter_type:
+              meterType,
+            amount:
+              inputAmount,
+            phone,
+            reference,
+          });
       } catch (error: any) {
         if (
-          error instanceof WiseSubError
-        ) {
-          /*
-           * DO NOT immediately refund on
-           * timeout/unknown provider state.
-           *
-           * Leave transaction pending so it
-           * can be checked/reconciled.
-           */
-          if (
-            error.status >= 500 ||
+          error instanceof
+            WiseSubError &&
+          (
+            error.status >=
+              500 ||
             error.message
               ?.toLowerCase()
               .includes("timeout")
-          ) {
-            return NextResponse.json(
-              {
-                error:
-                  "Electricity transaction is being verified. Please check transaction status shortly.",
-                reference,
-              },
-              { status: 202 }
-            );
-          }
+          )
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                "Electricity transaction is being verified. Please check transaction status shortly.",
+              reference,
+            },
+            {
+              status: 202,
+            }
+          );
         }
 
         await failServiceTransaction({
@@ -239,14 +359,17 @@ export async function POST(req: Request) {
             error.message ||
             "Electricity purchase failed",
           metadata: {
-            providerError: error.details,
+            providerError:
+              error.details,
           },
         });
 
         throw error;
       }
 
-      if (providerFailed(result)) {
+      if (
+        providerFailed(result)
+      ) {
         await failServiceTransaction({
           reference,
           reason:
@@ -254,7 +377,8 @@ export async function POST(req: Request) {
             result?.provider_message ||
             "Electricity provider rejected transaction",
           metadata: {
-            providerResponse: result,
+            providerResponse:
+              result,
           },
         });
 
@@ -264,22 +388,44 @@ export async function POST(req: Request) {
               result?.message ||
               result?.provider_message ||
               "Electricity transaction failed",
+            reference,
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (
+        !providerSuccess(result)
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Electricity transaction is being processed. Please check transaction status shortly.",
+            reference,
+          },
+          {
+            status: 202,
+          }
         );
       }
 
       await completeServiceTransaction({
         reference,
-        costKobo: providerCostKobo,
+        costKobo:
+          providerCostKobo,
         providerTransactionId:
           providerReference(result)
             ? String(
-                providerReference(result)
+                providerReference(
+                  result
+                )
               )
             : undefined,
         metadata: {
-          providerResponse: result,
+          providerResponse:
+            result,
         },
       });
 
@@ -287,27 +433,27 @@ export async function POST(req: Request) {
         ...result,
         reference,
         pricing: {
-          providerCost: inputAmount,
+          providerCost:
+            inputAmount,
           customerPrice,
-          markup:
-            Number(
-              rates.electricity || 0
-            ),
+          markup,
           profit:
             customerPrice -
             inputAmount,
+          vipLevel,
         },
       });
     }
 
     /*
-     * ============================
+     * =========================================================
      * CABLE TV
-     * ============================
+     * =========================================================
      */
 
     if (
-      serviceType === "cabletv"
+      serviceType ===
+      "cabletv"
     ) {
       const packageCodeValue =
         String(
@@ -319,13 +465,15 @@ export async function POST(req: Request) {
           b.decoder_number || ""
         ).trim();
 
-      const phone = String(
-        b.phone || ""
-      );
+      const phone =
+        String(
+          b.phone || ""
+        );
 
       const subscriptionType =
         String(
-          b.subscription_type || ""
+          b.subscription_type ||
+            ""
         );
 
       if (
@@ -339,7 +487,9 @@ export async function POST(req: Request) {
             error:
               "package, decoder number, subscription type and valid phone are required",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
@@ -350,7 +500,9 @@ export async function POST(req: Request) {
         );
 
       const packages =
-        getPackages(rawPackages);
+        getPackages(
+          rawPackages
+        );
 
       const selectedPackage =
         packages.find(
@@ -359,13 +511,17 @@ export async function POST(req: Request) {
             packageCodeValue
         );
 
-      if (!selectedPackage) {
+      if (
+        !selectedPackage
+      ) {
         return NextResponse.json(
           {
             error:
               "Selected cable package could not be found",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
@@ -375,7 +531,9 @@ export async function POST(req: Request) {
         );
 
       if (
-        !Number.isFinite(providerCost) ||
+        !Number.isFinite(
+          providerCost
+        ) ||
         providerCost <= 0
       ) {
         return NextResponse.json(
@@ -383,21 +541,38 @@ export async function POST(req: Request) {
             error:
               "Selected cable package has an invalid provider price",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
+
+      /*
+       * VIP cable rate.
+       */
+
+      const markup =
+        getVipRate(
+          rates,
+          vipLevel,
+          "cable"
+        );
 
       const customerPrice =
         percentPrice(
           providerCost,
-          Number(rates.cable || 0)
+          markup
         );
 
       const customerKobo =
-        Math.round(customerPrice * 100);
+        Math.round(
+          customerPrice * 100
+        );
 
       const providerCostKobo =
-        Math.round(providerCost * 100);
+        Math.round(
+          providerCost * 100
+        );
 
       reference =
         `cable-${Date.now()}-${Math.random()
@@ -407,7 +582,8 @@ export async function POST(req: Request) {
       await startServiceTransaction({
         userId,
         service: "CABLE",
-        amountKobo: customerKobo,
+        amountKobo:
+          customerKobo,
         reference,
         metadata: {
           providerCode,
@@ -416,9 +592,15 @@ export async function POST(req: Request) {
           decoderNumber,
           phone,
           subscriptionType,
+          vipLevel,
+          markup,
           providerCost,
           customerPrice,
         },
+      });
+
+      await processServiceTransaction({
+        reference,
       });
 
       let result: any;
@@ -426,7 +608,8 @@ export async function POST(req: Request) {
       try {
         result =
           await wisesub.purchase({
-            service_type: "cabletv",
+            service_type:
+              "cabletv",
             provider_code:
               providerCode,
             package_code:
@@ -440,11 +623,15 @@ export async function POST(req: Request) {
           });
       } catch (error: any) {
         if (
-          error instanceof WiseSubError &&
-          (error.status >= 500 ||
+          error instanceof
+            WiseSubError &&
+          (
+            error.status >=
+              500 ||
             error.message
               ?.toLowerCase()
-              .includes("timeout"))
+              .includes("timeout")
+          )
         ) {
           return NextResponse.json(
             {
@@ -452,7 +639,9 @@ export async function POST(req: Request) {
                 "Cable transaction is being verified. Please check transaction status shortly.",
               reference,
             },
-            { status: 202 }
+            {
+              status: 202,
+            }
           );
         }
 
@@ -470,7 +659,9 @@ export async function POST(req: Request) {
         throw error;
       }
 
-      if (providerFailed(result)) {
+      if (
+        providerFailed(result)
+      ) {
         await failServiceTransaction({
           reference,
           reason:
@@ -478,7 +669,8 @@ export async function POST(req: Request) {
             result?.provider_message ||
             "Cable provider rejected transaction",
           metadata: {
-            providerResponse: result,
+            providerResponse:
+              result,
           },
         });
 
@@ -488,22 +680,44 @@ export async function POST(req: Request) {
               result?.message ||
               result?.provider_message ||
               "Cable transaction failed",
+            reference,
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (
+        !providerSuccess(result)
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Cable transaction is being processed. Please check transaction status shortly.",
+            reference,
+          },
+          {
+            status: 202,
+          }
         );
       }
 
       await completeServiceTransaction({
         reference,
-        costKobo: providerCostKobo,
+        costKobo:
+          providerCostKobo,
         providerTransactionId:
           providerReference(result)
             ? String(
-                providerReference(result)
+                providerReference(
+                  result
+                )
               )
             : undefined,
         metadata: {
-          providerResponse: result,
+          providerResponse:
+            result,
           package:
             selectedPackage,
         },
@@ -515,23 +729,24 @@ export async function POST(req: Request) {
         pricing: {
           providerCost,
           customerPrice,
-          markup:
-            Number(rates.cable || 0),
+          markup,
           profit:
             customerPrice -
             providerCost,
+          vipLevel,
         },
       });
     }
 
     /*
-     * ============================
+     * =========================================================
      * EDUCATION
-     * ============================
+     * =========================================================
      */
 
     if (
-      serviceType === "education"
+      serviceType ===
+      "education"
     ) {
       const packageCodeValue =
         String(
@@ -543,15 +758,20 @@ export async function POST(req: Request) {
           b.recipient || ""
         ).trim();
 
-      const quantity = Math.max(
-        1,
-        Number(b.quantity || 1)
-      );
+      const quantity =
+        Math.max(
+          1,
+          Number(
+            b.quantity || 1
+          )
+        );
 
       if (
         !packageCodeValue ||
         !recipient ||
-        !Number.isInteger(quantity) ||
+        !Number.isInteger(
+          quantity
+        ) ||
         quantity < 1
       ) {
         return NextResponse.json(
@@ -559,7 +779,9 @@ export async function POST(req: Request) {
             error:
               "package, recipient and valid quantity are required",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
@@ -570,7 +792,9 @@ export async function POST(req: Request) {
         );
 
       const packages =
-        getPackages(rawPackages);
+        getPackages(
+          rawPackages
+        );
 
       const selectedPackage =
         packages.find(
@@ -579,13 +803,17 @@ export async function POST(req: Request) {
             packageCodeValue
         );
 
-      if (!selectedPackage) {
+      if (
+        !selectedPackage
+      ) {
         return NextResponse.json(
           {
             error:
               "Selected education package could not be found",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
@@ -595,7 +823,9 @@ export async function POST(req: Request) {
         );
 
       if (
-        !Number.isFinite(unitCost) ||
+        !Number.isFinite(
+          unitCost
+        ) ||
         unitCost <= 0
       ) {
         return NextResponse.json(
@@ -603,24 +833,41 @@ export async function POST(req: Request) {
             error:
               "Selected education package has an invalid provider price",
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
         );
       }
 
       const providerCost =
         unitCost * quantity;
 
+      /*
+       * VIP education rate.
+       */
+
+      const markup =
+        getVipRate(
+          rates,
+          vipLevel,
+          "education"
+        );
+
       const customerPrice =
         percentPrice(
           providerCost,
-          Number(rates.education || 0)
+          markup
         );
 
       const customerKobo =
-        Math.round(customerPrice * 100);
+        Math.round(
+          customerPrice * 100
+        );
 
       const providerCostKobo =
-        Math.round(providerCost * 100);
+        Math.round(
+          providerCost * 100
+        );
 
       reference =
         `education-${Date.now()}-${Math.random()
@@ -630,7 +877,8 @@ export async function POST(req: Request) {
       await startServiceTransaction({
         userId,
         service: "EDUCATION",
-        amountKobo: customerKobo,
+        amountKobo:
+          customerKobo,
         reference,
         metadata: {
           providerCode,
@@ -638,10 +886,16 @@ export async function POST(req: Request) {
             packageCodeValue,
           recipient,
           quantity,
+          vipLevel,
+          markup,
           unitCost,
           providerCost,
           customerPrice,
         },
+      });
+
+      await processServiceTransaction({
+        reference,
       });
 
       let result: any;
@@ -661,11 +915,15 @@ export async function POST(req: Request) {
           });
       } catch (error: any) {
         if (
-          error instanceof WiseSubError &&
-          (error.status >= 500 ||
+          error instanceof
+            WiseSubError &&
+          (
+            error.status >=
+              500 ||
             error.message
               ?.toLowerCase()
-              .includes("timeout"))
+              .includes("timeout")
+          )
         ) {
           return NextResponse.json(
             {
@@ -673,7 +931,9 @@ export async function POST(req: Request) {
                 "Education transaction is being verified. Please check transaction status shortly.",
               reference,
             },
-            { status: 202 }
+            {
+              status: 202,
+            }
           );
         }
 
@@ -691,7 +951,9 @@ export async function POST(req: Request) {
         throw error;
       }
 
-      if (providerFailed(result)) {
+      if (
+        providerFailed(result)
+      ) {
         await failServiceTransaction({
           reference,
           reason:
@@ -699,7 +961,8 @@ export async function POST(req: Request) {
             result?.provider_message ||
             "Education provider rejected transaction",
           metadata: {
-            providerResponse: result,
+            providerResponse:
+              result,
           },
         });
 
@@ -709,22 +972,44 @@ export async function POST(req: Request) {
               result?.message ||
               result?.provider_message ||
               "Education transaction failed",
+            reference,
           },
-          { status: 400 }
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (
+        !providerSuccess(result)
+      ) {
+        return NextResponse.json(
+          {
+            message:
+              "Education transaction is being processed. Please check transaction status shortly.",
+            reference,
+          },
+          {
+            status: 202,
+          }
         );
       }
 
       await completeServiceTransaction({
         reference,
-        costKobo: providerCostKobo,
+        costKobo:
+          providerCostKobo,
         providerTransactionId:
           providerReference(result)
             ? String(
-                providerReference(result)
+                providerReference(
+                  result
+                )
               )
             : undefined,
         metadata: {
-          providerResponse: result,
+          providerResponse:
+            result,
           package:
             selectedPackage,
         },
@@ -736,14 +1021,12 @@ export async function POST(req: Request) {
         pricing: {
           providerCost,
           customerPrice,
-          markup:
-            Number(
-              rates.education || 0
-            ),
+          markup,
           quantity,
           profit:
             customerPrice -
             providerCost,
+          vipLevel,
         },
       });
     }
@@ -753,13 +1036,33 @@ export async function POST(req: Request) {
         error:
           "Unsupported service type",
       },
-      { status: 400 }
+      {
+        status: 400,
+      }
     );
   } catch (e: any) {
+    if (
+      e?.message ===
+      "SERVICE_DISABLED"
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "This service is temporarily unavailable.",
+          reference,
+        },
+        {
+          status: 403,
+        }
+      );
+    }
+
     const status =
-      e instanceof WiseSubError
+      e instanceof
+        WiseSubError
         ? e.status
-        : e?.message === "UNAUTHORIZED"
+        : e?.message ===
+          "UNAUTHORIZED"
         ? 401
         : e?.message ===
           "INSUFFICIENT_BALANCE"
@@ -774,7 +1077,9 @@ export async function POST(req: Request) {
         details: e.details,
         reference,
       },
-      { status }
+      {
+        status,
+      }
     );
   }
 }

@@ -51,7 +51,9 @@ export default function Login() {
             <button
               type="button"
               className="password-toggle"
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() =>
+                setShowPassword((v) => !v)
+              }
               aria-label={
                 showPassword
                   ? "Hide password"
@@ -62,16 +64,51 @@ export default function Login() {
             </button>
           </div>
 
-          <button
-            className="btn primary"
-            type="submit"
+          {/* Login + Create Account */}
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              marginTop: "18px",
+              flexWrap: "wrap",
+            }}
           >
-            Login
-          </button>
+            <button
+              className="btn primary"
+              type="submit"
+              style={{
+                flex: 1,
+                minWidth: "140px",
+              }}
+            >
+              Login
+            </button>
+
+            <Link
+              href="/register"
+              className="btn"
+              style={{
+                flex: 1,
+                minWidth: "140px",
+                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
+              }}
+            >
+              Create account
+            </Link>
+          </div>
 
           <Link
             href="/forgot-password"
             className="forgot-password"
+            style={{
+              display: "block",
+              marginTop: "14px",
+              textAlign: "center",
+            }}
           >
             Forgot password?
           </Link>

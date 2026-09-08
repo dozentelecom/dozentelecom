@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 export default function Register() {
@@ -75,7 +76,9 @@ export default function Register() {
             <button
               type="button"
               className="password-toggle"
-              onClick={() => setShowPassword((v) => !v)}
+              onClick={() =>
+                setShowPassword((v) => !v)
+              }
               aria-label={
                 showPassword
                   ? "Hide password"
@@ -86,12 +89,55 @@ export default function Register() {
             </button>
           </div>
 
-          <button
-            className="btn primary"
-            type="submit"
+          {/* Create Account + Login */}
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              marginTop: "18px",
+              flexWrap: "wrap",
+            }}
           >
-            Register
-          </button>
+            <button
+              className="btn primary"
+              type="submit"
+              style={{
+                flex: 1,
+                minWidth: "140px",
+              }}
+            >
+              Create account
+            </button>
+
+            <Link
+              href="/login"
+              className="btn"
+              style={{
+                flex: 1,
+                minWidth: "140px",
+                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                boxSizing: "border-box",
+              }}
+            >
+              Login
+            </Link>
+          </div>
+
+          {/* Forgot Password */}
+          <Link
+            href="/forgot-password"
+            className="forgot-password"
+            style={{
+              display: "block",
+              marginTop: "14px",
+              textAlign: "center",
+            }}
+          >
+            Forgot password?
+          </Link>
         </form>
       </div>
     </main>

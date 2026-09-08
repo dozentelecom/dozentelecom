@@ -1,18 +1,43 @@
 import { NextResponse } from "next/server";
+
 import {
   smeapi,
   ProviderError,
 } from "@/lib/smeapi";
+
 import { requirePin } from "@/lib/authz";
 import { currentUserId } from "@/lib/session";
 import { getRates } from "@/lib/settings";
-import { percentPrice } from "@/lib/pricing";
+import {
+  percentPrice,
+  getVipRate,
+} from "@/lib/pricing";
+
+import { db } from "@/lib/db";
+import { User, Settings } from "@/lib/models";
+
+import {
+  assertServiceEnabled,
+} from "@/lib/serviceControl";
+
+import {
+  assertSmeNetworkEnabled,
+} from "@/lib/providerControl";
+
+import {
+  assertSmeDataPlanEnabled,
+} from "@/lib/planControl";
 
 import {
   startServiceTransaction,
+  processServiceTransaction,
   completeServiceTransaction,
   failServiceTransaction,
 } from "@/lib/serviceTransaction";
+
+/* =========================================================
+   GET PLANS FROM SME RESPONSE
+   ========================================================= */
 
 function getPlans(result: any) {
   if (Array.isArray(result)) {
@@ -31,8 +56,16 @@ function getPlans(result: any) {
     return result.data.plans;
   }
 
+  if (Array.isArray(result?.results)) {
+    return result.results;
+  }
+
   return [];
 }
+
+/* =========================================================
+   GET PLAN ID
+   ========================================================= */
 
 function getPlanId(plan: any) {
   return String(
@@ -40,16 +73,37 @@ function getPlanId(plan: any) {
       plan?.plan_id ??
       plan?.data_plan ??
       ""
-  );
+  ).trim();
 }
+
+/* =========================================================
+   GET PLAN NETWORK
+   ========================================================= */
 
 function getPlanNetwork(plan: any) {
   return String(
     plan?.network_id ??
       plan?.network ??
       ""
-  );
+  ).trim();
 }
+
+/* =========================================================
+   GET PLAN SERVICE TYPE
+   ========================================================= */
+
+function getPlanServiceType(plan: any) {
+  return String(
+    plan?.type ??
+      plan?.service_type ??
+      plan?.serviceType ??
+      ""
+  ).trim();
+}
+
+/* =========================================================
+   GET PLAN COST
+   ========================================================= */
 
 function getPlanCost(plan: any) {
   return Number(
@@ -60,6 +114,10 @@ function getPlanCost(plan: any) {
       0
   );
 }
+
+/* =========================================================
+   CHECK PROVIDER FAILURE
+   ========================================================= */
 
 function providerFailed(result: any) {
   const values = [
@@ -72,11 +130,45 @@ function providerFailed(result: any) {
   return values.some(
     (v) =>
       v === false ||
-      ["failed", "error", "reversed"].includes(
+      [
+        "failed",
+        "error",
+        "reversed",
+      ].includes(
         String(v).toLowerCase()
       )
   );
 }
+
+/* =========================================================
+   CHECK PROVIDER SUCCESS
+   ========================================================= */
+
+function providerSuccess(result: any) {
+  const values = [
+    result?.success,
+    result?.status,
+    result?.data?.success,
+    result?.data?.status,
+  ];
+
+  return values.some(
+    (v) =>
+      v === true ||
+      [
+        "success",
+        "successful",
+        "completed",
+        "complete",
+      ].includes(
+        String(v).toLowerCase()
+      )
+  );
+}
+
+/* =========================================================
+   PROVIDER REFERENCE
+   ========================================================= */
 
 function providerReference(result: any) {
   return (
@@ -89,26 +181,106 @@ function providerReference(result: any) {
   );
 }
 
-export async function POST(req: Request) {
+/* =========================================================
+   SME SERVICE TYPE CONTROL
+   =========================================================
+   Service types are stored independently per network:
+
+   sme_service_types: {
+     "1": {
+       SME: true,
+       Sharecoupon: false
+     },
+     "2": {
+       SME: true
+     },
+     "4": {
+       SME: true
+     }
+   }
+
+   Missing service type = ENABLED.
+   ========================================================= */
+
+async function assertSmeServiceTypeEnabled(
+  networkId: string | number,
+  serviceType: string
+) {
+  const settings: any =
+    await Settings.findOne({
+      key: "provider_controls",
+    })
+      .select("rates")
+      .lean();
+
+  const controls =
+    settings?.rates
+      ?.sme_service_types;
+
+  const networkControls =
+    controls?.[String(networkId)];
+
+  const enabled =
+    networkControls?.[serviceType] !== false;
+
+  if (!enabled) {
+    throw new Error(
+      "SERVICE_TYPE_DISABLED"
+    );
+  }
+}
+
+/* =========================================================
+   POST
+   ========================================================= */
+
+export async function POST(
+  req: Request
+) {
   let reference = "";
 
   try {
     const b = await req.json();
 
-    await requirePin(String(b.pin || ""));
+    /* =======================================================
+       PIN
+       ======================================================= */
 
-    const userId = await currentUserId();
+    await requirePin(
+      String(b.pin || "")
+    );
+
+    /* =======================================================
+       AUTH
+       ======================================================= */
+
+    const userId =
+      await currentUserId();
 
     if (!userId) {
       return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
+        {
+          error:
+            "UNAUTHORIZED",
+        },
+        {
+          status: 401,
+        }
       );
     }
 
-    const network = Number(b.network);
-    const data_plan = Number(b.data_plan);
-    const phone = String(b.phone || "");
+    /* =======================================================
+       READ + VALIDATE INPUT
+       ======================================================= */
+
+    const network =
+      Number(b.network);
+
+    const data_plan =
+      Number(b.data_plan);
+
+    const phone =
+      String(b.phone || "");
 
     if (
       !Number.isFinite(network) ||
@@ -120,37 +292,94 @@ export async function POST(req: Request) {
           error:
             "network, data_plan and a valid 11-digit phone are required",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    /*
-     * NEVER trust the price sent by the browser.
-     * Fetch the current provider plan and calculate
-     * the customer price on the server.
-     */
+    /* =======================================================
+       DATABASE
+       ======================================================= */
+
+    await db();
+
+    /* =======================================================
+       GLOBAL DATA SERVICE CONTROL
+       ======================================================= */
+
+    await assertServiceEnabled(
+      "data"
+    );
+
+    /* =======================================================
+       NETWORK CONTROL
+       ======================================================= */
+
+    await assertSmeNetworkEnabled(
+      network
+    );
+
+    /* =======================================================
+       INDIVIDUAL PLAN CONTROL
+       ======================================================= */
+
+    await assertSmeDataPlanEnabled(
+      data_plan
+    );
+
+    /* =======================================================
+       LOAD CUSTOMER VIP LEVEL
+       ======================================================= */
+
+    const user: any =
+      await User.findById(userId)
+        .select("vipLevel")
+        .lean();
+
+    const vipLevel =
+      user?.vipLevel ||
+      "NORMAL";
+
+    /* =======================================================
+       LOAD LIVE SME PLANS
+
+       NEVER TRUST PRICE OR SERVICE TYPE FROM BROWSER.
+       ======================================================= */
 
     const rawPlans =
       await smeapi.dataPlans();
 
-    const plans = getPlans(rawPlans);
+    const plans =
+      getPlans(rawPlans);
 
-    const plan = plans.find((p: any) => {
-      const idMatches =
-        getPlanId(p) === String(data_plan);
+    /* =======================================================
+       FIND SELECTED PLAN
 
-      const networkValue =
-        getPlanNetwork(p);
+       The plan must match both:
+       - selected plan ID
+       - selected network
+       ======================================================= */
 
-      const networkMatches =
-        !networkValue ||
-        networkValue === String(network);
+    const plan =
+      plans.find((p: any) => {
+        const idMatches =
+          getPlanId(p) ===
+          String(data_plan);
 
-      return (
-        idMatches &&
-        networkMatches
-      );
-    });
+        const networkValue =
+          getPlanNetwork(p);
+
+        const networkMatches =
+          !networkValue ||
+          networkValue ===
+            String(network);
+
+        return (
+          idMatches &&
+          networkMatches
+        );
+      });
 
     if (!plan) {
       return NextResponse.json(
@@ -158,15 +387,70 @@ export async function POST(req: Request) {
           error:
             "Selected data plan could not be found",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
+
+    /* =======================================================
+       GET SERVICE TYPE FROM SMEAPI
+
+       Example:
+       SME
+       Sharecoupon
+       etc.
+
+       We do NOT trust service_type from browser.
+       ======================================================= */
+
+    const serviceType =
+      getPlanServiceType(plan);
+
+    if (!serviceType) {
+      return NextResponse.json(
+        {
+          error:
+            "Selected data plan has no service type",
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    /* =======================================================
+       SERVICE TYPE CONTROL
+
+       Example:
+
+       MTN (network 1)
+       Sharecoupon = disabled
+
+       Airtel (network 4)
+       Sharecoupon = enabled
+
+       Only MTN Sharecoupon will be blocked.
+       ======================================================= */
+
+    await assertSmeServiceTypeEnabled(
+      network,
+      serviceType
+    );
+
+    /* =======================================================
+       PROVIDER COST
+
+       NEVER TRUST PRICE SENT BY BROWSER.
+       ======================================================= */
 
     const providerCost =
       getPlanCost(plan);
 
     if (
-      !Number.isFinite(providerCost) ||
+      !Number.isFinite(
+        providerCost
+      ) ||
       providerCost <= 0
     ) {
       return NextResponse.json(
@@ -174,62 +458,116 @@ export async function POST(req: Request) {
           error:
             "Selected data plan has an invalid provider price",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
-    const rates = await getRates();
+    /* =======================================================
+       LOAD PRICING
+       ======================================================= */
+
+    const rates =
+      await getRates();
+
+    /* =======================================================
+       VIP-AWARE DATA RATE
+       ======================================================= */
+
+    const markup =
+      getVipRate(
+        rates,
+        vipLevel,
+        "data"
+      );
 
     const customerPrice =
       percentPrice(
         providerCost,
-        Number(rates.data || 0)
+        markup
       );
 
     const customerKobo =
-      Math.round(customerPrice * 100);
+      Math.round(
+        customerPrice * 100
+      );
 
     const providerCostKobo =
-      Math.round(providerCost * 100);
+      Math.round(
+        providerCost * 100
+      );
+
+    /* =======================================================
+       TRANSACTION REFERENCE
+       ======================================================= */
 
     reference =
       `data-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)}`;
 
+    /* =======================================================
+       DEBIT CUSTOMER
+       ======================================================= */
+
     await startServiceTransaction({
       userId,
       service: "DATA",
-      amountKobo: customerKobo,
+      amountKobo:
+        customerKobo,
       reference,
+
       metadata: {
         network,
         data_plan,
         phone,
+        serviceType,
+        vipLevel,
         providerCost,
         customerPrice,
+        markup,
       },
     });
 
-    const result = await smeapi.data({
-      network,
-      data_plan,
-      phone,
-      ported_number: Boolean(
-        b.ported_number
-      ),
-      ref: reference,
+    await processServiceTransaction({
+      reference,
     });
 
-    if (providerFailed(result)) {
+    /* =======================================================
+       SME PROVIDER PURCHASE
+       ======================================================= */
+
+    const result =
+      await smeapi.data({
+        network,
+        data_plan,
+        phone,
+        ported_number:
+          Boolean(
+            b.ported_number
+          ),
+        ref: reference,
+      });
+
+    /* =======================================================
+       PROVIDER FAILURE
+       ======================================================= */
+
+    if (
+      providerFailed(result)
+    ) {
       await failServiceTransaction({
         reference,
+
         reason:
           result?.message ||
           result?.provider_message ||
           "Data provider rejected transaction",
+
         metadata: {
-          providerResponse: result,
+          providerResponse:
+            result,
         },
       });
 
@@ -239,28 +577,77 @@ export async function POST(req: Request) {
             result?.message ||
             result?.provider_message ||
             "Data transaction failed",
+
+          reference,
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
+    /* =======================================================
+       PROVIDER PENDING / UNCERTAIN
+       ======================================================= */
+
+    if (
+      !providerSuccess(result)
+    ) {
+      return NextResponse.json(
+        {
+          message:
+            "Data transaction is being processed. Please check transaction status shortly.",
+
+          reference,
+        },
+        {
+          status: 202,
+        }
+      );
+    }
+
+    /* =======================================================
+       COMPLETE TRANSACTION
+       ======================================================= */
+
     await completeServiceTransaction({
       reference,
-      costKobo: providerCostKobo,
+
+      costKobo:
+        providerCostKobo,
+
       providerTransactionId:
-        providerReference(result)
+        providerReference(
+          result
+        )
           ? String(
-              providerReference(result)
+              providerReference(
+                result
+              )
             )
           : undefined,
+
       metadata: {
-        providerResponse: result,
+        providerResponse:
+          result,
+
         plan,
+
+        serviceType,
       },
     });
 
+    /* =======================================================
+       PROFIT
+       ======================================================= */
+
     const profit =
-      customerPrice - providerCost;
+      customerPrice -
+      providerCost;
+
+    /* =======================================================
+       RESPONSE
+       ======================================================= */
 
     return NextResponse.json({
       ...result,
@@ -270,30 +657,74 @@ export async function POST(req: Request) {
       pricing: {
         providerCost,
         customerPrice,
-        markup:
-          Number(rates.data || 0),
+        markup,
         profit,
+        vipLevel,
       },
+
+      serviceType,
     });
   } catch (e: any) {
-    const s =
+    /* =======================================================
+       ERROR STATUS
+       ======================================================= */
+
+    const status =
       e instanceof ProviderError
         ? e.status
-        : e?.message === "UNAUTHORIZED"
+        : e?.message ===
+          "UNAUTHORIZED"
         ? 401
         : e?.message ===
           "INSUFFICIENT_BALANCE"
         ? 400
+        : e?.message ===
+          "SERVICE_DISABLED"
+        ? 403
+        : e?.message ===
+          "PROVIDER_DISABLED"
+        ? 403
+        : e?.message ===
+          "PLAN_DISABLED"
+        ? 403
+        : e?.message ===
+          "SERVICE_TYPE_DISABLED"
+        ? 403
         : 400;
+
+    /* =======================================================
+       USER-FRIENDLY ERROR
+       ======================================================= */
+
+    const errorMessage =
+      e?.message ===
+      "SERVICE_DISABLED"
+        ? "Data service is temporarily unavailable."
+        : e?.message ===
+          "PROVIDER_DISABLED"
+        ? "This network is temporarily unavailable."
+        : e?.message ===
+          "PLAN_DISABLED"
+        ? "This data plan is temporarily unavailable."
+        : e?.message ===
+          "SERVICE_TYPE_DISABLED"
+        ? "This service type is temporarily unavailable for this network."
+        : e?.message ||
+          "Unable to process data";
 
     return NextResponse.json(
       {
         error:
-          e.message ||
-          "Unable to process data",
-        details: e.details,
+          errorMessage,
+
+        details:
+          e?.details,
+
+        reference,
       },
-      { status: s }
+      {
+        status,
+      }
     );
   }
 }

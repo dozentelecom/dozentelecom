@@ -12,6 +12,24 @@ type RouteContext = {
   }>;
 };
 
+/* =========================================================
+   NOTIFICATION RESULT TYPE
+   ========================================================= */
+
+type NotificationResult = {
+  _id: unknown;
+  title: string;
+  message: string;
+  type: string;
+  read: boolean;
+  link?: string;
+  createdAt?: Date | string;
+};
+
+/* =========================================================
+   PATCH — MARK NOTIFICATION AS READ
+   ========================================================= */
+
 export async function PATCH(
   req: Request,
   context: RouteContext
@@ -55,29 +73,28 @@ export async function PATCH(
      *
      * as read.
      */
-    const notification =
-      await Notification.findOneAndUpdate(
-        {
-          _id: id,
+    const notification = (await Notification.findOneAndUpdate(
+      {
+        _id: id,
 
-          $or: [
-            {
-              userId,
-            },
-            {
-              userId: null,
-            },
-          ],
-        },
-        {
-          $set: {
-            read: true,
+        $or: [
+          {
+            userId,
           },
+          {
+            userId: null,
+          },
+        ],
+      },
+      {
+        $set: {
+          read: true,
         },
-        {
-          new: true,
-        }
-      ).lean();
+      },
+      {
+        new: true,
+      }
+    ).lean()) as NotificationResult | null;
 
     if (!notification) {
       return NextResponse.json(
@@ -107,8 +124,7 @@ export async function PATCH(
 
         link: notification.link || "",
 
-        createdAt:
-          notification.createdAt,
+        createdAt: notification.createdAt,
       },
     });
   } catch (error: any) {

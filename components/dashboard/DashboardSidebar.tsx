@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const services = [
@@ -39,36 +39,103 @@ const services = [
 
 export default function DashboardSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
 
   const [open, setOpen] = useState(true);
   const [servicesOpen, setServicesOpen] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
 
-useEffect(() => {
-  async function loadUserRole() {
+  /*
+   * Keep the first server/client render identical.
+   * We only decide whether the user is admin after hydration.
+   */
+  const [isAdmin, setIsAdmin] = useState<boolean | null>(
+    null
+  );
+
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadUserRole() {
+      try {
+        const response = await fetch("/api/auth/me", {
+          cache: "no-store",
+        });
+
+        if (!response.ok) {
+          if (mounted) {
+            setIsAdmin(false);
+          }
+
+          return;
+        }
+
+        const data = await response.json();
+
+        if (mounted) {
+          setIsAdmin(data?.role === "admin");
+        }
+      } catch (error) {
+        console.error(
+          "Unable to load user role:",
+          error
+        );
+
+        if (mounted) {
+          setIsAdmin(false);
+        }
+      }
+    }
+
+    loadUserRole();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  async function handleLogout() {
+    if (loggingOut) return;
+
+    setLoggingOut(true);
+
     try {
-      const response = await fetch("/api/auth/me");
+      const response = await fetch("/api/logout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        cache: "no-store",
+      });
 
-      if (!response.ok) return;
+      if (!response.ok) {
+        throw new Error("Unable to logout.");
+      }
 
-      const data = await response.json();
-
-      setIsAdmin(data.role === "admin");
+      router.replace("/login");
+      router.refresh();
     } catch (error) {
-      console.error("Unable to load user role:", error);
+      console.error("Logout error:", error);
+
+      setLoggingOut(false);
+
+      alert(
+        "Unable to logout. Please try again."
+      );
     }
   }
 
-  loadUserRole();
-}, []);
-
   const servicesActive =
     pathname.startsWith("/dashboard/services") ||
-    pathname.startsWith("/dashboard/airtime-to-cash");
+    pathname.startsWith(
+      "/dashboard/airtime-to-cash"
+    );
 
   return (
     <>
-      {/* Mobile overlay */}
+      {/* MOBILE OVERLAY */}
+
       {open && (
         <button
           type="button"
@@ -84,6 +151,7 @@ useEffect(() => {
         }`}
       >
         {/* HEADER */}
+
         <div className="sidebar-header">
           <div className="sidebar-brand">
             Dozen<span>telecom</span>
@@ -104,21 +172,34 @@ useEffect(() => {
         </div>
 
         {/* NAVIGATION */}
-        <nav className="sidebar-nav">{isAdmin && (
-  <Link
-    href="/admin"
-    className={`sidebar-link ${
-      pathname.startsWith("/admin") ? "active" : ""
-    }`}
-    title="Admin Panel"
-  >
-    <span className="sidebar-icon">🛠️</span>
 
-    {open && <span>Admin Panel</span>}
-  </Link>
-)}
+        <nav className="sidebar-nav">
+          {/* ADMIN */}
+
+          {isAdmin === true && (
+            <Link
+              href="/admin"
+              className={`sidebar-link ${
+                pathname.startsWith("/admin")
+                  ? "active"
+                  : ""
+              }`}
+              title="Admin Panel"
+            >
+              <span className="sidebar-icon">
+                🛠️
+              </span>
+
+              {open && (
+                <span>
+                  Admin Panel
+                </span>
+              )}
+            </Link>
+          )}
 
           {/* DASHBOARD */}
+
           <Link
             href="/dashboard"
             className={`sidebar-link ${
@@ -133,11 +214,14 @@ useEffect(() => {
             </span>
 
             {open && (
-              <span>Dashboard</span>
+              <span>
+                Dashboard
+              </span>
             )}
           </Link>
 
           {/* SERVICES */}
+
           <button
             type="button"
             className={`sidebar-link sidebar-service-button ${
@@ -146,7 +230,9 @@ useEffect(() => {
                 : ""
             }`}
             onClick={() =>
-              setServicesOpen(!servicesOpen)
+              setServicesOpen(
+                !servicesOpen
+              )
             }
             title="Services"
           >
@@ -170,52 +256,53 @@ useEffect(() => {
           </button>
 
           {/* SERVICE LIST */}
+
           {open && servicesOpen && (
             <div className="sidebar-services">
+              {services.map((service) => (
+                <Link
+                  key={service.href}
+                  href={service.href}
+                  className="sidebar-service-link"
+                >
+                  <span>
+                    {service.icon}
+                  </span>
 
-              {services.map(
-                (service) => (
-                  <Link
-                    key={service.href}
-                    href={service.href}
-                    className="sidebar-service-link"
-                  >
-                    <span>
-                      {service.icon}
-                    </span>
-
-                    <span>
-                      {service.name}
-                    </span>
-                  </Link>
-                )
-              )}
-
+                  <span>
+                    {service.name}
+                  </span>
+                </Link>
+              ))}
             </div>
           )}
 
-	{/* GIVEAWAY */}
-<Link
-  href="/dashboard/giveaway"
-  className={`sidebar-link ${
-    pathname.startsWith("/dashboard/giveaway")
-      ? "active"
-      : ""
-  }`}
-  title="Giveaway"
->
-  <span className="sidebar-icon">
-    🎁
-  </span>
+          {/* GIVEAWAY */}
 
-  {open && (
-    <span>
-      Giveaway
-    </span>
-  )}
-</Link>
+          <Link
+            href="/dashboard/giveaway"
+            className={`sidebar-link ${
+              pathname.startsWith(
+                "/dashboard/giveaway"
+              )
+                ? "active"
+                : ""
+            }`}
+            title="Giveaway"
+          >
+            <span className="sidebar-icon">
+              🎁
+            </span>
+
+            {open && (
+              <span>
+                Giveaway
+              </span>
+            )}
+          </Link>
 
           {/* FUND WALLET */}
+
           <Link
             href="/dashboard/fund"
             className={`sidebar-link ${
@@ -238,7 +325,32 @@ useEffect(() => {
             )}
           </Link>
 
+          {/* WITHDRAW */}
+
+          <Link
+            href="/dashboard/withdrawal"
+            className={`sidebar-link ${
+              pathname.startsWith(
+                "/dashboard/withdrawal"
+              )
+                ? "active"
+                : ""
+            }`}
+            title="Withdraw"
+          >
+            <span className="sidebar-icon">
+              🏦
+            </span>
+
+            {open && (
+              <span>
+                Withdraw
+              </span>
+            )}
+          </Link>
+
           {/* TRANSACTIONS */}
+
           <Link
             href="/dashboard/transactions"
             className={`sidebar-link ${
@@ -262,6 +374,7 @@ useEffect(() => {
           </Link>
 
           {/* PROFILE */}
+
           <Link
             href="/dashboard/profile"
             className={`sidebar-link ${
@@ -285,13 +398,18 @@ useEffect(() => {
           </Link>
 
           {/* RESET PIN */}
+
           <Link
-  href="/dashboard/reset-pin"
-  className={`sidebar-link ${
-    pathname.startsWith("/dashboard/reset-pin") ? "active" : ""
-  }`}
-  title="Reset PIN"
->
+            href="/dashboard/reset-pin"
+            className={`sidebar-link ${
+              pathname.startsWith(
+                "/dashboard/reset-pin"
+              )
+                ? "active"
+                : ""
+            }`}
+            title="Reset PIN"
+          >
             <span className="sidebar-icon">
               🔐
             </span>
@@ -304,6 +422,7 @@ useEffect(() => {
           </Link>
 
           {/* KYC */}
+
           <Link
             href="/kyc"
             className={`sidebar-link ${
@@ -323,8 +442,9 @@ useEffect(() => {
               </span>
             )}
           </Link>
-	
+
           {/* SETTINGS */}
+
           <Link
             href="/dashboard/settings"
             className={`sidebar-link ${
@@ -346,16 +466,26 @@ useEffect(() => {
               </span>
             )}
           </Link>
-
         </nav>
 
         {/* LOGOUT */}
-        <div className="sidebar-bottom">
 
-          <a
-            href="/api/auth/logout"
+        <div className="sidebar-bottom">
+          <button
+            type="button"
             className="sidebar-link logout"
             title="Logout"
+            onClick={handleLogout}
+            disabled={loggingOut}
+            style={{
+              width: "100%",
+              border: "none",
+              background: "transparent",
+              cursor: loggingOut
+                ? "wait"
+                : "pointer",
+              opacity: loggingOut ? 0.6 : 1,
+            }}
           >
             <span className="sidebar-icon">
               🚪
@@ -363,22 +493,22 @@ useEffect(() => {
 
             {open && (
               <span>
-                Logout
+                {loggingOut
+                  ? "Logging out..."
+                  : "Logout"}
               </span>
             )}
-          </a>
-
+          </button>
         </div>
       </aside>
 
       {/* OPEN BUTTON */}
+
       {!open && (
         <button
           type="button"
           className="sidebar-open-button"
-          onClick={() =>
-            setOpen(true)
-          }
+          onClick={() => setOpen(true)}
           aria-label="Open sidebar"
         >
           ☰

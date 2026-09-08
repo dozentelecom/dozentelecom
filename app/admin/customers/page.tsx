@@ -1,238 +1,445 @@
-import Link from "next/link";
-import { requireAdmin } from "@/lib/admin";
-import { db } from "@/lib/db";
-import { User, Wallet } from "@/lib/models";
+"use client";
 
-export default async function AdminCustomersPage() {
-  await requireAdmin();
-  await db();
+import { useEffect, useState } from "react";
+import AdminSidebar from "@/components/admin/AdminSidebar";
+import BackButton from "@/components/dashboard/BackButton";
 
-  const users: any[] = await User.find({
-    role: "customer",
-  })
-    .select(
-      "name email phone phoneNumber role kyc createdAt"
-    )
-    .sort({ createdAt: -1 })
-    .lean();
+type User = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  role: string;
+  vipLevel: string;
+  kycStatus: string;
+  kycType: string;
+  createdAt: string | null;
+  wallet: {
+    balanceKobo: number;
+    currency: string;
+  };
+};
 
-  const userIds = users.map((u) => u._id);
+type Pagination = {
+  page: number;
+  limit: number;
+  total: number;
+  totalPages: number;
+};
 
-  const wallets: any[] = await Wallet.find({
-    userId: { $in: userIds },
-  }).lean();
+export default function AdminCustomersPage() {
+  const [users, setUsers] = useState<User[]>([]);
 
-  const walletMap = new Map(
-    wallets.map((w) => [
-      String(w.userId),
-      w,
-    ])
-  );
+  const [pagination, setPagination] =
+    useState<Pagination>({
+      page: 1,
+      limit: 25,
+      total: 0,
+      totalPages: 0,
+    });
+
+  const [search, setSearch] = useState("");
+  const [vipLevel, setVipLevel] = useState("");
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  async function loadUsers(page = 1) {
+    try {
+      setLoading(true);
+      setError("");
+
+      const params = new URLSearchParams();
+
+      if (search.trim()) {
+        params.set(
+          "search",
+          search.trim()
+        );
+      }
+
+      if (vipLevel) {
+        params.set(
+          "vipLevel",
+          vipLevel
+        );
+      }
+
+      params.set(
+        "page",
+        String(page)
+      );
+
+      params.set(
+        "limit",
+        "25"
+      );
+
+      const response = await fetch(
+        `/api/admin/users?${params.toString()}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      const data =
+        await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to load customers"
+        );
+      }
+
+      setUsers(
+        data.users || []
+      );
+
+      setPagination(
+        data.pagination || {
+          page,
+          limit: 25,
+          total: 0,
+          totalPages: 0,
+        }
+      );
+    } catch (err: any) {
+      console.error(
+        "ADMIN CUSTOMERS ERROR:",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Unable to load customers"
+      );
+
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadUsers(1);
+  }, [vipLevel]);
+
+  function handleSearch(
+    event: React.FormEvent
+  ) {
+    event.preventDefault();
+
+    loadUsers(1);
+  }
+
+  function formatMoney(
+    kobo: number
+  ) {
+    return `₦${(
+      Number(kobo || 0) / 100
+    ).toLocaleString("en-NG", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`;
+  }
+
+  function formatDate(
+    date: string | null
+  ) {
+    if (!date) return "-";
+
+    return new Date(
+      date
+    ).toLocaleString("en-NG", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+  }
+
+  function vipClass(
+    level: string
+  ) {
+    return `admin-customer-vip ${level.toLowerCase()}`;
+  }
 
   return (
-    <main className="dashboard-content">
+    <div className="admin-dashboard-layout">
+      <AdminSidebar />
 
-      <div className="dashboard-top">
-        <div className="eyebrow">
-          ADMINISTRATION
+      <main className="admin-dashboard-content">
+        <BackButton />
+
+        <div className="admin-dashboard-top">
+          <div className="eyebrow">
+            ADMIN PANEL
+          </div>
+
+          <h1>Customers</h1>
+
+          <p className="muted">
+            View and manage registered
+            customers.
+          </p>
         </div>
 
-        <h1>Customers</h1>
+        {/* FILTERS */}
 
-        <p className="muted">
-          Manage registered Dozentelecom customers.
-        </p>
-      </div>
+        <div className="card admin-customer-filters">
+          <form
+            onSubmit={handleSearch}
+            className="admin-customer-filter-form"
+          >
+            <div className="admin-filter-field">
+              <label htmlFor="customer-search">
+                Search
+              </label>
 
-      <div className="card">
+              <input
+                id="customer-search"
+                type="text"
+                value={search}
+                onChange={(event) =>
+                  setSearch(
+                    event.target.value
+                  )
+                }
+                placeholder="Name, email or phone"
+              />
+            </div>
 
-        <div className="admin-table-wrapper">
+            <div className="admin-filter-field">
+              <label htmlFor="customer-vip">
+                VIP Level
+              </label>
 
-          <table className="admin-table">
+              <select
+                id="customer-vip"
+                value={vipLevel}
+                onChange={(event) =>
+                  setVipLevel(
+                    event.target.value
+                  )
+                }
+              >
+                <option value="">
+                  All customers
+                </option>
 
-            <thead>
-              <tr>
-                <th>Customer</th>
-                <th>Contact</th>
-                <th>KYC</th>
-                <th>Virtual Account</th>
-                <th>Wallet</th>
-                <th>Joined</th>
-                <th></th>
-              </tr>
-            </thead>
+                <option value="NORMAL">
+                  Normal
+                </option>
 
-            <tbody>
+                <option value="VIP1">
+                  VIP1
+                </option>
 
-              {users.map((user) => {
+                <option value="VIP2">
+                  VIP2
+                </option>
 
-                const wallet =
-                  walletMap.get(
-                    String(user._id)
-                  );
+                <option value="VIP3">
+                  VIP3
+                </option>
+              </select>
+            </div>
 
-                const phone =
-                  user.phone ||
-                  user.phoneNumber ||
-                  "—";
+            <button
+              type="submit"
+              className="primary-button"
+            >
+              Search
+            </button>
+          </form>
+        </div>
 
-                const balance =
-                  Number(
-                    wallet?.balanceKobo || 0
-                  ) / 100;
+        {/* ERROR */}
 
-                const kycStatus =
-                  String(
-                    user.kyc?.status ||
-                    "PENDING"
-                  ).toUpperCase();
+        {error && (
+          <div className="card admin-transaction-error">
+            <strong>
+              Unable to load customers
+            </strong>
 
-                const accountNumber =
-                  String(
-                    user.kyc?.accountNumber ||
-                    ""
-                  ).trim();
+            <p className="muted">
+              {error}
+            </p>
 
-                const accountName =
-                  String(
-                    user.kyc?.accountName ||
-                    ""
-                  ).trim();
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() =>
+                loadUsers(
+                  pagination.page
+                )
+              }
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-                const bankName =
-                  String(
-                    user.kyc?.bankName ||
-                    ""
-                  ).trim();
+        {/* CUSTOMER LIST */}
 
-                const accountMissing =
-                  kycStatus === "VERIFIED" &&
-                  !accountNumber;
+        <div className="card">
+          <div className="admin-transaction-header">
+            <div>
+              <h2>
+                Customer Accounts
+              </h2>
 
-                return (
-                  <tr key={String(user._id)}>
+              <p className="muted">
+                {pagination.total.toLocaleString(
+                  "en-NG"
+                )}{" "}
+                customer
+                {pagination.total === 1
+                  ? ""
+                  : "s"}{" "}
+                found
+              </p>
+            </div>
+          </div>
 
-                    <td>
+          {loading ? (
+            <div className="admin-transaction-empty">
+              <p className="muted">
+                Loading customers...
+              </p>
+            </div>
+          ) : users.length === 0 ? (
+            <div className="admin-transaction-empty">
+              <h3>
+                No customers found
+              </h3>
+
+              <p className="muted">
+                Try changing your
+                search or VIP filter.
+              </p>
+            </div>
+          ) : (
+            <div className="admin-customer-list">
+              {users.map((user) => (
+                <div
+                  className="admin-customer-item"
+                  key={user.id}
+                >
+                  <div className="admin-customer-main">
+                    <div className="admin-customer-name-row">
                       <strong>
-                        {user.name}
+                        {user.name ||
+                          "Unnamed customer"}
                       </strong>
 
-                      <div className="muted">
-                        {user.email}
-                      </div>
-                    </td>
-
-                    <td>
-                      {phone}
-                    </td>
-
-                    <td>
-                      {kycStatus === "VERIFIED" ? (
-                        <span
-                          style={{
-                            color: "#15803d",
-                            fontWeight: 700,
-                          }}
-                        >
-                          ✓ VERIFIED
-                        </span>
-                      ) : (
-                        kycStatus
-                      )}
-                    </td>
-
-                    <td>
-
-                      {accountNumber ? (
-                        <div>
-                          <strong>
-                            {accountNumber}
-                          </strong>
-
-                          {bankName && (
-                            <div className="muted">
-                              {bankName}
-                            </div>
-                          )}
-
-                          {accountName && (
-                            <div
-                              className="muted"
-                              style={{
-                                fontSize: "12px",
-                              }}
-                            >
-                              {accountName}
-                            </div>
-                          )}
-                        </div>
-                      ) : accountMissing ? (
-                        <div>
-                          <div
-                            style={{
-                              color: "#b45309",
-                              fontWeight: 600,
-                              marginBottom: "6px",
-                            }}
-                          >
-                            ⚠ Account missing
-                          </div>
-
-                          <span className="muted">
-                            DVA not saved
-                          </span>
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-
-                    </td>
-
-                    <td>
-                      ₦
-                      {balance.toLocaleString(
-                        undefined,
-                        {
-                          minimumFractionDigits: 2,
-                        }
-                      )}
-                    </td>
-
-                    <td>
-                      {user.createdAt
-                        ? new Date(
-                            user.createdAt
-                          ).toLocaleDateString()
-                        : "—"}
-                    </td>
-
-                    <td>
-                      <Link
-                        className="btn"
-                        href={`/admin/customers/${user._id}`}
+                      <span
+                        className={vipClass(
+                          user.vipLevel
+                        )}
                       >
-                        View
-                      </Link>
-                    </td>
+                        {user.vipLevel}
+                      </span>
+                    </div>
 
-                  </tr>
-                );
-              })}
+                    <div className="admin-customer-contact">
+                      {user.email && (
+                        <span>
+                          {user.email}
+                        </span>
+                      )}
 
-            </tbody>
+                      {user.phone && (
+                        <span>
+                          {user.phone}
+                        </span>
+                      )}
+                    </div>
 
-          </table>
+                    <div className="admin-customer-meta">
+                      <span>
+                        KYC:{" "}
+                        <strong>
+                          {user.kycStatus}
+                        </strong>
+                      </span>
 
-          {users.length === 0 && (
-            <p className="muted">
-              No registered customers found.
-            </p>
+                      <span>
+                        Joined:{" "}
+                        {formatDate(
+                          user.createdAt
+                        )}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="admin-customer-wallet">
+                    <span className="muted">
+                      Wallet Balance
+                    </span>
+
+                    <strong>
+                      {formatMoney(
+                        user.wallet
+                          ?.balanceKobo || 0
+                      )}
+                    </strong>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
 
+          {/* PAGINATION */}
+
+          {!loading &&
+            pagination.totalPages >
+              1 && (
+              <div className="admin-transaction-pagination">
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={
+                    pagination.page <= 1
+                  }
+                  onClick={() =>
+                    loadUsers(
+                      pagination.page -
+                        1
+                    )
+                  }
+                >
+                  Previous
+                </button>
+
+                <span className="muted">
+                  Page{" "}
+                  {pagination.page}{" "}
+                  of{" "}
+                  {
+                    pagination.totalPages
+                  }
+                </span>
+
+                <button
+                  type="button"
+                  className="secondary-button"
+                  disabled={
+                    pagination.page >=
+                    pagination.totalPages
+                  }
+                  onClick={() =>
+                    loadUsers(
+                      pagination.page +
+                        1
+                    )
+                  }
+                >
+                  Next
+                </button>
+              </div>
+            )}
         </div>
-
-      </div>
-
-    </main>
+      </main>
+    </div>
   );
 }
