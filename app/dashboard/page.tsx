@@ -91,15 +91,8 @@ export default async function Dashboard() {
 
           </div>
 
-          {/* KYC / VIRTUAL ACCOUNT */}
-          <div
-  className={
-    u?.kyc?.status === "VERIFIED" &&
-    u?.kyc?.accountNumber
-      ? "card virtual-account-wrapper"
-      : "card"
-  }
->
+{/* KYC / VIRTUAL ACCOUNT */}
+<div className="card">
 
   {u?.kyc?.status === "VERIFIED" ? (
 
@@ -113,162 +106,175 @@ export default async function Dashboard() {
             marginTop: "0",
             padding: "20px",
             borderRadius: "16px",
-            background: "#111827",
-            color: "#ffffff",
-            border: "1px solid rgba(255,255,255,0.08)",
-            boxShadow:
-              "0 10px 30px rgba(0,0,0,0.15)",
           }}
         >
 
+          <div
+            style={{
+              display: "flex",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: "16px",
+              flexWrap: "wrap",
+            }}
+          >
 
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: "16px",
-                        flexWrap: "wrap",
-                      }}
-                    >
+            <div>
+              <div
+                style={{
+                  fontSize: "13px",
+                  opacity: 0.65,
+                  marginBottom: "5px",
+                }}
+              >
+                Virtual Account
+              </div>
 
-                      <div>
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            color:
-                              "rgba(255,255,255,0.65)",
-                            marginBottom: "5px",
-                          }}
-                        >
-                          Virtual Account
-                        </div>
+              <div
+                style={{
+                  fontSize: "17px",
+                  fontWeight: 700,
+                }}
+              >
+                {u?.kyc?.bankName ||
+                  "Paystack-Titan"}
+              </div>
+            </div>
 
-                        <div
-                          style={{
-                            fontSize: "17px",
-                            fontWeight: 700,
-                            color: "#ffffff",
-                          }}
-                        >
-                          {u?.kyc?.bankName ||
-                            "Paystack-Titan"}
-                        </div>
-                      </div>
+            {u?.kyc?.dvaStatus && (
+              <div
+                style={{
+                  whiteSpace: "nowrap",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  color:
+                    u.kyc.dvaStatus === "ACTIVE"
+                      ? "#22c55e"
+                      : "#f59e0b",
+                }}
+              >
+                {u.kyc.dvaStatus === "ACTIVE"
+                  ? "● Account Active"
+                  : `● ${u.kyc.dvaStatus}`}
+              </div>
+            )}
 
-                      {u?.kyc?.dvaStatus && (
-                        <div
-                          style={{
-                            whiteSpace: "nowrap",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color:
-                              u.kyc.dvaStatus ===
-                              "ACTIVE"
-                                ? "#22c55e"
-                                : "#f59e0b",
-                          }}
-                        >
-                          {u.kyc.dvaStatus ===
-                          "ACTIVE"
-                            ? "● Account Active"
-                            : `● ${u.kyc.dvaStatus}`}
-                        </div>
-                      )}
+          </div>
 
-                    </div>
+          <div
+            style={{
+              marginTop: "24px",
+              fontSize: "30px",
+              lineHeight: 1.1,
+              fontWeight: 800,
+              letterSpacing: "2px",
+            }}
+          >
+            {u.kyc.accountNumber}
+          </div>
 
-                    <div
-                      style={{
-                        marginTop: "24px",
-                        fontSize: "30px",
-                        lineHeight: 1.1,
-                        fontWeight: 800,
-                        letterSpacing: "2px",
-                        color: "#ffffff",
-                      }}
-                    >
-                      {u.kyc.accountNumber}
-                    </div>
+          <div
+            style={{
+              marginTop: "10px",
+              fontSize: "14px",
+              fontWeight: 600,
+              textTransform: "uppercase",
+              opacity: 0.85,
+            }}
+          >
+            {u?.kyc?.accountName ||
+              u?.name ||
+              ""}
+          </div>
 
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        color:
-                          "rgba(255,255,255,0.85)",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {u?.kyc?.accountName ||
-                        u?.name ||
-                        ""}
-                    </div>
+        </div>
 
-                  </div>
+      ) : u?.kyc?.dvaStatus === "PENDING" ? (
 
-                ) : u?.kyc?.dvaStatus === "PENDING" ? (
+        /* ACCOUNT GENERATION IS STILL PROCESSING */
+        <div
+          style={{
+            marginTop: "0",
+            padding: "18px",
+            borderRadius: "12px",
+            border: "1px solid #fde68a",
+            background: "#fffbeb",
+          }}
+        >
 
-                  /* ACCOUNT GENERATION IS STILL PROCESSING */
-                  <div
-                    style={{
-                      marginTop: "0",
-                      padding: "18px",
-                      borderRadius: "12px",
-                      border:
-                        "1px solid #fde68a",
-                      background: "#fffbeb",
-                    }}
-                  >
+          <h3
+            style={{
+              marginTop: 0,
+            }}
+          >
+            ⏳ Account generation in progress
+          </h3>
 
-                    <h3
-                      style={{
-                        marginTop: 0,
-                      }}
-                    >
-                      ⏳ Account generation
-                      in progress
-                    </h3>
+          <p className="muted">
+            Your Paystack virtual account is being generated.
+          </p>
 
-                    <p className="muted">
-                      Your Paystack virtual account
-                      is being generated.
-                    </p>
+          <p
+            className="muted"
+            style={{
+              fontSize: "13px",
+            }}
+          >
+            This usually completes automatically.
+            Please refresh the page in a moment.
+          </p>
 
-                    <p
-                      className="muted"
-                      style={{
-                        fontSize: "13px",
-                      }}
-                    >
-                      This usually completes
-                      automatically. Please refresh
-                      the page in a moment.
-                    </p>
+          <Link
+            href="/dashboard"
+            className="btn"
+          >
+            Refresh
+          </Link>
 
-                    <Link
-                      href="/dashboard"
-                      className="btn"
-                    >
-                      Refresh
-                    </Link>
+        </div>
 
-                  </div>
+      ) : (
 
-                ) : (
+        /* VERIFIED BUT ACCOUNT HAS NOT BEEN REQUESTED YET */
+        <div
+          style={{
+            marginTop: "0",
+          }}
+        >
 
-                  /* VERIFIED BUT ACCOUNT HAS NOT BEEN REQUESTED YET */
-                  <div
-                    style={{
-                      marginTop: "0",
-                    }}
-                  >
+          <p className="muted">
+            Generate your dedicated Paystack virtual account.
+          </p>
 
-                    <p className="muted">
-                      Generate your dedicated
-                      Paystack virtual account.
-                    </p>
+          <GenerateAccountButton />
+
+          <p
+            className="muted"
+            style={{
+              fontSize: "12px",
+              marginTop: "10px",
+            }}
+          >
+            Your account number will appear here after Paystack
+            completes the assignment.
+          </p>
+
+        </div>
+
+      )}
+
+    </>
+
+  ) : (
+
+    /* KYC NOT VERIFIED */
+    <div>
+      {/* Keep your existing KYC verification UI here */}
+    </div>
+
+  )}
+
+</div>
 
                     <GenerateAccountButton />
 
