@@ -6,6 +6,7 @@ import { User, Wallet } from "@/lib/models";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import CreatePinPopup from "./CreatePinPopup";
 import GenerateAccountButton from "./GenerateAccountButton";
+import NotificationBell from "@/components/notifications/NotificationBell";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +40,8 @@ export default async function Dashboard() {
               Dashboard
             </h1>
           </div>
+
+	<NotificationBell />
         </div>
 
         <div className="dashboard-summary-grid">

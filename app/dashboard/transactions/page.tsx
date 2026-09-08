@@ -1,24 +1,75 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
+
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Transaction } from "@/lib/models";
+
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import BackButton from "@/components/dashboard/BackButton";
 
-export default async function TransactionsPage() {
-  const id = await currentUserId();
+import TransactionAutoRefresh from "./TransactionAutoRefresh";
 
-  if (!id) {
+export const dynamic = "force-dynamic";
+
+function money(kobo: number) {
+  return `₦${(
+    Number(kobo || 0) / 100
+  ).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function statusClass(status: string) {
+  switch (
+    String(status).toUpperCase()
+  ) {
+    case "SUCCESS":
+      return "status success";
+
+    case "FAILED":
+    case "REVERSED":
+      return "status failed";
+
+    case "PROCESSING":
+    case "PENDING":
+      return "status pending";
+
+    default:
+      return "status";
+  }
+}
+
+export default async function TransactionsPage() {
+  const userId = await currentUserId();
+
+  if (!userId) {
     redirect("/login");
   }
 
   await db();
 
-  const transactions: any[] = await Transaction.find({
-    userId: id,
-  })
-    .sort({ createdAt: -1 })
-    .lean();
+  const transactions: any[] =
+    await Transaction.find({
+      userId,
+    })
+      .sort({
+        createdAt: -1,
+      })
+      .lean();
+
+  const pendingReferences =
+    transactions
+      .filter((tx) =>
+        ["PENDING", "PROCESSING"].includes(
+          String(tx.status).toUpperCase()
+        )
+      )
+      .map((tx) =>
+        String(tx.externalReference)
+      )
+      .filter(Boolean);
 
   return (
     <div className="dashboard-layout">
@@ -27,94 +78,187 @@ export default async function TransactionsPage() {
       <main className="dashboard-content">
         <BackButton />
 
-        <div className="dashboard-top">
-          <div className="eyebrow">ACCOUNT</div>
+        <div
+          style={{
+            display: "flex",
+            justifyContent:
+              "space-between",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+            marginBottom: 20,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+              }}
+            >
+              Transactions
+            </h1>
 
-          <h1>Transactions</h1>
+            <p
+              style={{
+                marginTop: 6,
+                opacity: 0.7,
+              }}
+            >
+              Your recent transactions
+            </p>
+          </div>
 
-          <p className="muted">
-            View all transactions made from your account.
-          </p>
+          <Link
+            href="/dashboard"
+            className="btn"
+          >
+            Dashboard
+          </Link>
         </div>
 
-        <div className="card">
-          {transactions.length === 0 ? (
-            <div>
-              <h3>No transactions yet</h3>
+        {pendingReferences.length >
+          0 && (
+          <TransactionAutoRefresh
+            references={
+              pendingReferences
+            }
+          />
+        )}
 
-              <p className="muted">
-                Your airtime, data, electricity, cable TV,
-                education and other transactions will appear
-                here.
-              </p>
-            </div>
-          ) : (
-            <div className="transaction-list">
-              {transactions.map((tx) => {
-                const amount =
-                  Number(tx.amountKobo || 0) / 100;
-
-                const date = tx.createdAt
-                  ? new Date(tx.createdAt).toLocaleString(
-                      "en-NG",
-                      {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      }
-                    )
-                  : "-";
+        {!transactions.length ? (
+          <div className="card">
+            <p
+              style={{
+                margin: 0,
+              }}
+            >
+              You have no transactions yet.
+            </p>
+          </div>
+        ) : (
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+            }}
+          >
+            {transactions.map(
+              (tx) => {
+                const status =
+                  String(
+                    tx.status || ""
+                  ).toUpperCase();
 
                 return (
-                  <div
-                    className="transaction-item"
-                    key={
-                      tx._id?.toString() ||
-                      tx.externalReference
-                    }
+                  <Link
+                    key={String(
+                      tx._id
+                    )}
+                    href={`/dashboard/transaction/${tx._id}`}
+                    className="card"
+                    style={{
+                      display: "block",
+                      textDecoration:
+                        "none",
+                      color:
+                        "inherit",
+                    }}
                   >
-                    <div>
-                      <strong>
-                        {tx.service || "Transaction"}
-                      </strong>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent:
+                          "space-between",
+                        alignItems:
+                          "flex-start",
+                        gap: 15,
+                        flexWrap:
+                          "wrap",
+                      }}
+                    >
+                      <div>
+                        <strong
+                          style={{
+                            textTransform:
+                              "capitalize",
+                          }}
+                        >
+                          {String(
+                            tx.service ||
+                              "Transaction"
+                          )}
+                        </strong>
 
-                      <div className="muted">
-                        {date}
+                        <div
+                          style={{
+                            marginTop: 6,
+                            fontSize: 13,
+                            opacity:
+                              0.65,
+                          }}
+                        >
+                          {tx.createdAt
+                            ? new Date(
+                                tx.createdAt
+                              ).toLocaleString(
+                                "en-NG"
+                              )
+                            : "—"}
+                        </div>
                       </div>
 
-                      {tx.externalReference && (
-                        <div className="transaction-reference">
-                          Ref: {tx.externalReference}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="transaction-right">
                       <strong>
-                        ₦
-                        {amount.toLocaleString(
-                          "en-NG",
-                          {
-                            minimumFractionDigits: 2,
-                          }
+                        {money(
+                          Number(
+                            tx.amountKobo ||
+                              0
+                          )
                         )}
                       </strong>
+                    </div>
+
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent:
+                          "space-between",
+                        alignItems:
+                          "center",
+                        gap: 12,
+                        marginTop: 14,
+                        flexWrap:
+                          "wrap",
+                      }}
+                    >
+                      <span
+                        className={statusClass(
+                          status
+                        )}
+                      >
+                        {status ||
+                          "PENDING"}
+                      </span>
 
                       <span
-                        className={`transaction-status ${
-                          String(
-                            tx.status || ""
-                          ).toLowerCase()
-                        }`}
+                        style={{
+                          fontSize: 12,
+                          opacity: 0.65,
+                          wordBreak:
+                            "break-all",
+                        }}
                       >
-                        {tx.status || "UNKNOWN"}
+                        {String(
+                          tx.externalReference ||
+                            ""
+                        )}
                       </span>
                     </div>
-                  </div>
+                  </Link>
                 );
-              })}
-            </div>
-          )}
-        </div>
+              }
+            )}
+          </div>
+        )}
       </main>
     </div>
   );

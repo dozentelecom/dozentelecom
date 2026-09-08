@@ -8,8 +8,23 @@ type Bank = {
   code: string;
 };
 
+type Beneficiary = {
+  id: string;
+  name: string;
+  bankCode: string;
+  bankName: string;
+  accountNumber: string;
+  accountName: string;
+  lastVerifiedAt?: string;
+  createdAt?: string;
+};
+
 export default function WithdrawalPage() {
   const [banks, setBanks] = useState<Bank[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<
+    Beneficiary[]
+  >([]);
+
   const [amount, setAmount] = useState("");
   const [bankCode, setBankCode] = useState("");
   const [bankName, setBankName] = useState("");
@@ -21,12 +36,33 @@ export default function WithdrawalPage() {
   const [withdrawalRate, setWithdrawalRate] = useState(0);
 
   const [loadingBanks, setLoadingBanks] = useState(true);
+  const [loadingBeneficiaries, setLoadingBeneficiaries] =
+    useState(true);
+
   const [verifying, setVerifying] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [savingBeneficiary, setSavingBeneficiary] =
+    useState(false);
+  const [deletingBeneficiary, setDeletingBeneficiary] =
+    useState("");
 
   const [verified, setVerified] = useState(false);
+
+  const [selectedBeneficiary, setSelectedBeneficiary] =
+    useState("");
+
+  const [saveBeneficiary, setSaveBeneficiary] =
+    useState(false);
+
+  const [beneficiaryName, setBeneficiaryName] =
+    useState("");
+
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  /* =========================================================
+     LOAD BANKS
+     ========================================================= */
 
   useEffect(() => {
     async function loadBanks() {
@@ -56,6 +92,55 @@ export default function WithdrawalPage() {
       }
     }
 
+    loadBanks();
+  }, []);
+
+  /* =========================================================
+     LOAD BENEFICIARIES
+     ========================================================= */
+
+  async function loadBeneficiaries() {
+    try {
+      const response = await fetch(
+        "/api/beneficiaries",
+        {
+          cache: "no-store",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to load saved beneficiaries."
+        );
+      }
+
+      setBeneficiaries(
+        Array.isArray(data?.beneficiaries)
+          ? data.beneficiaries
+          : []
+      );
+    } catch (err: any) {
+      console.error(
+        "LOAD BENEFICIARIES ERROR:",
+        err
+      );
+    } finally {
+      setLoadingBeneficiaries(false);
+    }
+  }
+
+  useEffect(() => {
+    loadBeneficiaries();
+  }, []);
+
+  /* =========================================================
+     LOAD WITHDRAWAL RATE
+     ========================================================= */
+
+  useEffect(() => {
     async function loadRates() {
       try {
         const response = await fetch(
@@ -83,9 +168,12 @@ export default function WithdrawalPage() {
       }
     }
 
-    loadBanks();
     loadRates();
   }, []);
+
+  /* =========================================================
+     CALCULATE PAYOUT
+     ========================================================= */
 
   useEffect(() => {
     const value = Number(amount);
@@ -105,12 +193,110 @@ export default function WithdrawalPage() {
     );
   }, [amount, withdrawalRate]);
 
+  /* =========================================================
+     RESET VERIFICATION
+     ========================================================= */
+
   function resetVerification() {
     setVerified(false);
     setAccountName("");
     setError("");
     setMessage("");
   }
+
+  /* =========================================================
+     SELECT BENEFICIARY
+     ========================================================= */
+
+  function selectBeneficiary(id: string) {
+    setError("");
+    setMessage("");
+
+    setSelectedBeneficiary(id);
+
+    if (!id) {
+      setBankCode("");
+      setBankName("");
+      setAccountNumber("");
+      setAccountName("");
+      setVerified(false);
+      setBeneficiaryName("");
+      return;
+    }
+
+    const beneficiary =
+      beneficiaries.find(
+        (item) => item.id === id
+      );
+
+    if (!beneficiary) return;
+
+    setBankCode(beneficiary.bankCode);
+    setBankName(beneficiary.bankName);
+    setAccountNumber(
+      beneficiary.accountNumber
+    );
+    setAccountName(
+      beneficiary.accountName
+    );
+    setBeneficiaryName(
+      beneficiary.name
+    );
+
+    /*
+     * We intentionally do NOT mark the account
+     * permanently verified just because it was saved.
+     *
+     * The account will still be verified by the
+     * server before the withdrawal is paid.
+     */
+    setVerified(true);
+  }
+
+  /* =========================================================
+     MANUAL BANK CHANGE
+     ========================================================= */
+
+  function handleBankChange(code: string) {
+    const bank = banks.find(
+      (item) => item.code === code
+    );
+
+    setSelectedBeneficiary("");
+
+    setBankCode(code);
+    setBankName(bank?.name || "");
+
+    setAccountNumber("");
+    setAccountName("");
+    setBeneficiaryName("");
+
+    setVerified(false);
+    setError("");
+    setMessage("");
+  }
+
+  /* =========================================================
+     ACCOUNT NUMBER CHANGE
+     ========================================================= */
+
+  function handleAccountNumberChange(
+    value: string
+  ) {
+    const cleaned = value.replace(/\D/g, "");
+
+    setSelectedBeneficiary("");
+    setAccountNumber(cleaned);
+
+    setVerified(false);
+    setAccountName("");
+    setError("");
+    setMessage("");
+  }
+
+  /* =========================================================
+     VERIFY ACCOUNT
+     ========================================================= */
 
   async function verifyAccount() {
     setError("");
@@ -174,6 +360,161 @@ export default function WithdrawalPage() {
     }
   }
 
+  /* =========================================================
+     SAVE BENEFICIARY
+     ========================================================= */
+
+  async function saveCurrentBeneficiary() {
+    setError("");
+    setMessage("");
+
+    if (!beneficiaryName.trim()) {
+      setError(
+        "Enter a name for this beneficiary."
+      );
+      return;
+    }
+
+    if (!bankCode || !bankName) {
+      setError("Please select your bank.");
+      return;
+    }
+
+    if (!/^\d{10}$/.test(accountNumber)) {
+      setError(
+        "Enter a valid 10-digit account number."
+      );
+      return;
+    }
+
+    if (!accountName || !verified) {
+      setError(
+        "Please verify the account first."
+      );
+      return;
+    }
+
+    setSavingBeneficiary(true);
+
+    try {
+      const response = await fetch(
+        "/api/beneficiaries",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: beneficiaryName.trim(),
+            bankCode,
+            bankName,
+            accountNumber,
+            accountName,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to save beneficiary."
+        );
+      }
+
+      setMessage(
+        "Beneficiary saved successfully."
+      );
+
+      setSaveBeneficiary(false);
+
+      await loadBeneficiaries();
+
+      if (data?.beneficiary?.id) {
+        setSelectedBeneficiary(
+          String(data.beneficiary.id)
+        );
+      }
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Unable to save beneficiary."
+      );
+    } finally {
+      setSavingBeneficiary(false);
+    }
+  }
+
+  /* =========================================================
+     DELETE BENEFICIARY
+     ========================================================= */
+
+  async function deleteBeneficiary(
+    id: string
+  ) {
+    const confirmed = window.confirm(
+      "Remove this saved bank account?"
+    );
+
+    if (!confirmed) return;
+
+    setError("");
+    setMessage("");
+    setDeletingBeneficiary(id);
+
+    try {
+      const response = await fetch(
+        `/api/beneficiaries/${encodeURIComponent(
+          id
+        )}`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(
+          data?.error ||
+            "Unable to remove beneficiary."
+        );
+      }
+
+      setBeneficiaries((current) =>
+        current.filter(
+          (item) => item.id !== id
+        )
+      );
+
+      if (selectedBeneficiary === id) {
+        setSelectedBeneficiary("");
+        setBankCode("");
+        setBankName("");
+        setAccountNumber("");
+        setAccountName("");
+        setBeneficiaryName("");
+        setVerified(false);
+      }
+
+      setMessage(
+        "Beneficiary removed successfully."
+      );
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "Unable to remove beneficiary."
+      );
+    } finally {
+      setDeletingBeneficiary("");
+    }
+  }
+
+  /* =========================================================
+     SUBMIT WITHDRAWAL
+     ========================================================= */
+
   async function submitWithdrawal(
     event: React.FormEvent<HTMLFormElement>
   ) {
@@ -196,6 +537,15 @@ export default function WithdrawalPage() {
 
     if (!bankCode || !bankName) {
       setError("Please select your bank.");
+      return;
+    }
+
+    if (
+      !/^\d{10}$/.test(accountNumber)
+    ) {
+      setError(
+        "Enter a valid 10-digit account number."
+      );
       return;
     }
 
@@ -251,6 +601,8 @@ export default function WithdrawalPage() {
       setAmount("");
       setPin("");
       setAccountName("");
+      setBeneficiaryName("");
+      setSelectedBeneficiary("");
       setVerified(false);
       setPayout(0);
     } catch (err: any) {
@@ -278,6 +630,10 @@ export default function WithdrawalPage() {
           Withdraw your wallet balance directly
           to your Nigerian bank account.
         </p>
+
+        {/* =================================================
+            MESSAGES
+        ================================================= */}
 
         {error && (
           <div
@@ -311,6 +667,10 @@ export default function WithdrawalPage() {
           onSubmit={submitWithdrawal}
           style={{ marginTop: 24 }}
         >
+          {/* =================================================
+              AMOUNT
+          ================================================= */}
+
           <label
             style={{
               display: "block",
@@ -350,13 +710,176 @@ export default function WithdrawalPage() {
                 }}
               >
                 ₦
-                {payout.toLocaleString("en-NG", {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
+                {payout.toLocaleString(
+                  "en-NG",
+                  {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  }
+                )}
               </strong>
             </div>
           )}
+
+          {/* =================================================
+              SAVED BENEFICIARY
+          ================================================= */}
+
+          <label
+            style={{
+              display: "block",
+              marginTop: 22,
+              marginBottom: 8,
+            }}
+          >
+            Saved bank account
+          </label>
+
+          <select
+            className="input"
+            value={selectedBeneficiary}
+            disabled={
+              loadingBeneficiaries
+            }
+            onChange={(e) =>
+              selectBeneficiary(
+                e.target.value
+              )
+            }
+          >
+            <option value="">
+              {loadingBeneficiaries
+                ? "Loading saved accounts..."
+                : beneficiaries.length
+                ? "Select a saved account"
+                : "No saved accounts"}
+            </option>
+
+            {beneficiaries.map(
+              (beneficiary) => (
+                <option
+                  key={beneficiary.id}
+                  value={beneficiary.id}
+                >
+                  {beneficiary.name} —{" "}
+                  {beneficiary.bankName} —{" "}
+                  {beneficiary.accountNumber}
+                </option>
+              )
+            )}
+          </select>
+
+          {/* =================================================
+              SAVED BENEFICIARY LIST
+          ================================================= */}
+
+          {beneficiaries.length > 0 && (
+            <div
+              style={{
+                marginTop: 12,
+                display: "grid",
+                gap: 8,
+              }}
+            >
+              {beneficiaries.map(
+                (beneficiary) => (
+                  <div
+                    key={beneficiary.id}
+                    style={{
+                      padding: 12,
+                      borderRadius: 8,
+                      border:
+                        "1px solid #334155",
+                      background:
+                        "#0f172a",
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent:
+                          "space-between",
+                        alignItems:
+                          "flex-start",
+                        gap: 12,
+                      }}
+                    >
+                      <div>
+                        <strong
+                          style={{
+                            display:
+                              "block",
+                            color:
+                              "#ffffff",
+                          }}
+                        >
+                          {beneficiary.name}
+                        </strong>
+
+                        <div
+                          style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            color:
+                              "#cbd5e1",
+                          }}
+                        >
+                          {
+                            beneficiary.accountName
+                          }
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: 3,
+                            fontSize: 12,
+                            color:
+                              "#94a3b8",
+                          }}
+                        >
+                          {
+                            beneficiary.bankName
+                          }{" "}
+                          •{" "}
+                          {
+                            beneficiary.accountNumber
+                          }
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() =>
+                          deleteBeneficiary(
+                            beneficiary.id
+                          )
+                        }
+                        disabled={
+                          deletingBeneficiary ===
+                          beneficiary.id
+                        }
+                        style={{
+                          fontSize: 12,
+                          padding:
+                            "7px 10px",
+                        }}
+                      >
+                        {deletingBeneficiary ===
+                        beneficiary.id
+                          ? "Removing..."
+                          : "Remove"}
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          )}
+
+          {/* =================================================
+              BANK
+          ================================================= */}
 
           <label
             style={{
@@ -372,20 +895,11 @@ export default function WithdrawalPage() {
             className="input"
             value={bankCode}
             disabled={loadingBanks}
-            onChange={(e) => {
-              const code = e.target.value;
-
-              const bank = banks.find(
-                (item) => item.code === code
-              );
-
-              setBankCode(code);
-              setBankName(
-                bank?.name || ""
-              );
-
-              resetVerification();
-            }}
+            onChange={(e) =>
+              handleBankChange(
+                e.target.value
+              )
+            }
             required
           >
             <option value="">
@@ -404,6 +918,10 @@ export default function WithdrawalPage() {
             ))}
           </select>
 
+          {/* =================================================
+              ACCOUNT NUMBER
+          ================================================= */}
+
           <label
             style={{
               display: "block",
@@ -420,19 +938,18 @@ export default function WithdrawalPage() {
             inputMode="numeric"
             maxLength={10}
             value={accountNumber}
-            onChange={(e) => {
-              const value =
-                e.target.value.replace(
-                  /\D/g,
-                  ""
-                );
-
-              setAccountNumber(value);
-              resetVerification();
-            }}
+            onChange={(e) =>
+              handleAccountNumberChange(
+                e.target.value
+              )
+            }
             placeholder="10-digit account number"
             required
           />
+
+          {/* =================================================
+              VERIFY
+          ================================================= */}
 
           <button
             type="button"
@@ -452,6 +969,10 @@ export default function WithdrawalPage() {
               : "Verify account"}
           </button>
 
+          {/* =================================================
+              VERIFIED ACCOUNT
+          ================================================= */}
+
           {verified && accountName && (
             <div
               style={{
@@ -459,7 +980,8 @@ export default function WithdrawalPage() {
                 padding: 14,
                 borderRadius: 8,
                 background: "#0f172a",
-                border: "1px solid #334155",
+                border:
+                  "1px solid #334155",
                 color: "#ffffff",
               }}
             >
@@ -481,10 +1003,112 @@ export default function WithdrawalPage() {
                   color: "#cbd5e1",
                 }}
               >
-                {bankName} • {accountNumber}
+                {bankName} •{" "}
+                {accountNumber}
               </div>
             </div>
           )}
+
+          {/* =================================================
+              SAVE AS BENEFICIARY
+          ================================================= */}
+
+          {verified &&
+            accountName &&
+            !selectedBeneficiary && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: 14,
+                  borderRadius: 8,
+                  border:
+                    "1px solid #334155",
+                  background:
+                    "#020617",
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems:
+                      "center",
+                    gap: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={
+                      saveBeneficiary
+                    }
+                    onChange={(e) => {
+                      setSaveBeneficiary(
+                        e.target.checked
+                      );
+
+                      if (
+                        e.target.checked &&
+                        !beneficiaryName
+                      ) {
+                        setBeneficiaryName(
+                          accountName
+                        );
+                      }
+                    }}
+                  />
+
+                  <span>
+                    Save this account for
+                    future withdrawals
+                  </span>
+                </label>
+
+                {saveBeneficiary && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                    }}
+                  >
+                    <input
+                      className="input"
+                      type="text"
+                      maxLength={50}
+                      value={
+                        beneficiaryName
+                      }
+                      onChange={(e) =>
+                        setBeneficiaryName(
+                          e.target.value
+                        )
+                      }
+                      placeholder="Beneficiary name e.g. My GTBank"
+                    />
+
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={
+                        saveCurrentBeneficiary
+                      }
+                      disabled={
+                        savingBeneficiary
+                      }
+                      style={{
+                        marginTop: 10,
+                      }}
+                    >
+                      {savingBeneficiary
+                        ? "Saving..."
+                        : "Save beneficiary"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+          {/* =================================================
+              PIN
+          ================================================= */}
 
           <label
             style={{
@@ -513,6 +1137,10 @@ export default function WithdrawalPage() {
             placeholder="4-digit PIN"
             required
           />
+
+          {/* =================================================
+              WITHDRAW
+          ================================================= */}
 
           <button
             className="btn primary"
