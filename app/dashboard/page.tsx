@@ -22,8 +22,12 @@ export default async function Dashboard() {
   const u: any = await User.findById(id).lean();
 
   const w: any = await Wallet.findOne({
-    userId: id,
-  }).lean();
+  userId: id,
+})
+  .sort({
+    balanceKobo: -1,
+  })
+  .lean();
 
   return (
     <main className="dashboard-layout">

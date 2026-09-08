@@ -590,17 +590,15 @@ export async function POST(req: Request) {
         accountName,
       },
     });
-  } catch (error: any) {
+    } catch (error: any) {
     console.error(
       "WITHDRAWAL CREATE ERROR:",
       error
     );
 
-    /* =========================================================
-       REFUND IF WALLET WAS DEBITED BUT
-       TRANSFER COULD NOT BE INITIATED
-       ========================================================= */
-
+    /*
+     * Refund if wallet was already debited.
+     */
     if (
       withdrawal &&
       debited
@@ -642,12 +640,6 @@ export async function POST(req: Request) {
           "WITHDRAWAL REFUND ERROR:",
           refundError
         );
-
-        /*
-         * Do not hide this situation.
-         * The withdrawal remains in the database
-         * so it can be recovered manually.
-         */
       }
     } else if (
       withdrawal &&
@@ -665,6 +657,40 @@ export async function POST(req: Request) {
         new Date();
 
       await withdrawal.save();
+    }
+
+    /*
+     * Return a useful balance error.
+     */
+    if (
+      error?.message ===
+      "INSUFFICIENT_BALANCE"
+    ) {
+      const currentBalance =
+        Number(
+          error?.currentBalanceKobo ||
+            0
+        ) / 100;
+
+      const requestedAmount =
+        Number(
+          error?.requestedKobo ||
+            0
+        ) / 100;
+
+      return NextResponse.json(
+        {
+          error:
+            `Insufficient wallet balance. Available: ₦${currentBalance.toFixed(
+              2
+            )}. Requested: ₦${requestedAmount.toFixed(
+              2
+            )}.`,
+        },
+        {
+          status: 400,
+        }
+      );
     }
 
     return NextResponse.json(
