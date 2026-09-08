@@ -98,109 +98,109 @@ export default async function Dashboard() {
 
               <>
 
-                {/* ACCOUNT HAS BEEN GENERATED */}
-                {u?.kyc?.accountNumber ? (
+{/* ACCOUNT HAS BEEN GENERATED */}
+{u?.kyc?.accountNumber ? (
 
-                  <div
-                    style={{
-                      marginTop: "0",
-                      padding: "20px",
-                      borderRadius: "16px",
-                      color: "#111827",
-                    }}
-                  >
+  <div
+    style={{
+      marginTop: "0",
+      padding: "20px",
+      borderRadius: "16px",
+      color: "#ffffff",
+    }}
+  >
 
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        justifyContent: "space-between",
-                        gap: "16px",
-                        flexWrap: "wrap",
-                      }}
-                    >
+    <div
+      style={{
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: "16px",
+        flexWrap: "wrap",
+      }}
+    >
 
-                      <div>
+      <div>
 
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            color: "#4b5563",
-                            marginBottom: "5px",
-                          }}
-                        >
-                          Virtual Account
-                        </div>
+        {/* VIRTUAL ACCOUNT LABEL */}
+        <div
+          style={{
+            fontSize: "13px",
+            color: "#cbd5e1",
+            marginBottom: "5px",
+          }}
+        >
+          Virtual Account
+        </div>
 
-                        <div
-                          style={{
-                            fontSize: "17px",
-                            fontWeight: 700,
-                            color: "#111827",
-                          }}
-                        >
-                          {u?.kyc?.bankName ||
-                            "Paystack-Titan"}
-                        </div>
+        {/* BANK NAME */}
+        <div
+          style={{
+            fontSize: "17px",
+            fontWeight: 700,
+            color: "#ffffff",
+          }}
+        >
+          {u?.kyc?.bankName || "Paystack-Titan"}
+        </div>
 
-                      </div>
+      </div>
 
-                      {u?.kyc?.dvaStatus && (
+      {/* ACCOUNT STATUS */}
+      {u?.kyc?.dvaStatus && (
+        <div
+          style={{
+            whiteSpace: "nowrap",
+            fontSize: "12px",
+            fontWeight: 600,
+            color:
+              u.kyc.dvaStatus === "ACTIVE"
+                ? "#22c55e"
+                : "#f59e0b",
+          }}
+        >
+          {u.kyc.dvaStatus === "ACTIVE"
+            ? "● Account Active"
+            : `● ${u.kyc.dvaStatus}`}
+        </div>
+      )}
 
-                        <div
-                          style={{
-                            whiteSpace: "nowrap",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            color:
-                              u.kyc.dvaStatus ===
-                              "ACTIVE"
-                                ? "#15803d"
-                                : "#b45309",
-                          }}
-                        >
-                          {u.kyc.dvaStatus ===
-                          "ACTIVE"
-                            ? "● Account Active"
-                            : `● ${u.kyc.dvaStatus}`}
-                        </div>
+    </div>
 
-                      )}
+    {/* ACCOUNT NUMBER */}
+    <div
+      style={{
+        marginTop: "24px",
+        fontSize: "30px",
+        lineHeight: 1.1,
+        fontWeight: 800,
+        letterSpacing: "2px",
+        color: "#ffffff",
+      }}
+    >
+      {u.kyc.accountNumber}
+    </div>
 
-                    </div>
+    {/* ACCOUNT NAME */}
+    <div
+      style={{
+        marginTop: "10px",
+        fontSize: "14px",
+        fontWeight: 600,
+        color: "#e2e8f0",
+        textTransform: "uppercase",
+      }}
+    >
+      {u?.kyc?.accountName ||
+        u?.name ||
+        ""}
+    </div>
 
-                    {/* ACCOUNT NUMBER */}
-                    <div
-                      style={{
-                        marginTop: "24px",
-                        fontSize: "30px",
-                        lineHeight: 1.1,
-                        fontWeight: 800,
-                        letterSpacing: "2px",
-                        color: "#111827",
-                      }}
-                    >
-                      {u.kyc.accountNumber}
-                    </div>
+  </div>
 
-                    {/* ACCOUNT NAME */}
-                    <div
-                      style={{
-                        marginTop: "10px",
-                        fontSize: "14px",
-                        fontWeight: 600,
-                        color: "#374151",
-                        textTransform: "uppercase",
-                      }}
-                    >
-                      {u?.kyc?.accountName ||
-                        u?.name ||
-                        ""}
-                    </div>
+) : u?.kyc?.dvaStatus === "PENDING" ? (
 
-                  </div>
 
-                ) : u?.kyc?.dvaStatus === "PENDING" ? (
 
                   /* ACCOUNT GENERATION IS STILL PROCESSING */
                   <div
