@@ -199,17 +199,12 @@ await assertServiceEnabled("airtime");
 
     try {
       result = await smeapi.airtime({
-        network,
-        phone,
-        amount,
-        airtime_type: String(
-          body.airtime_type || "VTU"
-        ),
-        ported_number: Boolean(
-          body.ported_number
-        ),
-        ref: reference,
-      });
+  network,
+  phone,
+  amount,
+  ported_number: body.ported_number ? "true" : "false",
+  ref: reference,
+});
     } catch (error: any) {
       /*
        * If the provider may have received the request,
@@ -251,10 +246,14 @@ await assertServiceEnabled("airtime");
           error?.message ||
           "Airtime purchase failed.",
         metadata: {
-          providerError:
-            error?.message ||
-            String(error),
-        },
+  providerError:
+    error?.message ||
+    String(error),
+  providerStatus:
+    error?.status,
+  providerDetails:
+    error?.details || null,
+},
       });
 
       const status =
@@ -263,16 +262,18 @@ await assertServiceEnabled("airtime");
           : 400;
 
       return NextResponse.json(
-        {
-          success: false,
-          error:
-            error?.message ||
-            "Airtime purchase failed.",
-          reference,
-          refunded: true,
-        },
-        { status }
-      );
+  {
+    success: false,
+    error:
+      error?.message ||
+      "Airtime purchase failed.",
+    details:
+      error?.details || null,
+    reference,
+    refunded: true,
+  },
+  { status }
+);
     }
 
     /*

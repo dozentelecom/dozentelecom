@@ -539,16 +539,16 @@ export async function POST(
        ======================================================= */
 
     const result =
-      await smeapi.data({
-        network,
-        data_plan,
-        phone,
-        ported_number:
-          Boolean(
-            b.ported_number
-          ),
-        ref: reference,
-      });
+  await smeapi.data({
+    network,
+    data_plan,
+    phone,
+    ported_number:
+      b.ported_number
+        ? "true"
+        : "false",
+    ref: reference,
+  });
 
     /* =======================================================
        PROVIDER FAILURE
@@ -590,21 +590,32 @@ export async function POST(
        PROVIDER PENDING / UNCERTAIN
        ======================================================= */
 
-    if (
-      !providerSuccess(result)
-    ) {
-      return NextResponse.json(
-        {
-          message:
-            "Data transaction is being processed. Please check transaction status shortly.",
+    if (!providerSuccess(result)) {
+  await processServiceTransaction({
+    reference,
+    metadata: {
+      providerResponse: result,
+      providerStatus:
+        result?.status ||
+        result?.data?.status ||
+        "UNKNOWN",
+    },
+  });
 
-          reference,
-        },
-        {
-          status: 202,
-        }
-      );
+  return NextResponse.json(
+    {
+      success: true,
+      pending: true,
+      message:
+        "Data transaction is being processed. Please check transaction status shortly.",
+      reference,
+      providerResponse: result,
+    },
+    {
+      status: 202,
     }
+  );
+}
 
     /* =======================================================
        COMPLETE TRANSACTION
