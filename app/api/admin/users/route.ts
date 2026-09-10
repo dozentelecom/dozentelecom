@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
 import { User, Wallet } from "@/lib/models";
@@ -16,7 +17,8 @@ async function requireAdmin() {
 
   const admin: any = await User.findById(id)
     .select("role")
-    .lean();
+    .lean()
+    .exec();
 
   if (!admin || admin.role !== "admin") {
     throw new Error("FORBIDDEN");
@@ -87,26 +89,37 @@ export async function GET(req: Request) {
       ];
     }
 
-    const total = await User.countDocuments(query);
+    const total =
+      await User.countDocuments(query);
 
-    const users: any[] = await User.find(query)
-      .select(
-        "name email phone phoneNumber role vipLevel kyc createdAt"
-      )
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean();
+    const users: any[] =
+      await User.find(query)
+        .select(
+          "name email phone phoneNumber role vipLevel blocked kyc createdAt"
+        )
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec();
 
-    const userIds = users.map((user) => user._id);
+    const userIds = users.map(
+      (user) => user._id
+    );
 
-    const wallets: any[] = userIds.length
-      ? await Wallet.find({
-          userId: { $in: userIds },
-        })
-          .select("userId balanceKobo currency")
-          .lean()
-      : [];
+    const wallets: any[] =
+      userIds.length
+        ? await Wallet.find({
+            userId: {
+              $in: userIds,
+            },
+          })
+            .select(
+              "userId balanceKobo currency"
+            )
+            .lean()
+            .exec()
+        : [];
 
     const walletMap = new Map(
       wallets.map((wallet) => [
@@ -115,57 +128,73 @@ export async function GET(req: Request) {
       ])
     );
 
-    const result = users.map((user) => {
-      const wallet = walletMap.get(
-        user._id.toString()
-      );
+    const result = users.map(
+      (user) => {
+        const wallet =
+          walletMap.get(
+            user._id.toString()
+          );
 
-      return {
-        id: user._id.toString(),
+        return {
+          id: user._id.toString(),
 
-        name: user.name || "",
+          name: user.name || "",
 
-        email: user.email || "",
+          email: user.email || "",
 
-        phone:
-          user.phone ||
-          user.phoneNumber ||
-          "",
+          phone:
+            user.phone ||
+            user.phoneNumber ||
+            "",
 
-        role: user.role || "customer",
+          role:
+            user.role ||
+            "customer",
 
-        vipLevel:
-          user.vipLevel || "NORMAL",
+          vipLevel:
+            user.vipLevel ||
+            "NORMAL",
 
-        kycStatus:
-          user.kyc?.status || "PENDING",
+          blocked:
+            user.blocked === true,
 
-        kycType:
-          user.kyc?.type || "",
+          kycStatus:
+            user.kyc?.status ||
+            "PENDING",
 
-        createdAt:
-          user.createdAt || null,
+          kycType:
+            user.kyc?.type || "",
 
-        wallet: {
-          balanceKobo:
-            Number(wallet?.balanceKobo || 0),
+          createdAt:
+            user.createdAt || null,
 
-          currency:
-            wallet?.currency || "NGN",
-        },
-      };
-    });
+          wallet: {
+            balanceKobo:
+              Number(
+                wallet?.balanceKobo ||
+                  0
+              ),
+
+            currency:
+              wallet?.currency ||
+              "NGN",
+          },
+        };
+      }
+    );
 
     return NextResponse.json({
+      success: true,
       users: result,
 
       pagination: {
         page,
         limit,
         total,
-        totalPages: Math.ceil(
-          total / limit
-        ),
+        totalPages:
+          Math.ceil(
+            total / limit
+          ),
       },
     });
   } catch (error: any) {
@@ -175,14 +204,17 @@ export async function GET(req: Request) {
     );
 
     const status =
-      error?.message === "UNAUTHORIZED"
+      error?.message ===
+      "UNAUTHORIZED"
         ? 401
-        : error?.message === "FORBIDDEN"
+        : error?.message ===
+          "FORBIDDEN"
         ? 403
         : 500;
 
     return NextResponse.json(
       {
+        success: false,
         error:
           error?.message ||
           "Unable to load customers",

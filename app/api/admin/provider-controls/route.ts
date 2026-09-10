@@ -1,22 +1,23 @@
 import { NextResponse } from "next/server";
+
 import { db } from "@/lib/db";
 import { User, Settings } from "@/lib/models";
 import { currentUserId } from "@/lib/session";
-import { smeapi, arrays } from "@/lib/smeapi";
+import { smeapi } from "@/lib/smeapi";
 
-/* =========================================================
-   DEFAULT CONTROLS
-   ========================================================= */
+type Controls = {
+  sme_networks: Record<string, boolean>;
+  sme_service_types: Record<string, Record<string, boolean>>;
+  sme_data_plans: Record<string, boolean>;
+  wisesub_electricity: Record<string, boolean>;
+  wisesub_cable: Record<string, boolean>;
+  wisesub_education: Record<string, boolean>;
+};
 
-const DEFAULT_CONTROLS = {
-  sme_networks: {} as Record<string, boolean>,
-
-  sme_service_types: {} as Record<
-    string,
-    Record<string, boolean>
-  >,
-
-  sme_data_plans: {} as Record<string, boolean>,
+const DEFAULT_CONTROLS: Controls = {
+  sme_networks: {},
+  sme_service_types: {},
+  sme_data_plans: {},
 
   wisesub_electricity: {
     abuja: true,
@@ -47,222 +48,243 @@ const DEFAULT_CONTROLS = {
 
 /* =========================================================
    ADMIN CHECK
-   ========================================================= */
+========================================================= */
 
 async function requireAdmin() {
-  const userId = await currentUserId();
+  const id = await currentUserId();
 
-  if (!userId) {
+  if (!id) {
     throw new Error("UNAUTHORIZED");
   }
 
-  const user = (await User.findById(userId)
-  .select("role")
-  .lean()
-  .exec()) as { role?: string } | null;
+  /*
+   * Explicitly type this as a single document.
+   *
+   * Mongoose's inferred lean() type can sometimes produce
+   * a document | document[] union, even though findById()
+   * returns one document or null.
+   */
+  const user = (await User.findById(id)
+    .select("role")
+    .lean()
+    .exec()) as { role?: string } | null;
 
-if (!user || user.role !== "admin") {
-  throw new Error("FORBIDDEN");
-}
-
-  if (
-  !user ||
-  Array.isArray(user) ||
-  user.role !== "admin"
-) {
-  throw new Error("FORBIDDEN");
-}
+  if (!user || user.role !== "admin") {
+    throw new Error("FORBIDDEN");
+  }
 
   return user;
 }
 
 /* =========================================================
-   SME CATALOGUE SYNC
-   ========================================================= */
+   HELPERS
+========================================================= */
 
-async function syncSmeCatalogue(
-  existingRates: any
-) {
-  const raw = await smeapi.dataPlans();
+function asObject(value: any): Record<string, any> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
 
-  const plans = arrays(raw, [
-    "data",
-    "data_plans",
-    "plans",
-    "results",
-  ]);
+  return value;
+}
 
-  const existingNetworks =
-    existingRates?.sme_networks || {};
-
-  const existingServiceTypes =
-    existingRates?.sme_service_types || {};
-
-  const existingDataPlans =
-    existingRates?.sme_data_plans || {};
-
-  const networks: Record<string, boolean> = {};
-  const serviceTypes: Record<
-    string,
-    Record<string, boolean>
-  > = {};
-  const dataPlans: Record<string, boolean> = {};
-
-  for (const plan of plans) {
-    const networkId = String(
-      plan?.network_id ??
-        plan?.networkId ??
-        ""
-    ).trim();
-
-    const serviceType = String(
-      plan?.type ??
-        plan?.service_type ??
-        plan?.serviceType ??
-        ""
-    ).trim();
-
-    const planId = String(
-      plan?.id ??
-        plan?.plan_id ??
-        plan?.data_plan ??
-        ""
-    ).trim();
-
-    if (networkId) {
-      networks[networkId] =
-        existingNetworks[networkId] !== undefined
-          ? existingNetworks[networkId]
-          : true;
-    }
-
-    if (networkId && serviceType) {
-      if (!serviceTypes[networkId]) {
-        serviceTypes[networkId] = {};
-      }
-
-      serviceTypes[networkId][serviceType] =
-        existingServiceTypes?.[networkId]?.[
-          serviceType
-        ] !== undefined
-          ? existingServiceTypes[networkId][serviceType]
-          : true;
-    }
-
-    if (planId) {
-      dataPlans[planId] =
-        existingDataPlans[planId] !== undefined
-          ? existingDataPlans[planId]
-          : true;
+function arrays(raw: any, keys: string[]) {
+  for (const key of keys) {
+    if (Array.isArray(raw?.[key])) {
+      return raw[key];
     }
   }
 
-  return {
-    networks,
-    serviceTypes,
-    dataPlans,
-    plans,
-  };
+  return [];
+}
+
+/* =========================================================
+   SYNC SME CATALOGUE
+========================================================= */
+
+async function syncSmeCatalogue(existingRates: any) {
+  const existing = asObject(existingRates);
+
+  const existingNetworks = asObject(existing.sme_networks);
+  const existingServiceTypes = asObject(
+    existing.sme_service_types
+  );
+  const existingDataPlans = asObject(
+    existing.sme_data_plans
+  );
+
+  try {
+    const raw = await smeapi.dataPlans();
+
+    const plans = arrays(raw, [
+      "data",
+      "data_plans",
+      "plans",
+      "results",
+    ]);
+
+    const networks: Record<string, boolean> = {
+      ...existingNetworks,
+    };
+
+    const serviceTypes: Record<
+      string,
+      Record<string, boolean>
+    > = {
+      ...existingServiceTypes,
+    };
+
+    const dataPlans: Record<string, boolean> = {
+      ...existingDataPlans,
+    };
+
+    for (const plan of plans) {
+      if (!plan) continue;
+
+      const networkId =
+        plan.network_id ??
+        plan.networkId ??
+        plan.network;
+
+      const networkName =
+        plan.network ??
+        plan.network_name ??
+        String(networkId ?? "");
+
+      if (
+        networkId !== undefined &&
+        networkId !== null
+      ) {
+        const networkKey = String(networkId);
+
+        if (!(networkKey in networks)) {
+          networks[networkKey] = true;
+        }
+
+        if (!serviceTypes[networkKey]) {
+          serviceTypes[networkKey] = {};
+        }
+
+        const serviceType =
+          plan.type ??
+          plan.plan_type ??
+          plan.service_type;
+
+        if (serviceType) {
+          const typeKey = String(serviceType);
+
+          if (
+            !(typeKey in serviceTypes[networkKey])
+          ) {
+            serviceTypes[networkKey][typeKey] = true;
+          }
+        }
+      }
+
+      const planId =
+        plan.id ??
+        plan.plan_id ??
+        plan.planId;
+
+      if (
+        planId !== undefined &&
+        planId !== null
+      ) {
+        const planKey = String(planId);
+
+        if (!(planKey in dataPlans)) {
+          dataPlans[planKey] = true;
+        }
+      }
+
+      void networkName;
+    }
+
+    return {
+      sme_networks: networks,
+      sme_service_types: serviceTypes,
+      sme_data_plans: dataPlans,
+    };
+  } catch {
+    return {
+      sme_networks: existingNetworks,
+      sme_service_types: existingServiceTypes,
+      sme_data_plans: existingDataPlans,
+    };
+  }
 }
 
 /* =========================================================
    BUILD CONTROLS
-   ========================================================= */
+========================================================= */
 
 function buildControls(
   savedRates: any,
-  catalogue: {
-    networks: Record<string, boolean>;
-    serviceTypes: Record<
-      string,
-      Record<string, boolean>
-    >;
-    dataPlans: Record<string, boolean>;
-  }
-) {
+  catalogue: any
+): Controls {
+  const saved = asObject(savedRates);
+  const catalog = asObject(catalogue);
+
   return {
-    ...DEFAULT_CONTROLS,
+    sme_networks: {
+      ...DEFAULT_CONTROLS.sme_networks,
+      ...asObject(saved.sme_networks),
+      ...asObject(catalog.sme_networks),
+    },
 
-    ...savedRates,
+    sme_service_types: {
+      ...DEFAULT_CONTROLS.sme_service_types,
+      ...asObject(saved.sme_service_types),
+      ...asObject(catalog.sme_service_types),
+    },
 
-    /* =====================================================
-       SME NETWORKS
-
-       ONLY networks currently returned by SMEAPI
-       are exposed.
-
-       Existing ON/OFF settings are preserved.
-       New networks default to ON.
-       ===================================================== */
-
-    sme_networks: catalogue.networks,
-
-    /* =====================================================
-       SME SERVICE TYPES
-       ===================================================== */
-
-    sme_service_types:
-      catalogue.serviceTypes,
-
-    /* =====================================================
-       SME DATA PLANS
-       ===================================================== */
-
-    sme_data_plans:
-      catalogue.dataPlans,
-
-    /* =====================================================
-       WISESUB
-       ===================================================== */
+    sme_data_plans: {
+      ...DEFAULT_CONTROLS.sme_data_plans,
+      ...asObject(saved.sme_data_plans),
+      ...asObject(catalog.sme_data_plans),
+    },
 
     wisesub_electricity: {
       ...DEFAULT_CONTROLS.wisesub_electricity,
-      ...(savedRates.wisesub_electricity || {}),
+      ...asObject(saved.wisesub_electricity),
     },
 
     wisesub_cable: {
       ...DEFAULT_CONTROLS.wisesub_cable,
-      ...(savedRates.wisesub_cable || {}),
+      ...asObject(saved.wisesub_cable),
     },
 
     wisesub_education: {
       ...DEFAULT_CONTROLS.wisesub_education,
-      ...(savedRates.wisesub_education || {}),
+      ...asObject(saved.wisesub_education),
     },
   };
 }
 
 /* =========================================================
    GET
-   ========================================================= */
+========================================================= */
 
 export async function GET() {
   try {
-    await db();
     await requireAdmin();
+    await db();
 
     const settings: any =
       await Settings.findOne({
         key: "provider_controls",
       })
         .select("rates")
-        .lean();
+        .lean()
+        .exec();
 
     const savedRates =
-      settings?.rates || {};
-
-    /* -----------------------------------------------------
-       GET LIVE SMEAPI CATALOGUE
-       ----------------------------------------------------- */
+      asObject(settings?.rates);
 
     const catalogue =
       await syncSmeCatalogue(
         savedRates
       );
-
-    /* -----------------------------------------------------
-       BUILD SYNCHRONIZED CONTROLS
-       ----------------------------------------------------- */
 
     const controls =
       buildControls(
@@ -270,43 +292,31 @@ export async function GET() {
         catalogue
       );
 
-    /* -----------------------------------------------------
-       SAVE SYNCHRONIZED CATALOGUE
-       ----------------------------------------------------- */
-
-    await Settings.findOneAndUpdate(
-      {
-        key: "provider_controls",
-      },
-      {
-        $set: {
-          key: "provider_controls",
-          rates: controls,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
+    /*
+     * IMPORTANT:
+     * Do not overwrite the database during GET.
+     *
+     * GET only returns the current controls.
+     * This prevents page refreshes from accidentally
+     * resetting provider settings.
+     */
 
     return NextResponse.json({
       success: true,
       controls,
-      catalogue: {
-        networks:
-          catalogue.networks,
-        serviceTypes:
-          catalogue.serviceTypes,
-        dataPlans:
-          catalogue.dataPlans,
-      },
     });
   } catch (error: any) {
     console.error(
-      "PROVIDER CONTROLS GET ERROR:",
+      "GET /api/admin/provider-controls:",
       error
     );
+
+    const message =
+      error?.message === "UNAUTHORIZED"
+        ? "Unauthorized"
+        : error?.message === "FORBIDDEN"
+        ? "Forbidden"
+        : "Failed to load provider controls";
 
     const status =
       error?.message === "UNAUTHORIZED"
@@ -317,47 +327,39 @@ export async function GET() {
 
     return NextResponse.json(
       {
-        error:
-          error?.message === "UNAUTHORIZED"
-            ? "Unauthorized"
-            : error?.message === "FORBIDDEN"
-            ? "Forbidden"
-            : error?.message ||
-              "Unable to load provider controls",
+        success: false,
+        error: message,
       },
-      {
-        status,
-      }
+      { status }
     );
   }
 }
 
 /* =========================================================
    PATCH
-   ========================================================= */
+========================================================= */
 
 export async function PATCH(
   req: Request
 ) {
   try {
-    await db();
     await requireAdmin();
+    await db();
 
-    const body = await req.json();
+    const body =
+      await req.json();
 
     if (
       !body ||
-      typeof body !== "object" ||
-      Array.isArray(body)
+      typeof body !== "object"
     ) {
       return NextResponse.json(
         {
+          success: false,
           error:
             "Invalid request body",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -375,131 +377,19 @@ export async function PATCH(
       any
     > = {};
 
-    /* =====================================================
-       VALIDATE GROUPS
-       ===================================================== */
-
-    for (const group of allowedGroups) {
-      if (body[group] === undefined) {
-        continue;
-      }
-
+    for (
+      const group of allowedGroups
+    ) {
       if (
-        typeof body[group] !== "object" ||
-        body[group] === null ||
-        Array.isArray(body[group])
-      ) {
-        return NextResponse.json(
-          {
-            error:
-              `Invalid value for ${group}`,
-          },
-          {
-            status: 400,
-          }
-        );
-      }
-
-      /* ---------------------------------------------------
-         NESTED SERVICE TYPES
-         --------------------------------------------------- */
-
-      if (
-        group === "sme_service_types"
-      ) {
-        updates[group] = {};
-
-        for (const [
-          networkId,
-          serviceTypes,
-        ] of Object.entries(
+        body[group] &&
+        typeof body[group] ===
+          "object" &&
+        !Array.isArray(
           body[group]
-        )) {
-          if (
-            typeof serviceTypes !==
-              "object" ||
-            serviceTypes === null ||
-            Array.isArray(serviceTypes)
-          ) {
-            return NextResponse.json(
-              {
-                error:
-                  `Invalid service types for network ${networkId}`,
-              },
-              {
-                status: 400,
-              }
-            );
-          }
-
-          updates[group][
-            String(networkId)
-          ] = {};
-
-          for (const [
-            serviceType,
-            enabled,
-          ] of Object.entries(
-            serviceTypes as Record<
-              string,
-              unknown
-            >
-          )) {
-            if (
-              typeof enabled !==
-              "boolean"
-            ) {
-              return NextResponse.json(
-                {
-                  error:
-                    `Invalid value for ${group}.${networkId}.${serviceType}`,
-                },
-                {
-                  status: 400,
-                }
-              );
-            }
-
-            updates[group][
-              String(networkId)
-            ][
-              String(serviceType)
-            ] = enabled;
-          }
-        }
-
-        continue;
-      }
-
-      /* ---------------------------------------------------
-         NORMAL GROUP
-         --------------------------------------------------- */
-
-      updates[group] = {};
-
-      for (const [
-        code,
-        enabled,
-      ] of Object.entries(
-        body[group]
-      )) {
-        if (
-          typeof enabled !== "boolean"
-        ) {
-          return NextResponse.json(
-            {
-              error:
-                `Invalid value for ${group}.${code}`,
-            },
-            {
-              status: 400,
-            }
-          );
-        }
-
-        updates[group][
-          String(code)
-        ] = enabled;
+        )
+      ) {
+        updates[group] =
+          body[group];
       }
     }
 
@@ -509,168 +399,162 @@ export async function PATCH(
     ) {
       return NextResponse.json(
         {
+          success: false,
           error:
-            "No valid provider controls supplied",
+            "No valid provider-control update supplied",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
-    /* =====================================================
-       LOAD EXISTING
-       ===================================================== */
+    /*
+     * -------------------------------------------------------
+     * ATOMIC UPDATES
+     *
+     * Instead of replacing the entire rates object,
+     * update only the exact provider setting requested.
+     * -------------------------------------------------------
+     */
 
-    const existing: any =
-      await Settings.findOne({
-        key: "provider_controls",
-      })
-        .select("rates")
-        .lean();
+    const setOperations: Record<
+      string,
+      any
+    > = {};
 
-    const savedRates =
-      existing?.rates || {};
-
-    /* =====================================================
-       MERGE
-       ===================================================== */
-
-    const newRates: any = {
-      ...DEFAULT_CONTROLS,
-      ...savedRates,
-
-      sme_networks: {
-        ...(savedRates.sme_networks || {}),
-        ...(updates.sme_networks || {}),
-      },
-
-      sme_service_types: {
-        ...(savedRates.sme_service_types || {}),
-      },
-
-      sme_data_plans: {
-        ...(savedRates.sme_data_plans || {}),
-        ...(updates.sme_data_plans || {}),
-      },
-
-      wisesub_electricity: {
-        ...DEFAULT_CONTROLS.wisesub_electricity,
-        ...(savedRates.wisesub_electricity || {}),
-        ...(updates.wisesub_electricity || {}),
-      },
-
-      wisesub_cable: {
-        ...DEFAULT_CONTROLS.wisesub_cable,
-        ...(savedRates.wisesub_cable || {}),
-        ...(updates.wisesub_cable || {}),
-      },
-
-      wisesub_education: {
-        ...DEFAULT_CONTROLS.wisesub_education,
-        ...(savedRates.wisesub_education || {}),
-        ...(updates.wisesub_education || {}),
-      },
-    };
-
-    /* =====================================================
-       MERGE SERVICE TYPES
-       ===================================================== */
-
-    for (const [
-      networkId,
-      serviceTypes,
-    ] of Object.entries(
-      updates.sme_service_types || {}
-    )) {
-      newRates.sme_service_types[
-        String(networkId)
-      ] = {
-        ...(savedRates.sme_service_types?.[
-          String(networkId)
-        ] || {}),
-
-        ...(serviceTypes as Record<
-          string,
-          boolean
-        >),
-      };
+    for (
+      const [
+        group,
+        values,
+      ] of Object.entries(updates)
+    ) {
+      for (
+        const [
+          code,
+          value,
+        ] of Object.entries(
+          values
+        )) {
+        if (
+          typeof value ===
+          "boolean"
+        ) {
+          setOperations[
+            `rates.${group}.${code}`
+          ] = value;
+        } else if (
+          group ===
+            "sme_service_types" &&
+          value &&
+          typeof value ===
+            "object" &&
+          !Array.isArray(value)
+        ) {
+          for (
+            const [
+              serviceType,
+              enabled,
+            ] of Object.entries(
+              value as Record<
+                string,
+                any
+              >
+            )
+          ) {
+            if (
+              typeof enabled ===
+              "boolean"
+            ) {
+              setOperations[
+                `rates.${group}.${code}.${serviceType}`
+              ] = enabled;
+            }
+          }
+        }
+      }
     }
 
-    /* =====================================================
-       SAVE ADMIN CHANGES
-       ===================================================== */
+    if (
+      Object.keys(
+        setOperations
+      ).length === 0
+    ) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            "No valid boolean provider-control values supplied",
+        },
+        { status: 400 }
+      );
+    }
 
     await Settings.findOneAndUpdate(
       {
-        key: "provider_controls",
+        key:
+          "provider_controls",
       },
       {
-        $set: {
-          key: "provider_controls",
-          rates: newRates,
+        $set:
+          setOperations,
+
+        $setOnInsert: {
+          key:
+            "provider_controls",
         },
       },
       {
         upsert: true,
         new: true,
+        setDefaultsOnInsert:
+          true,
       }
-    );
+    ).exec();
 
-    /* =====================================================
-       RETURN FRESH SYNCHRONIZED DATA
-       ===================================================== */
+    /* -------------------------------------------------------
+       READ BACK FROM DATABASE
+       ------------------------------------------------------- */
+
+    const saved: any =
+      await Settings.findOne({
+        key:
+          "provider_controls",
+      })
+        .select("rates")
+        .lean()
+        .exec();
+
+    const savedRates =
+      asObject(saved?.rates);
 
     const catalogue =
       await syncSmeCatalogue(
-        newRates
+        savedRates
       );
 
-    const finalControls =
+    const controls =
       buildControls(
-        newRates,
+        savedRates,
         catalogue
       );
 
-    await Settings.findOneAndUpdate(
-      {
-        key: "provider_controls",
-      },
-      {
-        $set: {
-          key: "provider_controls",
-          rates: finalControls,
-        },
-      },
-      {
-        upsert: true,
-        new: true,
-      }
-    );
-
     return NextResponse.json({
       success: true,
-
       message:
-        "Provider controls updated successfully.",
-
-      controls:
-        finalControls,
-
-      catalogue: {
-        networks:
-          catalogue.networks,
-        serviceTypes:
-          catalogue.serviceTypes,
-        dataPlans:
-          catalogue.dataPlans,
-      },
+        "Provider settings updated successfully",
+      controls,
     });
   } catch (error: any) {
     console.error(
-      "PROVIDER CONTROLS PATCH ERROR:",
+      "PATCH /api/admin/provider-controls:",
       error
     );
+
+    const message =
+      error?.message === "UNAUTHORIZED"
+        ? "Unauthorized"
+        : error?.message === "FORBIDDEN"
+        ? "Forbidden"
+        : "Failed to update provider controls";
 
     const status =
       error?.message === "UNAUTHORIZED"
@@ -681,17 +565,10 @@ export async function PATCH(
 
     return NextResponse.json(
       {
-        error:
-          error?.message === "UNAUTHORIZED"
-            ? "Unauthorized"
-            : error?.message === "FORBIDDEN"
-            ? "Forbidden"
-            : error?.message ||
-              "Unable to update provider controls",
+        success: false,
+        error: message,
       },
-      {
-        status,
-      }
+      { status }
     );
   }
 }

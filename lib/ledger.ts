@@ -1,24 +1,28 @@
 import { db } from "./db";
-import { Ledger, Wallet } from "./models";
+import {
+  Ledger,
+  Wallet,
+} from "./models";
 
 /* =========================================================
    GET / CREATE WALLET
    ========================================================= */
 
-export async function wallet(userId: string) {
+export async function wallet(
+  userId: string
+) {
   await db();
 
   /*
-   * Always use the wallet with the highest balance.
+   * userId is UNIQUE in WalletSchema.
    *
-   * This also protects against old duplicate wallet
-   * documents that may exist for the same user.
+   * Therefore there should only ever be one wallet
+   * for a user.
    */
-  const existing = await Wallet.findOne({
-    userId,
-  }).sort({
-    balanceKobo: -1,
-  });
+  const existing =
+    await Wallet.findOne({
+      userId,
+    });
 
   if (existing) {
     return existing;
@@ -30,21 +34,22 @@ export async function wallet(userId: string) {
       balanceKobo: 0,
       currency: "NGN",
     });
-  } catch (error: any) {
+  } catch (
+    error: any
+  ) {
     /*
      * Another request may have created the wallet
-     * at exactly the same time.
+     * simultaneously.
      */
     if (
       /duplicate|E11000|unique/i.test(
         error?.message || ""
       )
     ) {
-      const created = await Wallet.findOne({
-        userId,
-      }).sort({
-        balanceKobo: -1,
-      });
+      const created =
+        await Wallet.findOne({
+          userId,
+        });
 
       if (created) {
         return created;
@@ -67,28 +72,41 @@ export async function creditWallet(
 ) {
   await db();
 
+  /* =======================================================
+     VALIDATION
+     ======================================================= */
+
   if (
     !Number.isInteger(kobo) ||
     kobo <= 0
   ) {
-    throw new Error("INVALID_AMOUNT");
+    throw new Error(
+      "INVALID_AMOUNT"
+    );
   }
 
-  if (!ref?.trim()) {
+  const reference =
+    String(ref || "").trim();
+
+  if (!reference) {
     throw new Error(
       "INVALID_LEDGER_REFERENCE"
     );
   }
 
-  /*
-   * IDEMPOTENCY
-   */
+  /* =======================================================
+     IDEMPOTENCY CHECK
+     ======================================================= */
+
   const existing =
     await Ledger.findOne({
-      reference: ref,
+      reference,
     });
 
   if (existing) {
+    /*
+     * Same reference must belong to the same user.
+     */
     if (
       String(existing.userId) !==
       String(userId)
@@ -98,29 +116,47 @@ export async function creditWallet(
       );
     }
 
+    /*
+     * Same reference must represent the
+     * same credit.
+     */
     if (
-      existing.type !== "CREDIT" ||
-      Number(existing.amountKobo) !== kobo
+      existing.type !==
+        "CREDIT" ||
+      Number(
+        existing.amountKobo
+      ) !== kobo
     ) {
       throw new Error(
         "LEDGER_REFERENCE_CONFLICT"
       );
     }
 
-    return await wallet(userId);
+    return await wallet(
+      userId
+    );
   }
 
-  const w = await wallet(userId);
+  /* =======================================================
+     GET WALLET
+     ======================================================= */
 
-  /*
-   * Atomic credit.
-   */
-  const n =
-    await Wallet.findByIdAndUpdate(
-      w._id,
+  const w =
+    await wallet(userId);
+
+  /* =======================================================
+     ATOMIC CREDIT
+     ======================================================= */
+
+  const updatedWallet =
+    await Wallet.findOneAndUpdate(
+      {
+        _id: w._id,
+      },
       {
         $inc: {
-          balanceKobo: kobo,
+          balanceKobo:
+            kobo,
         },
       },
       {
@@ -128,26 +164,44 @@ export async function creditWallet(
       }
     );
 
-  if (!n) {
+  if (!updatedWallet) {
     throw new Error(
       "WALLET_NOT_FOUND"
     );
   }
 
+  /* =======================================================
+     CREATE LEDGER
+     ======================================================= */
+
   try {
     await Ledger.create({
       userId,
-      type: "CREDIT",
-      amountKobo: kobo,
+
+      type:
+        "CREDIT",
+
+      amountKobo:
+        kobo,
+
       balanceAfterKobo:
-        n.balanceKobo,
-      reference: ref,
-      status: "POSTED",
+        Number(
+          updatedWallet.balanceKobo
+        ),
+
+      reference,
+
+      status:
+        "POSTED",
+
       metadata,
     });
-  } catch (error: any) {
+  } catch (
+    error: any
+  ) {
     /*
-     * Duplicate ledger reference.
+     * Another concurrent request may have inserted
+     * the same reference.
      */
     if (
       /duplicate|E11000|unique/i.test(
@@ -156,39 +210,65 @@ export async function creditWallet(
     ) {
       const duplicate =
         await Ledger.findOne({
-          reference: ref,
+          reference,
         });
 
       if (
         duplicate &&
-        String(duplicate.userId) ===
+        String(
+          duplicate.userId
+        ) ===
           String(userId) &&
-        duplicate.type === "CREDIT" &&
+        duplicate.type ===
+          "CREDIT" &&
         Number(
           duplicate.amountKobo
         ) === kobo
       ) {
-        await Wallet.findByIdAndUpdate(
-          w._id,
+        /*
+         * This request performed the temporary
+         * wallet increment, but the other request
+         * owns the ledger entry.
+         *
+         * Undo this request's increment.
+         */
+        await Wallet.findOneAndUpdate(
+          {
+            _id: w._id,
+            balanceKobo: {
+              $gte: kobo,
+            },
+          },
           {
             $inc: {
-              balanceKobo: -kobo,
+              balanceKobo:
+                -kobo,
             },
           }
         );
 
-        return await wallet(userId);
+        return await wallet(
+          userId
+        );
       }
     }
 
     /*
-     * Restore wallet if ledger creation failed.
+     * Ledger creation failed.
+     *
+     * Restore the wallet credit.
      */
-    await Wallet.findByIdAndUpdate(
-      w._id,
+    await Wallet.findOneAndUpdate(
+      {
+        _id: w._id,
+        balanceKobo: {
+          $gte: kobo,
+        },
+      },
       {
         $inc: {
-          balanceKobo: -kobo,
+          balanceKobo:
+            -kobo,
         },
       }
     );
@@ -196,7 +276,7 @@ export async function creditWallet(
     throw error;
   }
 
-  return n;
+  return updatedWallet;
 }
 
 /* =========================================================
@@ -211,25 +291,35 @@ export async function debitWallet(
 ) {
   await db();
 
+  /* =======================================================
+     VALIDATION
+     ======================================================= */
+
   if (
     !Number.isInteger(kobo) ||
     kobo <= 0
   ) {
-    throw new Error("INVALID_AMOUNT");
+    throw new Error(
+      "INVALID_AMOUNT"
+    );
   }
 
-  if (!ref?.trim()) {
+  const reference =
+    String(ref || "").trim();
+
+  if (!reference) {
     throw new Error(
       "INVALID_LEDGER_REFERENCE"
     );
   }
 
-  /*
-   * IDEMPOTENCY
-   */
+  /* =======================================================
+     IDEMPOTENCY CHECK
+     ======================================================= */
+
   const existing =
     await Ledger.findOne({
-      reference: ref,
+      reference,
     });
 
   if (existing) {
@@ -243,39 +333,83 @@ export async function debitWallet(
     }
 
     if (
-      existing.type !== "DEBIT" ||
-      Number(existing.amountKobo) !== kobo
+      existing.type !==
+        "DEBIT" ||
+      Number(
+        existing.amountKobo
+      ) !== kobo
     ) {
       throw new Error(
         "LEDGER_REFERENCE_CONFLICT"
       );
     }
 
-    return await wallet(userId);
+    return await wallet(
+      userId
+    );
   }
 
-  /*
-   * IMPORTANT:
-   *
-   * Use the same wallet selected by wallet()
-   * which now selects the highest-balance wallet.
-   */
-  const w = await wallet(userId);
+  /* =======================================================
+     GET WALLET
+     ======================================================= */
 
-  /*
-   * Atomic balance check + debit.
-   */
-  const n =
+  const w =
+    await wallet(userId);
+
+  const currentBalance =
+    Number(
+      w.balanceKobo || 0
+    );
+
+  console.log(
+    "================ WITHDRAWAL BALANCE CHECK ================"
+  );
+
+  console.log({
+    userId:
+      String(userId),
+
+    walletId:
+      String(w._id),
+
+    walletBalanceKobo:
+      currentBalance,
+
+    walletBalanceNaira:
+      currentBalance / 100,
+
+    requestedKobo:
+      kobo,
+
+    requestedNaira:
+      kobo / 100,
+  });
+
+  console.log(
+    "==========================================================="
+  );
+
+  /* =======================================================
+     ATOMIC BALANCE CHECK + DEBIT
+     ======================================================= */
+
+  const updatedWallet =
     await Wallet.findOneAndUpdate(
       {
         _id: w._id,
+
+        /*
+         * This is the actual protection against
+         * overdrawing the wallet.
+         */
         balanceKobo: {
           $gte: kobo,
         },
       },
       {
         $inc: {
-          balanceKobo: -kobo,
+          balanceKobo:
+            -kobo,
         },
       },
       {
@@ -283,51 +417,105 @@ export async function debitWallet(
       }
     );
 
-  if (!n) {
-    /*
-     * Give a precise error instead of silently
-     * hiding a wallet mismatch.
-     */
+  /* =======================================================
+     DEBIT FAILED
+     ======================================================= */
+
+  if (!updatedWallet) {
     const currentWallet =
-  (await Wallet.findOne({
-    userId,
-  }).lean()) as {
-    balanceKobo?: number;
-  } | null;
+      (await Wallet.findById(
+        w._id
+      ).lean()) as {
+        balanceKobo?: number;
+      } | null;
 
-const currentBalanceKobo =
-  Number(
-    currentWallet?.balanceKobo || 0
-  );
+    const actualBalance =
+      Number(
+        currentWallet?.balanceKobo ??
+          0
+      );
 
-    const error =
-    currentBalanceKobo <= 0
-      ? "Insufficient wallet balance."
-      : `Insufficient wallet balance. Your available balance is ₦${(
-          currentBalanceKobo / 100
-        ).toLocaleString("en-NG", {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}.`;
+    console.log(
+      "================ WITHDRAWAL FAILED ================"
+    );
 
-  throw new Error(error);
-}
+    console.log({
+      walletId:
+        String(w._id),
+
+      currentBalanceKobo:
+        actualBalance,
+
+      currentBalanceNaira:
+        actualBalance / 100,
+
+      requestedKobo:
+        kobo,
+
+      requestedNaira:
+        kobo / 100,
+    });
+
+    console.log(
+      "===================================================="
+    );
+
+    if (
+      actualBalance < kobo
+    ) {
+      throw new Error(
+        `Insufficient wallet balance. Your available balance is ₦${(
+          actualBalance / 100
+        ).toLocaleString(
+          "en-NG",
+          {
+            minimumFractionDigits:
+              2,
+
+            maximumFractionDigits:
+              2,
+          }
+        )}.`
+      );
+    }
+
+    throw new Error(
+      "WALLET_DEBIT_FAILED"
+    );
+  }
+
+  /* =======================================================
+     CREATE DEBIT LEDGER
+     ======================================================= */
 
   try {
     await Ledger.create({
       userId,
-      type: "DEBIT",
-      amountKobo: kobo,
+
+      type:
+        "DEBIT",
+
+      amountKobo:
+        kobo,
+
       balanceAfterKobo:
-        n.balanceKobo,
-      reference: ref,
-      status: "POSTED",
+        Number(
+          updatedWallet.balanceKobo
+        ),
+
+      reference,
+
+      status:
+        "POSTED",
+
       metadata,
     });
-  } catch (error: any) {
+  } catch (
+    error: any
+  ) {
     /*
-     * Another request may have created
-     * the same ledger reference.
+     * Concurrent request created the same ledger
+     * reference.
      */
     if (
       /duplicate|E11000|unique/i.test(
@@ -336,42 +524,58 @@ const currentBalanceKobo =
     ) {
       const duplicate =
         await Ledger.findOne({
-          reference: ref,
+          reference,
         });
 
       if (
         duplicate &&
         String(
           duplicate.userId
-        ) === String(userId) &&
-        duplicate.type === "DEBIT" &&
+        ) ===
+          String(userId) &&
+        duplicate.type ===
+          "DEBIT" &&
         Number(
           duplicate.amountKobo
         ) === kobo
       ) {
-        await Wallet.findByIdAndUpdate(
-          w._id,
+        /*
+         * This request performed the temporary
+         * debit but does not own the ledger.
+         *
+         * Restore it.
+         */
+        await Wallet.findOneAndUpdate(
+          {
+            _id: w._id,
+          },
           {
             $inc: {
-              balanceKobo: kobo,
+              balanceKobo:
+                kobo,
             },
           }
         );
 
-        return await wallet(userId);
+        return await wallet(
+          userId
+        );
       }
     }
 
     /*
-     * Ledger failed.
+     * Ledger creation failed.
      *
      * Restore the debit.
      */
-    await Wallet.findByIdAndUpdate(
-      w._id,
+    await Wallet.findOneAndUpdate(
+      {
+        _id: w._id,
+      },
       {
         $inc: {
-          balanceKobo: kobo,
+          balanceKobo:
+            kobo,
         },
       }
     );
@@ -379,5 +583,32 @@ const currentBalanceKobo =
     throw error;
   }
 
-  return n;
+  console.log(
+    "=== WALLET DEBIT SUCCESS ==="
+  );
+
+  console.log({
+    userId:
+      String(userId),
+
+    reference,
+
+    debitedKobo:
+      kobo,
+
+    debitedNaira:
+      kobo / 100,
+
+    remainingKobo:
+      Number(
+        updatedWallet.balanceKobo
+      ),
+
+    remainingNaira:
+      Number(
+        updatedWallet.balanceKobo
+      ) / 100,
+  });
+
+  return updatedWallet;
 }

@@ -3,12 +3,21 @@ import { NextResponse } from "next/server";
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
 import { Transaction } from "@/lib/models";
-import { smeapi, ProviderError } from "@/lib/smeapi";
+import {
+  smeapi,
+  ProviderError,
+} from "@/lib/smeapi";
 
 import {
   completeServiceTransaction,
   failServiceTransaction,
 } from "@/lib/serviceTransaction";
+
+/*
+ * ============================================================
+ * STATUS HELPERS
+ * ============================================================
+ */
 
 function getStatus(result: any) {
   return String(
@@ -85,6 +94,46 @@ function isProcessing(result: any) {
   );
 }
 
+/*
+ * ============================================================
+ * TWO-MINUTE RECONCILIATION WINDOW
+ * ============================================================
+ */
+
+const RECONCILIATION_WINDOW_MS =
+  2 * 60 * 1000;
+
+function transactionAgeMs(tx: any) {
+  if (!tx?.createdAt) {
+    return 0;
+  }
+
+  const created =
+    new Date(tx.createdAt).getTime();
+
+  if (!Number.isFinite(created)) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Date.now() - created
+  );
+}
+
+function reconciliationDue(tx: any) {
+  return (
+    transactionAgeMs(tx) >=
+    RECONCILIATION_WINDOW_MS
+  );
+}
+
+/*
+ * ============================================================
+ * POST
+ * ============================================================
+ */
+
 export async function POST(req: Request) {
   try {
     const userId = await currentUserId();
@@ -94,7 +143,9 @@ export async function POST(req: Request) {
         {
           error: "Unauthorized",
         },
-        { status: 401 }
+        {
+          status: 401,
+        }
       );
     }
 
@@ -109,42 +160,61 @@ export async function POST(req: Request) {
     if (!reference) {
       return NextResponse.json(
         {
-          error: "Transaction reference is required.",
+          error:
+            "Transaction reference is required.",
         },
-        { status: 400 }
+        {
+          status: 400,
+        }
       );
     }
 
     await db();
 
     /*
+     * ========================================================
      * SECURITY
      *
-     * A customer can only reconcile their own
+     * Customer can only reconcile their own
      * transaction.
+     * ========================================================
      */
-    const tx: any = await Transaction.findOne({
-      userId,
-      externalReference: reference,
-    });
+
+    const tx: any =
+      await Transaction.findOne({
+        userId,
+        externalReference: reference,
+      });
 
     if (!tx) {
       return NextResponse.json(
         {
           error: "Transaction not found.",
         },
-        { status: 404 }
+        {
+          status: 404,
+        }
       );
     }
 
-    /*
-     * FINAL LOCAL STATUS
-     *
-     * Never contact the provider again.
-     */
     const localStatus = String(
       tx.status || ""
     ).toUpperCase();
+
+    const ageMs = transactionAgeMs(tx);
+    const ageSeconds = Math.floor(
+      ageMs / 1000
+    );
+
+    const due = reconciliationDue(tx);
+
+    /*
+     * ========================================================
+     * FINAL LOCAL STATUS
+     *
+     * Never contact provider again.
+     * ========================================================
+     */
 
     if (
       localStatus === "SUCCESS" ||
@@ -152,17 +222,25 @@ export async function POST(req: Request) {
       localStatus === "REVERSED"
     ) {
       return NextResponse.json({
-        success: true,
+        success:
+          localStatus === "SUCCESS",
         final: true,
         status: localStatus,
         reference: tx.externalReference,
+        refunded:
+          localStatus === "FAILED" ||
+          localStatus === "REVERSED",
+        ageSeconds,
+        reconciliationDue: due,
       });
     }
 
     /*
-     * Only SME transactions use the SME status
-     * endpoint.
+     * ========================================================
+     * ONLY SME SERVICES USE SME STATUS
+     * ========================================================
      */
+
     const service = String(
       tx.service || ""
     ).toLowerCase();
@@ -176,12 +254,22 @@ export async function POST(req: Request) {
       return NextResponse.json({
         success: true,
         final: false,
-        status: localStatus || "PROCESSING",
-        reference: tx.externalReference,
+        status:
+          localStatus || "PROCESSING",
+        reference:
+          tx.externalReference,
+        ageSeconds,
+        reconciliationDue: due,
         message:
           "This transaction does not use SMEAPI status reconciliation.",
       });
     }
+
+    /*
+     * ========================================================
+     * PROVIDER STATUS CHECK
+     * ========================================================
+     */
 
     let result: any;
 
@@ -191,20 +279,27 @@ export async function POST(req: Request) {
       });
     } catch (error: any) {
       /*
-       * IMPORTANT:
+       * Provider outage/timeout is NOT proof
+       * that the transaction failed.
        *
-       * Provider timeout / outage is NOT a failure.
-       *
-       * Never refund merely because SME could not
-       * be contacted.
+       * Therefore:
+       * - do not refund
+       * - do not mark failed
+       * - keep processing
        */
+
       if (error instanceof ProviderError) {
         return NextResponse.json(
           {
             success: false,
             final: false,
-            status: localStatus || "PROCESSING",
-            reference: tx.externalReference,
+            status:
+              localStatus ||
+              "PROCESSING",
+            reference:
+              tx.externalReference,
+            ageSeconds,
+            reconciliationDue: due,
             message:
               "Transaction status could not be checked. It will remain processing.",
           },
@@ -223,28 +318,39 @@ export async function POST(req: Request) {
         {
           success: false,
           final: false,
-          status: localStatus || "PROCESSING",
-          reference: tx.externalReference,
+          status:
+            localStatus ||
+            "PROCESSING",
+          reference:
+            tx.externalReference,
+          ageSeconds,
+          reconciliationDue: due,
           message:
             "Transaction status could not be checked. It will remain processing.",
         },
-        { status: 202 }
+        {
+          status: 202,
+        }
       );
     }
 
-    const providerStatus = getStatus(result);
+    const providerStatus =
+      getStatus(result);
 
     /*
+     * ========================================================
      * SUCCESS
+     * ========================================================
      */
+
     if (isSuccess(result)) {
       /*
-       * Re-read the transaction immediately before
-       * completing it.
+       * Re-read immediately before completion.
        *
-       * Another polling request may have already
-       * finalized it.
+       * Another polling request may already
+       * have finalized the transaction.
        */
+
       const latest: any =
         await Transaction.findOne({
           userId,
@@ -254,15 +360,19 @@ export async function POST(req: Request) {
       if (!latest) {
         return NextResponse.json(
           {
-            error: "Transaction not found.",
+            error:
+              "Transaction not found.",
           },
-          { status: 404 }
+          {
+            status: 404,
+          }
         );
       }
 
-      const latestStatus = String(
-        latest.status || ""
-      ).toUpperCase();
+      const latestStatus =
+        String(
+          latest.status || ""
+        ).toUpperCase();
 
       if (
         latestStatus === "SUCCESS" ||
@@ -270,7 +380,8 @@ export async function POST(req: Request) {
         latestStatus === "REVERSED"
       ) {
         return NextResponse.json({
-          success: true,
+          success:
+            latestStatus === "SUCCESS",
           final: true,
           status: latestStatus,
           reference:
@@ -282,21 +393,27 @@ export async function POST(req: Request) {
         latest.metadata || {};
 
       /*
-       * providerCost is stored in NAIRA in the
-       * transaction metadata.
+       * providerCost is stored in NAIRA
+       * in transaction metadata.
        */
+
       const providerCost = Number(
         metadata.providerCost ??
           metadata.providerAmount ??
-          Number(latest.amountKobo || 0) /
-            100
+          Number(
+            latest.amountKobo || 0
+          ) / 100
       );
 
       const costKobo =
         Number.isFinite(providerCost) &&
         providerCost >= 0
-          ? Math.round(providerCost * 100)
-          : Number(latest.amountKobo || 0);
+          ? Math.round(
+              providerCost * 100
+            )
+          : Number(
+              latest.amountKobo || 0
+            );
 
       const providerReference =
         getProviderReference(result);
@@ -313,9 +430,16 @@ export async function POST(req: Request) {
         metadata: {
           statusCheck: result,
           providerStatus:
-            providerStatus || "success",
+            providerStatus ||
+            "success",
           reconciledAt:
             new Date().toISOString(),
+          reconciliationAgeSeconds:
+            Math.floor(
+              transactionAgeMs(
+                latest
+              ) / 1000
+            ),
         },
       });
 
@@ -327,15 +451,24 @@ export async function POST(req: Request) {
           latest.externalReference,
         providerReference:
           providerReference || null,
+        refunded: false,
       });
     }
 
     /*
+     * ========================================================
      * FAILED / REVERSED
      *
-     * failServiceTransaction()
-     * refunds the full customer wallet debit.
+     * IMPORTANT:
+     * We only refund after SMEAPI explicitly
+     * confirms failure/reversal.
+     *
+     * This is what protects the wallet from a
+     * false refund while the provider is still
+     * processing.
+     * ========================================================
      */
+
     if (isFailed(result)) {
       const latest: any =
         await Transaction.findOne({
@@ -346,20 +479,25 @@ export async function POST(req: Request) {
       if (!latest) {
         return NextResponse.json(
           {
-            error: "Transaction not found.",
+            error:
+              "Transaction not found.",
           },
-          { status: 404 }
+          {
+            status: 404,
+          }
         );
       }
 
-      const latestStatus = String(
-        latest.status || ""
-      ).toUpperCase();
+      const latestStatus =
+        String(
+          latest.status || ""
+        ).toUpperCase();
 
       /*
-       * Another polling request may already have
-       * finalized this transaction.
+       * Another polling request may already
+       * have finalized it.
        */
+
       if (
         latestStatus === "SUCCESS" ||
         latestStatus === "FAILED" ||
@@ -372,6 +510,11 @@ export async function POST(req: Request) {
           status: latestStatus,
           reference:
             latest.externalReference,
+          refunded:
+            latestStatus ===
+              "FAILED" ||
+            latestStatus ===
+              "REVERSED",
         });
       }
 
@@ -388,9 +531,16 @@ export async function POST(req: Request) {
           metadata: {
             statusCheck: result,
             providerStatus:
-              providerStatus || "failed",
+              providerStatus ||
+              "failed",
             reconciledAt:
               new Date().toISOString(),
+            reconciliationAgeSeconds:
+              Math.floor(
+                transactionAgeMs(
+                  latest
+                ) / 1000
+              ),
           },
         });
 
@@ -398,7 +548,8 @@ export async function POST(req: Request) {
         success: false,
         final: true,
         status: String(
-          failedTx.status || "FAILED"
+          failedTx.status ||
+            "FAILED"
         ).toUpperCase(),
         reference:
           latest.externalReference,
@@ -408,38 +559,72 @@ export async function POST(req: Request) {
     }
 
     /*
+     * ========================================================
      * PROCESSING
+     * ========================================================
      */
+
     if (isProcessing(result)) {
+      /*
+       * At 2 minutes we still DO NOT blindly refund.
+       *
+       * We have contacted SMEAPI and SMEAPI says
+       * the transaction is still processing.
+       *
+       * Refunding here could cause:
+       *
+       * 1. Customer wallet refunded
+       * 2. Provider later completes purchase
+       * 3. Customer gets both value and money
+       *
+       * That creates a financial loss.
+       *
+       * We therefore continue reconciliation until
+       * the provider gives a final state.
+       */
+
       return NextResponse.json({
         success: true,
         final: false,
         status: "PROCESSING",
         reference:
           tx.externalReference,
-        message:
-          "Transaction is still being processed.",
+        ageSeconds,
+        reconciliationDue: due,
+        message: due
+          ? "Transaction has reached the 2-minute reconciliation window but the provider still reports it as processing. It will remain pending until a final provider status is received."
+          : "Transaction is still being processed.",
         providerStatus:
-          providerStatus || "processing",
+          providerStatus ||
+          "processing",
       });
     }
 
     /*
-     * UNKNOWN RESPONSE
+     * ========================================================
+     * UNKNOWN PROVIDER RESPONSE
      *
      * Never guess.
      *
-     * Do NOT refund.
-     * Do NOT mark successful.
+     * Do not:
+     * - refund
+     * - mark successful
+     * ========================================================
      */
+
     return NextResponse.json({
       success: true,
       final: false,
-      status: localStatus || "PROCESSING",
+      status:
+        localStatus ||
+        "PROCESSING",
       reference:
         tx.externalReference,
-      message:
-        "Transaction status is not yet final.",
+      ageSeconds,
+      reconciliationDue: due,
+      message: due
+        ? "The transaction has reached the reconciliation window, but the provider returned an unknown status. No refund has been issued because the transaction outcome cannot safely be determined."
+        : "Transaction status is not yet final.",
       providerStatus:
         providerStatus || null,
     });
@@ -455,7 +640,9 @@ export async function POST(req: Request) {
           error?.message ||
           "Unable to check transaction status.",
       },
-      { status: 500 }
+      {
+        status: 500,
+      }
     );
   }
 }

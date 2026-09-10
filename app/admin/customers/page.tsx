@@ -11,6 +11,7 @@ type User = {
   phone: string;
   role: string;
   vipLevel: string;
+  blocked: boolean;
   kycStatus: string;
   kycType: string;
   createdAt: string | null;
@@ -43,6 +44,7 @@ export default function AdminCustomersPage() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   async function loadUsers(page = 1) {
     try {
@@ -52,28 +54,15 @@ export default function AdminCustomersPage() {
       const params = new URLSearchParams();
 
       if (search.trim()) {
-        params.set(
-          "search",
-          search.trim()
-        );
+        params.set("search", search.trim());
       }
 
       if (vipLevel) {
-        params.set(
-          "vipLevel",
-          vipLevel
-        );
+        params.set("vipLevel", vipLevel);
       }
 
-      params.set(
-        "page",
-        String(page)
-      );
-
-      params.set(
-        "limit",
-        "25"
-      );
+      params.set("page", String(page));
+      params.set("limit", "25");
 
       const response = await fetch(
         `/api/admin/users?${params.toString()}`,
@@ -82,8 +71,7 @@ export default function AdminCustomersPage() {
         }
       );
 
-      const data =
-        await response.json();
+      const data = await response.json();
 
       if (!response.ok) {
         throw new Error(
@@ -92,9 +80,7 @@ export default function AdminCustomersPage() {
         );
       }
 
-      setUsers(
-        data.users || []
-      );
+      setUsers(data.users || []);
 
       setPagination(
         data.pagination || {
@@ -129,8 +115,80 @@ export default function AdminCustomersPage() {
     event: React.FormEvent
   ) {
     event.preventDefault();
-
     loadUsers(1);
+  }
+
+  async function toggleCustomerBlock(
+    user: User
+  ) {
+    if (updatingId) return;
+
+    const nextBlocked = !user.blocked;
+
+    const confirmed = window.confirm(
+      nextBlocked
+        ? `Are you sure you want to block ${user.name || "this customer"}?`
+        : `Are you sure you want to unblock ${user.name || "this customer"}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setUpdatingId(user.id);
+      setError("");
+
+      const response = await fetch(
+        `/api/admin/users/${user.id}/block`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            blocked: nextBlocked,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            "Failed to update customer status"
+        );
+      }
+
+      const updatedBlocked =
+        data?.customer?.blocked === true;
+
+      setUsers((currentUsers) =>
+        currentUsers.map((item) =>
+          item.id === user.id
+            ? {
+                ...item,
+                blocked: updatedBlocked,
+              }
+            : item
+        )
+      );
+    } catch (err: any) {
+      console.error(
+        "CUSTOMER BLOCK UPDATE ERROR:",
+        err
+      );
+
+      setError(
+        err?.message ||
+          "Failed to update customer status"
+      );
+    } finally {
+      setUpdatingId(null);
+    }
   }
 
   function formatMoney(
@@ -149,12 +207,13 @@ export default function AdminCustomersPage() {
   ) {
     if (!date) return "-";
 
-    return new Date(
-      date
-    ).toLocaleString("en-NG", {
-      dateStyle: "medium",
-      timeStyle: "short",
-    });
+    return new Date(date).toLocaleString(
+      "en-NG",
+      {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }
+    );
   }
 
   function vipClass(
@@ -258,7 +317,7 @@ export default function AdminCustomersPage() {
         {error && (
           <div className="card admin-transaction-error">
             <strong>
-              Unable to load customers
+              Unable to complete request
             </strong>
 
             <p className="muted">
@@ -314,8 +373,8 @@ export default function AdminCustomersPage() {
               </h3>
 
               <p className="muted">
-                Try changing your
-                search or VIP filter.
+                Try changing your search
+                or VIP filter.
               </p>
             </div>
           ) : (
@@ -338,6 +397,36 @@ export default function AdminCustomersPage() {
                         )}
                       >
                         {user.vipLevel}
+                      </span>
+
+                      {/* ACCOUNT STATUS */}
+
+                      <span
+                        style={{
+                          display:
+                            "inline-flex",
+                          alignItems:
+                            "center",
+                          padding:
+                            "4px 9px",
+                          borderRadius:
+                            "999px",
+                          fontSize:
+                            "12px",
+                          fontWeight: 700,
+                          backgroundColor:
+                            user.blocked
+                              ? "#fee2e2"
+                              : "#dcfce7",
+                          color:
+                            user.blocked
+                              ? "#b91c1c"
+                              : "#15803d",
+                        }}
+                      >
+                        {user.blocked
+                          ? "BLOCKED"
+                          : "ACTIVE"}
                       </span>
                     </div>
 
@@ -383,6 +472,43 @@ export default function AdminCustomersPage() {
                           ?.balanceKobo || 0
                       )}
                     </strong>
+
+                    {/* BLOCK / UNBLOCK */}
+
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      disabled={
+                        updatingId ===
+                        user.id
+                      }
+                      onClick={() =>
+                        toggleCustomerBlock(
+                          user
+                        )
+                      }
+                      style={{
+                        marginTop:
+                          "10px",
+                        width:
+                          "100%",
+                        borderColor:
+                          user.blocked
+                            ? "#16a34a"
+                            : "#dc2626",
+                        color:
+                          user.blocked
+                            ? "#15803d"
+                            : "#b91c1c",
+                      }}
+                    >
+                      {updatingId ===
+                      user.id
+                        ? "Updating..."
+                        : user.blocked
+                        ? "Unblock Account"
+                        : "Block Account"}
+                    </button>
                   </div>
                 </div>
               ))}
@@ -403,8 +529,7 @@ export default function AdminCustomersPage() {
                   }
                   onClick={() =>
                     loadUsers(
-                      pagination.page -
-                        1
+                      pagination.page - 1
                     )
                   }
                 >
@@ -413,11 +538,8 @@ export default function AdminCustomersPage() {
 
                 <span className="muted">
                   Page{" "}
-                  {pagination.page}{" "}
-                  of{" "}
-                  {
-                    pagination.totalPages
-                  }
+                  {pagination.page} of{" "}
+                  {pagination.totalPages}
                 </span>
 
                 <button
@@ -429,8 +551,7 @@ export default function AdminCustomersPage() {
                   }
                   onClick={() =>
                     loadUsers(
-                      pagination.page +
-                        1
+                      pagination.page + 1
                     )
                   }
                 >

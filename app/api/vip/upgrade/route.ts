@@ -4,24 +4,50 @@ import { randomUUID } from "crypto";
 import { db } from "@/lib/db";
 import { User, Settings, Transaction } from "@/lib/models";
 import { debitWallet } from "@/lib/ledger";
-import { currentUserId } from "@/lib/session";
+import { requirePin, jsonAuthError } from "@/lib/authz";
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
     await db();
 
     /* =========================================================
-       AUTHENTICATION
+       READ REQUEST
        ========================================================= */
 
-    const userId = await currentUserId();
+    const body = await req.json();
 
-    if (!userId) {
+    const pin =
+      typeof body?.pin === "string"
+        ? body.pin.trim()
+        : "";
+
+    /* =========================================================
+       REQUIRE PIN
+       =========================================================
+       This happens BEFORE:
+       - wallet debit
+       - VIP upgrade
+       - transaction creation
+       ========================================================= */
+
+    let authenticatedUser;
+
+    try {
+      authenticatedUser = await requirePin(pin);
+    } catch (error: any) {
       return NextResponse.json(
-        { error: "UNAUTHORIZED" },
-        { status: 401 }
+        {
+          error:
+            error?.message ||
+            "PIN verification failed",
+        },
+        {
+          status: jsonAuthError(error),
+        }
       );
     }
+
+    const userId = String(authenticatedUser._id);
 
     /* =========================================================
        GET USER
@@ -85,13 +111,13 @@ export async function POST() {
        ========================================================= */
 
     type PricingSettings = {
-  rates?: Record<string, any>;
-};
+      rates?: Record<string, any>;
+    };
 
-const settings = (await Settings.findOne({
-  key: "pricing",
-})
-  .lean()) as PricingSettings | null;
+    const settings =
+      (await Settings.findOne({
+        key: "pricing",
+      }).lean()) as PricingSettings | null;
 
     if (!settings) {
       return NextResponse.json(
@@ -193,6 +219,8 @@ const settings = (await Settings.findOne({
 
     /* =========================================================
        DEBIT WALLET
+       =========================================================
+       PIN HAS ALREADY BEEN VERIFIED ABOVE.
        ========================================================= */
 
     let wallet;

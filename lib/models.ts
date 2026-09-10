@@ -65,6 +65,12 @@ const UserSchema = new Schema(
       default: "customer",
     },
 
+blocked: {
+  type: Boolean,
+  default: false,
+  index: true,
+},
+
     /* =========================
        VIP MEMBERSHIP
        ========================= */
@@ -214,6 +220,10 @@ const TxSchema = new Schema(
    SETTINGS
    ========================================================= */
 
+/* =========================================================
+   SETTINGS
+   ========================================================= */
+
 const SettingsSchema = new Schema(
   {
     key: {
@@ -222,132 +232,124 @@ const SettingsSchema = new Schema(
       index: true,
     },
 
+    /*
+     * IMPORTANT:
+     *
+     * rates contains both normal pricing settings
+     * and provider controls.
+     *
+     * It MUST be Mixed so Mongo/Mongoose does not
+     * strip nested provider-control objects.
+     */
     rates: {
-      /* =========================
-         NORMAL SERVICE RATES
-         ========================= */
+      type: Schema.Types.Mixed,
+      default: {},
+    },
 
-      data: Number,
+    /* =========================
+       VIP MEMBERSHIP PRICES
+       ========================= */
 
-      electricity: Number,
+    vip1Price: {
+      type: Number,
+      default: 5000,
+    },
 
-      cable: Number,
+    vip2Price: {
+      type: Number,
+      default: 15000,
+    },
 
-      education: Number,
+    vip3Price: {
+      type: Number,
+      default: 30000,
+    },
 
-      airtimeToCash: Number,
+    /* =========================
+       VIP1 SERVICE RATES
+       ========================= */
 
-      funding: Number,
+    vip1Data: {
+      type: Number,
+      default: 4,
+    },
 
-      withdrawal: Number,
+    vip1Electricity: {
+      type: Number,
+      default: 3,
+    },
 
-      airtimeRoundUnit: Number,
+    vip1Cable: {
+      type: Number,
+      default: 3,
+    },
 
-      /* =========================
-         VIP MEMBERSHIP PRICES
-         ========================= */
+    vip1Education: {
+      type: Number,
+      default: 12,
+    },
 
-      vip1Price: {
-        type: Number,
-        default: 5000,
-      },
+    vip1AirtimeToCash: {
+      type: Number,
+      default: 18,
+    },
 
-      vip2Price: {
-        type: Number,
-        default: 15000,
-      },
+    /* =========================
+       VIP2 SERVICE RATES
+       ========================= */
 
-      vip3Price: {
-        type: Number,
-        default: 30000,
-      },
+    vip2Data: {
+      type: Number,
+      default: 3,
+    },
 
-      /* =========================
-         VIP1 SERVICE RATES
-         ========================= */
+    vip2Electricity: {
+      type: Number,
+      default: 2,
+    },
 
-      vip1Data: {
-        type: Number,
-        default: 4,
-      },
+    vip2Cable: {
+      type: Number,
+      default: 2,
+    },
 
-      vip1Electricity: {
-        type: Number,
-        default: 3,
-      },
+    vip2Education: {
+      type: Number,
+      default: 10,
+    },
 
-      vip1Cable: {
-        type: Number,
-        default: 3,
-      },
+    vip2AirtimeToCash: {
+      type: Number,
+      default: 15,
+    },
 
-      vip1Education: {
-        type: Number,
-        default: 12,
-      },
+    /* =========================
+       VIP3 SERVICE RATES
+       ========================= */
 
-      vip1AirtimeToCash: {
-        type: Number,
-        default: 18,
-      },
+    vip3Data: {
+      type: Number,
+      default: 2,
+    },
 
-      /* =========================
-         VIP2 SERVICE RATES
-         ========================= */
+    vip3Electricity: {
+      type: Number,
+      default: 1,
+    },
 
-      vip2Data: {
-        type: Number,
-        default: 3,
-      },
+    vip3Cable: {
+      type: Number,
+      default: 1,
+    },
 
-      vip2Electricity: {
-        type: Number,
-        default: 2,
-      },
+    vip3Education: {
+      type: Number,
+      default: 8,
+    },
 
-      vip2Cable: {
-        type: Number,
-        default: 2,
-      },
-
-      vip2Education: {
-        type: Number,
-        default: 10,
-      },
-
-      vip2AirtimeToCash: {
-        type: Number,
-        default: 15,
-      },
-
-      /* =========================
-         VIP3 SERVICE RATES
-         ========================= */
-
-      vip3Data: {
-        type: Number,
-        default: 2,
-      },
-
-      vip3Electricity: {
-        type: Number,
-        default: 1,
-      },
-
-      vip3Cable: {
-        type: Number,
-        default: 1,
-      },
-
-      vip3Education: {
-        type: Number,
-        default: 8,
-      },
-
-      vip3AirtimeToCash: {
-        type: Number,
-        default: 12,
-      },
+    vip3AirtimeToCash: {
+      type: Number,
+      default: 12,
     },
   },
   {

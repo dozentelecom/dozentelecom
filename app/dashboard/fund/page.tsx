@@ -8,8 +8,8 @@ export default function Fund() {
         <h1>Fund wallet</h1>
 
         <p className="muted">
-          Default funding fee is 3%, deducted from
-          the funded amount before wallet credit.
+          The applicable funding fee is calculated automatically
+          from your current admin-configured funding rate.
         </p>
 
         <form
