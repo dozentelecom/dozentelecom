@@ -2,19 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type Tab =
-  | "airtime"
-  | "data"
-  | "electricity"
-  | "cable"
-  | "education";
+/* =========================================================
+   AVAILABLE SERVICE
+========================================================= */
+
+type Tab = "data";
 
 const tabs: [Tab, string, string][] = [
-  ["airtime", "Airtime", "📱"],
   ["data", "Data", "📶"],
-  ["electricity", "Electricity", "⚡"],
-  ["cable", "Cable TV", "📺"],
-  ["education", "Education", "🎓"],
 ];
 
 /* =========================================================
@@ -53,7 +48,7 @@ async function api(
 
 const post = (
   url: string,
-  body: any
+  body: Record<string, any>
 ) =>
   api(url, {
     method: "POST",
@@ -71,6 +66,7 @@ function Field({
   return (
     <label className="field">
       <span>{label}</span>
+
       <input
         className="input"
         {...props}
@@ -84,61 +80,21 @@ function Field({
 ========================================================= */
 
 export default function ServicesClient() {
-  const [tab, setTab] =
-    useState<Tab>("airtime");
+  const [tab] = useState<Tab>("data");
 
   /* =======================================================
-     SME DATA
+     DATA PLANS
   ======================================================= */
 
   const [plans, setPlans] =
     useState<any[]>([]);
 
-/* =======================================================
-   ADMIN PRICING
-======================================================= */
-
-const [rates, setRates] = useState({
-  data: 0,
-  electricity: 0,
-  cable: 0,
-  education: 0,
-  airtimeToCash: 0,
-  funding: 0,
-  airtimeRoundUnit: 100,
-});
   /* =======================================================
-     WISESUB SERVICES
+     DATA PRICING
   ======================================================= */
 
-  const [
-    electricityProviders,
-    setElectricityProviders,
-  ] = useState<any[]>([]);
-
-  const [
-    cableProviders,
-    setCableProviders,
-  ] = useState<any[]>([]);
-
-  const [
-    educationProviders,
-    setEducationProviders,
-  ] = useState<any[]>([]);
-
-  /* =======================================================
-     WISESUB PACKAGES
-  ======================================================= */
-
-  const [
-    cablePlans,
-    setCablePlans,
-  ] = useState<any[]>([]);
-
-  const [
-    educationPlans,
-    setEducationPlans,
-  ] = useState<any[]>([]);
+  const [dataRate, setDataRate] =
+    useState(0);
 
   /* =======================================================
      STATE
@@ -151,7 +107,10 @@ const [rates, setRates] = useState({
     useState("");
 
   const [message, setMessage] =
-    useState("");
+  useState("");
+
+const [receipt, setReceipt] =
+  useState<any>(null);
 
   const [serviceType, setServiceType] =
     useState("");
@@ -160,62 +119,43 @@ const [rates, setRates] = useState({
      FORM
   ======================================================= */
 
-  const [form, setForm] =
-    useState<any>({
-      network: "",
-      data_plan: "",
-
-      phone: "",
-      amount: "",
-
-      pin: "",
-
-      provider: "",
-
-      plan: "",
-
-      iucnumber: "",
-
-      meternumber: "",
-
-      metertype: "prepaid",
-
-      subtype: "renew",
-
-      quantity: "1",
-
-      businessname:"",
-
-      examProvider: "",
-
-      examPackage:""
-    });
+  const [form, setForm] = useState({
+    network: "",
+    data_plan: "",
+    phone: "",
+    amount: "",
+    pin: "",
+  });
 
   const update = (
-    key: string,
-    value: any
+    key: keyof typeof form,
+    value: string
   ) => {
-    setForm((current: any) => ({
+    setForm((current) => ({
       ...current,
       [key]: value,
     }));
   };
 
-/* =======================================================
-   CUSTOMER SELLING PRICE
-======================================================= */
+  /* =======================================================
+     CUSTOMER SELLING PRICE
+  ======================================================= */
 
-function customerPrice(
-  cost: number,
-  service: keyof typeof rates
-) {
-  const amount = Number(cost) || 0;
-  const rate = Number(rates[service]) || 0;
+  function customerPrice(cost: number) {
+    const amount =
+      Number(cost) || 0;
 
-  return Math.ceil(
-    amount * (1 + rate / 100) * 100
-  ) / 100;
-}
+    const rate =
+      Number(dataRate) || 0;
+
+    return (
+      Math.ceil(
+        amount *
+          (1 + rate / 100) *
+          100
+      ) / 100
+    );
+  }
 
   /* =======================================================
      DATA PLAN NORMALIZATION
@@ -223,73 +163,68 @@ function customerPrice(
 
   const dataPlans = useMemo(() => {
     return plans.map(
-      (p: any, index: number) => ({
-        raw: p,
+      (p: any, index: number) => {
+        const cost = Number(
+          p?.price ??
+            p?.amount ??
+            p?.selling_price ??
+            p?.cost ??
+            0
+        );
 
-        key: String(
-          p?.id ??
-            p?.plan_id ??
-            p?.data_plan ??
-            index
-        ),
+        return {
+          raw: p,
 
-        name: String(
-          p?.name ??
-            p?.plan_name ??
-            p?.plan ??
-            p?.variation ??
-            p?.description ??
-            "Data plan"
-        ),
+          key: String(
+            p?.id ??
+              p?.plan_id ??
+              p?.data_plan ??
+              index
+          ),
 
-        cost: Number(
-  p?.price ??
-    p?.amount ??
-    p?.selling_price ??
-    p?.cost ??
-    0
-),
+          name: String(
+            p?.name ??
+              p?.plan_name ??
+              p?.plan ??
+              p?.variation ??
+              p?.description ??
+              "Data plan"
+          ),
 
-price: customerPrice(
-  Number(
-    p?.price ??
-      p?.amount ??
-      p?.selling_price ??
-      p?.cost ??
-      0
-  ),
-  "data"
-),
+          cost,
 
-        network: String(
-          p?.network ??
-            p?.network_name ??
-            p?.network_id ??
-            ""
-        ),
+          price: customerPrice(cost),
 
-        networkId: String(
-          p?.network_id ??
+          network: String(
             p?.network ??
-            ""
-        ),
+              p?.network_name ??
+              p?.network_id ??
+              ""
+          ),
 
-        type: String(
-          p?.type ??
-            p?.datagroup ??
-            p?.service_type ??
-            "SME"
-        ),
+          networkId: String(
+            p?.network_id ??
+              p?.network ??
+              ""
+          ),
 
-        days: String(
-          p?.days ??
-            p?.validity ??
-            p?.duration ??
-            "30 days"
-        ),
-      })
+          type: String(
+            p?.type ??
+              p?.datagroup ??
+              p?.service_type ??
+              "SME"
+          ),
+
+          days: String(
+            p?.days ??
+              p?.validity ??
+              p?.duration ??
+              "30 days"
+          ),
+        };
+      }
     );
- }, [plans, rates]);
+  }, [plans, dataRate]);
 
   /* =======================================================
      DATA SERVICE TYPES
@@ -364,7 +299,7 @@ price: customerPrice(
     }, [plans]);
 
   /* =======================================================
-     LOAD INITIAL SERVICES
+     LOAD DATA PLANS
   ======================================================= */
 
   useEffect(() => {
@@ -376,40 +311,33 @@ price: customerPrice(
     setError("");
 
     try {
-const pricingResponse =
-  await api("/api/pricing");
-
-const loadedRates =
-  pricingResponse?.rates;
-
-if (loadedRates) {
-  setRates({
-    data: Number(
-      loadedRates.data ?? 0
-    ),
-    electricity: Number(
-      loadedRates.electricity ?? 0
-    ),
-    cable: Number(
-      loadedRates.cable ?? 0
-    ),
-    education: Number(
-      loadedRates.education ?? 0
-    ),
-    airtimeToCash: Number(
-      loadedRates.airtimeToCash ?? 0
-    ),
-    funding: Number(
-      loadedRates.funding ?? 0
-    ),
-    airtimeRoundUnit: Number(
-      loadedRates.airtimeRoundUnit ?? 100
-    ),
-  });
-}
       /* ================================================
-         SME API
-         DATA ONLY
+         LOAD DATA PRICING
+      ================================================= */
+
+      try {
+        const pricingResponse =
+          await api("/api/pricing");
+
+        const loadedRates =
+          pricingResponse?.rates;
+
+        if (loadedRates) {
+          setDataRate(
+            Number(
+              loadedRates.data ?? 0
+            )
+          );
+        }
+      } catch (pricingError) {
+        console.error(
+          "DATA PRICING LOAD ERROR:",
+          pricingError
+        );
+      }
+
+      /* ================================================
+         SME DATA PLANS
       ================================================= */
 
       const plansResponse =
@@ -430,653 +358,205 @@ if (loadedRates) {
           ? receivedPlans
           : []
       );
-
-      /* ================================================
-         WISESUB SERVICES
-      ================================================= */
-
-      const wiseSubResponse =
-        await api(
-          "/api/wisesub/services"
-        );
-
-      console.log(
-        "RAW WISESUB SERVICES:",
-        wiseSubResponse
-      );
-
-      const electricity =
-        wiseSubResponse
-          ?.data
-          ?.electricity ?? [];
-
-      const cable =
-        wiseSubResponse
-          ?.data
-          ?.cable_tv ?? [];
-
-      const education =
-        wiseSubResponse
-          ?.data
-          ?.education ?? [];
-
-      setElectricityProviders(
-        Array.isArray(electricity)
-          ? electricity
-          : []
-      );
-
-      setCableProviders(
-        Array.isArray(cable)
-          ? cable
-          : []
-      );
-
-      setEducationProviders(
-        Array.isArray(education)
-          ? education
-          : []
-      );
-
-      console.log(
-        "WISESUB ELECTRICITY:",
-        electricity
-      );
-
-      console.log(
-        "WISESUB CABLE:",
-        cable
-      );
-
-      console.log(
-        "WISESUB EDUCATION:",
-        education
-      );
     } catch (e: any) {
       console.error(
-        "SERVICE CATALOG LOAD ERROR:",
+        "DATA CATALOG LOAD ERROR:",
         e
       );
 
       setError(
         e?.message ||
-          "Unable to load services"
+          "Unable to load data plans"
       );
     } finally {
       setLoading(false);
     }
   }
 
-  /* =======================================================
-     LOAD CABLE PLANS
-  ======================================================= */
+/* =======================================================
+   BUY DATA
+======================================================= */
 
-  async function loadCablePlans(providerCode: string) {
-  if (!providerCode) {
-    setCablePlans([]);
-    return;
-  }
-
+async function buy() {
   setLoading(true);
   setError("");
+  setMessage("");
 
   try {
-    const j = await api(
-      `/api/wisesub/packages?service_type=cabletv&provider_code=${encodeURIComponent(providerCode)}`
-    );
+    if (!form.network) {
+      throw new Error(
+        "Please select a network."
+      );
+    }
 
-    const packages =
-      j?.data?.packages ??
-      [];
+    if (!form.data_plan) {
+      throw new Error(
+        "Please select a data plan."
+      );
+    }
 
-    setCablePlans(
-      Array.isArray(packages)
-        ? packages
-        : []
-    );
-  } catch (e: any) {
-    console.error("CABLE PACKAGES ERROR:", e);
+    if (!form.phone) {
+      throw new Error(
+        "Please enter the phone number."
+      );
+    }
 
-    setCablePlans([]);
+    if (
+      !/^\d{11}$/.test(
+        form.phone
+      )
+    ) {
+      throw new Error(
+        "Please enter a valid 11-digit phone number."
+      );
+    }
 
-    setError(
-      e?.message ||
-      "Unable to load cable plans"
-    );
-  } finally {
-    setLoading(false);
-  }
-}
+    if (
+      !form.pin ||
+      form.pin.length !== 4
+    ) {
+      throw new Error(
+        "Please enter your 4-digit PIN."
+      );
+    }
 
-  /* =======================================================
-     LOAD EDUCATION PACKAGES
-  ======================================================= */
+    const response =
+      await post(
+        "/api/sme/data",
+        {
+          network:
+            Number(
+              form.network
+            ),
 
-  async function loadEducationPlans(providerCode: string) {
-  if (!providerCode) {
-    setEducationPlans([]);
-    return;
-  }
+          data_plan:
+            Number(
+              form.data_plan
+            ),
 
-  setLoading(true);
-  setError("");
+          phone:
+            form.phone,
 
-  try {
-    const j = await api(
-      `/api/wisesub/packages?service_type=education&provider_code=${encodeURIComponent(
-        providerCode
-      )}`
-    );
-
-    const packages =
-      j?.data?.packages ?? [];
-
-    setEducationPlans(
-      Array.isArray(packages)
-        ? packages
-        : []
-    );
+          pin:
+            form.pin,
+        }
+      );
 
     console.log(
-      "WISESUB EDUCATION PACKAGES:",
-      packages
+      "DATA PURCHASE RESPONSE:",
+      response
     );
+
+    const purchaseData =
+      response?.data || {};
+
+    const reference =
+      response?.reference ||
+      purchaseData?.reference ||
+      "";
+
+    const selectedPlan =
+      dataPlans.find(
+        (item) =>
+          item.key === form.data_plan
+      );
+
+    const status =
+      String(
+        response?.status ||
+          purchaseData?.status ||
+          (response?.success === false
+            ? "FAILED"
+            : "SUCCESS")
+      ).toUpperCase();
+
+    setReceipt({
+      status:
+        status === "FAILED" ||
+        status === "FAILURE"
+          ? "FAILED"
+          : status === "PROCESSING" ||
+            status === "PENDING"
+          ? "PROCESSING"
+          : "SUCCESS",
+
+      service: "DATA",
+
+      network:
+        networkOptions.find(
+          (n) =>
+            String(n.id) ===
+            String(form.network)
+        )?.name ||
+        form.network,
+
+      plan:
+        selectedPlan?.name ||
+        "Data Plan",
+
+      planType:
+        selectedPlan?.type ||
+        serviceType,
+
+      days:
+        selectedPlan?.days ||
+        "",
+
+      phone:
+        form.phone,
+
+      amount:
+        form.amount,
+
+      reference,
+
+      message:
+        response?.message ||
+        purchaseData?.message ||
+        "",
+
+      refunded:
+        Boolean(
+          response?.refunded ||
+            purchaseData?.refunded
+        ),
+
+      createdAt:
+        new Date().toLocaleString(
+          "en-NG"
+        ),
+    });
+
+    let successMessage =
+      response?.message ||
+      "Data purchase submitted successfully.";
+
+    if (
+      purchaseData?.reference
+    ) {
+      successMessage +=
+        ` Reference: ${purchaseData.reference}`;
+    }
+
+    setMessage(
+      successMessage
+    );
+
+    update("pin", "");
   } catch (e: any) {
     console.error(
-      "WISESUB EDUCATION PACKAGES ERROR:",
+      "DATA PURCHASE ERROR:",
       e
     );
 
-    setEducationPlans([]);
-
     setError(
       e?.message ||
-        "Unable to load education packages"
+        "Data purchase failed"
     );
   } finally {
     setLoading(false);
   }
 }
-
-  /* =======================================================
-     ELECTRICITY VERIFICATION
-  ======================================================= */
-
-  async function verifyElectricity() {
-    setLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      if (!form.provider) {
-        throw new Error(
-          "Please select an electricity company."
-        );
-      }
-
-      if (!form.meternumber) {
-        throw new Error(
-          "Please enter the meter number."
-        );
-      }
-
-      const response =
-        await post(
-          "/api/wisesub/verify",
-          {
-            service_type:
-              "electricity",
-
-            provider_code:
-              form.provider,
-
-            meter_number:
-              form.meternumber,
-
-            meter_type:
-              form.metertype,
-          }
-        );
-
-      console.log(
-        "WISESUB ELECTRICITY VERIFY:",
-        response
-      );
-
-      const customer =
-        response?.data;
-
-      if (
-        customer?.customer_name
-      ) {
-        setMessage(
-          `Meter verified: ${customer.customer_name}${
-            customer?.address
-              ? ` — ${customer.address}`
-              : ""
-          }`
-        );
-      } else {
-        setMessage(
-          response?.message ||
-            "Meter verified successfully."
-        );
-      }
-    } catch (e: any) {
-      console.error(
-        "ELECTRICITY VERIFY ERROR:",
-        e
-      );
-
-      setError(
-        e?.message ||
-          "Meter verification failed"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /* =======================================================
-     CABLE VERIFICATION
-  ======================================================= */
-
-  async function verifyCable() {
-    setLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      if (!form.provider) {
-        throw new Error(
-          "Please select a cable provider."
-        );
-      }
-
-      if (!form.iucnumber) {
-        throw new Error(
-          "Please enter the decoder number."
-        );
-      }
-
-      const response =
-        await post(
-          "/api/wisesub/verify",
-          {
-            service_type:
-              "cabletv",
-
-            provider_code:
-              form.provider,
-
-            decoder_number:
-              form.iucnumber,
-          }
-        );
-
-      console.log(
-        "WISESUB CABLE VERIFY:",
-        response
-      );
-
-      const customer =
-        response?.data;
-
-      if (
-        customer?.customer_name
-      ) {
-        setMessage(
-          `Decoder verified: ${customer.customer_name}`
-        );
-      } else {
-        setMessage(
-          response?.message ||
-            "IUC verified successfully."
-        );
-      }
-    } catch (e: any) {
-      console.error(
-        "CABLE VERIFY ERROR:",
-        e
-      );
-
-      setError(
-        e?.message ||
-          "IUC verification failed"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  /* =======================================================
-     PURCHASE
-  ======================================================= */
-
-  async function buy() {
-    setLoading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      let response: any;
-
-      /* ================================================
-         SME AIRTIME
-      ================================================= */
-
-      if (tab === "airtime") {
-        if (!form.network) {
-          throw new Error(
-            "Please select a network."
-          );
-        }
-
-        if (!form.phone) {
-          throw new Error(
-            "Please enter the phone number."
-          );
-        }
-
-        if (!form.amount) {
-          throw new Error(
-            "Please enter the airtime amount."
-          );
-        }
-
-        response =
-          await post(
-            "/api/sme/airtime",
-            {
-              network:
-                Number(
-                  form.network
-                ),
-
-              phone:
-                form.phone,
-
-              amount:
-                Number(
-                  form.amount
-                ),
-
-              airtime_type:
-                "VTU",
-
-              pin:
-                form.pin,
-            }
-          );
-      }
-
-      /* ================================================
-         SME DATA
-      ================================================= */
-
-      else if (
-        tab === "data"
-      ) {
-        if (!form.network) {
-          throw new Error(
-            "Please select a network."
-          );
-        }
-
-        if (!form.data_plan) {
-          throw new Error(
-            "Please select a data plan."
-          );
-        }
-
-        if (!form.phone) {
-          throw new Error(
-            "Please enter the phone number."
-          );
-        }
-
-        response =
-          await post(
-            "/api/sme/data",
-            {
-              network:
-                Number(
-                  form.network
-                ),
-
-              data_plan:
-                Number(
-                  form.data_plan
-                ),
-
-              phone:
-                form.phone,
-
-              pin:
-                form.pin,
-            }
-          );
-      }
-
-      /* ================================================
-         WISESUB ELECTRICITY
-      ================================================= */
-
-      else if (
-        tab === "electricity"
-      ) {
-        if (!form.provider) {
-          throw new Error(
-            "Please select an electricity company."
-          );
-        }
-
-        if (!form.meternumber) {
-          throw new Error(
-            "Please enter the meter number."
-          );
-        }
-
-        if (!form.amount) {
-          throw new Error(
-            "Please enter the amount."
-          );
-        }
-
-        response =
-          await post(
-            "/api/wisesub/purchase",
-            {
-              service_type:
-                "electricity",
-
-              provider_code:
-                form.provider,
-
-              meter_number:
-                form.meternumber,
-
-              meter_type:
-                form.metertype,
-
-              amount:
-                Number(
-                  form.amount
-                ),
-
-              phone:
-                form.phone,
-	      pin: 
-		form.pin,
-            }
-          );
-      }
-
-      /* ================================================
-         WISESUB CABLE TV
-      ================================================= */
-
-      else if (
-        tab === "cable"
-      ) {
-        if (!form.provider) {
-          throw new Error(
-            "Please select a cable provider."
-          );
-        }
-
-        if (!form.plan) {
-          throw new Error(
-            "Please select a cable plan."
-          );
-        }
-
-        if (!form.iucnumber) {
-          throw new Error(
-            "Please enter the decoder number."
-          );
-        }
-
-        response =
-          await post(
-            "/api/wisesub/purchase",
-            {
-              service_type:
-                "cabletv",
-
-              provider_code:
-                form.provider,
-
-              package_code:
-                form.plan,
-
-              decoder_number:
-                form.iucnumber,
-
-              phone:
-                form.phone,
-
-              subscription_type:
-                form.subtype,
-	      pin: 
-		form.pin,
-            }
-          );
-      }
-
-      /* ================================================
-         WISESUB EDUCATION
-      ================================================= */
-
-      else if (
-        tab === "education"
-      ) {
-        if (!form.examProvider) {
-          throw new Error(
-            "Please select an education product."
-          );
-        }
-
-        if (!form.plan) {
-          throw new Error(
-            "Please select an education package."
-          );
-        }
-
-        response =
-          await post(
-            "/api/wisesub/purchase",
-            {
-              service_type:
-                "education",
-
-              provider_code:
-                form.examProvider,
-
-              package_code:
-                form.plan,
-
-              recipient:
-                form.phone,
-
-              quantity:
-                Number(
-                  form.quantity
-                ) || 1,
-	      pin: 
-		form.pin,
-            }
-          );
-      }
-
-      /* ================================================
-         RESPONSE
-      ================================================= */
-
-      console.log(
-        "PURCHASE RESPONSE:",
-        response
-      );
-
-      const purchaseData =
-        response?.data;
-
-      let successMessage =
-        response?.message ||
-        "Transaction submitted successfully.";
-
-      if (
-        purchaseData?.reference
-      ) {
-        successMessage +=
-          ` Reference: ${purchaseData.reference}`;
-      }
-
-      /* Electricity token */
-
-      if (
-        purchaseData?.token
-      ) {
-        successMessage +=
-          ` Token: ${purchaseData.token}`;
-      }
-
-      /* Education PIN cards */
-
-      if (
-        Array.isArray(
-          purchaseData?.cards
-        ) &&
-        purchaseData.cards.length
-      ) {
-        successMessage +=
-          " PIN(s) generated successfully.";
-      }
-
-      if (
-        purchaseData?.purchased_code
-      ) {
-        successMessage +=
-          ` ${purchaseData.purchased_code}`;
-      }
-
-      setMessage(
-        successMessage
-      );
-    } catch (e: any) {
-      console.error(
-        "PURCHASE ERROR:",
-        e
-      );
-
-      setError(
-        e?.message ||
-          "Transaction failed"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
 
   /* =======================================================
      RENDER
@@ -1093,16 +573,18 @@ if (loadedRates) {
 
         <div>
           <div className="eyebrow">
-            DOZENTELECOM • VTU SERVICES
+            DOZENTELECOM • DATA SERVICES
           </div>
 
           <h1>
-            Buy a service
+            Buy Mobile Data
           </h1>
 
           <p className="muted">
-  Choose a service and complete your purchase securely.
-</p>
+            Choose your network and data
+            plan, then complete your
+            purchase securely.
+          </p>
         </div>
 
         <a
@@ -1131,7 +613,6 @@ if (loadedRates) {
                   : ""
               }`}
               onClick={() => {
-                setTab(id);
                 setError("");
                 setMessage("");
               }}
@@ -1167,1035 +648,291 @@ if (loadedRates) {
 
         <section className="card service-form">
 
-          {/* =================================================
-              AIRTIME
-          ================================================ */}
+          <h2>
+            📶 Mobile Data
+          </h2>
 
-          {tab === "airtime" && (
-            <>
-              <h2>
-                📱 Airtime
-              </h2>
+          <div
+            className="alert"
+            style={{
+              marginBottom: "14px",
+              fontSize: "13px",
+            }}
+          >
+            ⚠️{" "}
+            <strong>Awoof Plans:</strong>{" "}
+            Only eligible numbers can use
+            Awoof plans. If an Awoof plan
+            fails, please try another plan.
+          </div>
 
-              <label className="field">
-                <span>
-                  Network
-                </span>
+          {/* NETWORK */}
 
-                <select
-                  className="input"
-                  value={
-                    form.network
-                  }
-                  onChange={(e) =>
-                    update(
-                      "network",
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="">
-                    Select network
-                  </option>
+          <label className="field">
+            <span>
+              Network
+            </span>
 
-                  {networkOptions.map(
-                    (network) => (
-                      <option
-                        key={
-                          network.id
-                        }
-                        value={
-                          network.id
-                        }
-                      >
-                        {
-                          network.name
-                        }
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
+            <select
+              className="input"
+              value={
+                form.network
+              }
+              onChange={(e) => {
+                update(
+                  "network",
+                  e.target.value
+                );
 
-              <Field
-                label="Phone number"
-                value={
-                  form.phone
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "phone",
-                    e.target.value
-                  )
-                }
-                placeholder="08143140831"
-                inputMode="numeric"
-              />
+                setServiceType("");
 
-              <Field
-                label="Amount (₦)"
-                value={
-                  form.amount
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "amount",
-                    e.target.value
-                  )
-                }
-                type="number"
-                min="50"
-              />
+                update(
+                  "data_plan",
+                  ""
+                );
 
-              <Field
-                label="4-digit PIN"
-                value={
-                  form.pin
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "pin",
-                    e.target.value
-                      .replace(
-                        /\D/g,
-                        ""
-                      )
-                      .slice(
-                        0,
-                        4
-                      )
-                  )
-                }
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-              />
-            </>
-          )}
+                update(
+                  "amount",
+                  ""
+                );
+              }}
+            >
+              <option value="">
+                Select network
+              </option>
 
-          {/* =================================================
-              DATA
-          ================================================ */}
-
-          {tab === "data" && (
-            <>
-              <h2>
-                📶 Mobile Data
-              </h2>
-
-	   <div
-  className="alert"
-  style={{
-    marginBottom: "14px",
-    fontSize: "13px",
-  }}
->
-  ⚠️ <strong>Awoof Plans:</strong> Only eligible numbers can use Awoof plans. If an Awoof plan fails, please try another plan.
-</div>
-
-              <label className="field">
-                <span>
-                  Network
-                </span>
-
-                <select
-                  className="input"
-                  value={
-                    form.network
-                  }
-                  onChange={(e) => {
-                    update(
-                      "network",
-                      e.target.value
-                    );
-
-                    setServiceType(
-                      ""
-                    );
-
-                    update(
-                      "data_plan",
-                      ""
-                    );
-
-                    update(
-                      "amount",
-                      ""
-                    );
-                  }}
-                >
-                  <option value="">
-                    Select network
-                  </option>
-
-                  {networkOptions.map(
-                    (network) => (
-                      <option
-                        key={
-                          network.id
-                        }
-                        value={
-                          network.id
-                        }
-                      >
-                        {
-                          network.name
-                        }
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <label className="field">
-                <span>
-                  Service type
-                </span>
-
-                <select
-                  className="input"
-                  value={
-                    serviceType
-                  }
-                  disabled={
-                    !form.network
-                  }
-                  onChange={(e) => {
-                    setServiceType(
-                      e.target.value
-                    );
-
-                    update(
-                      "data_plan",
-                      ""
-                    );
-
-                    update(
-                      "amount",
-                      ""
-                    );
-                  }}
-                >
-                  <option value="">
-                    {!form.network
-                      ? "Select a network first"
-                      : "Select service type"}
-                  </option>
-
-                  {serviceTypes.map(
-                    (type) => (
-                      <option
-                        key={type}
-                        value={type}
-                      >
-                        {type}
-                      </option>
-                    )
-                  )}
-                </select>
-              </label>
-
-              <label className="field">
-                <span>
-                  Data plan
-                </span>
-
-                <select
-                  className="input"
-                  value={
-                    form.data_plan
-                  }
-                  disabled={
-                    !form.network ||
-                    !serviceType
-                  }
-                  onChange={(e) => {
-                    const selectedId =
-                      e.target.value;
-
-                    update(
-                      "data_plan",
-                      selectedId
-                    );
-
-                    const plan =
-                      dataPlans.find(
-                        (item) =>
-                          item.key ===
-                          selectedId
-                      );
-
-                    update(
-  "amount",
-  plan?.price ?? ""
-);
-                  }}
-                >
-                  <option value="">
-                    {!form.network
-                      ? "Select a network first"
-                      : !serviceType
-                      ? "Select a service type first"
-                      : "Select a plan"}
-                  </option>
-
-                  {dataPlans
-                    .filter(
-                      (plan) =>
-                        plan.networkId ===
-                          String(
-                            form.network
-                          ) &&
-                        plan.type ===
-                          serviceType
-                    )
-                    .map(
-                      (plan) => (
-                        <option
-                          key={
-                            plan.key
-                          }
-                          value={
-                            plan.key
-                          }
-                        >
-                          {plan.name.trim()}
-                          {" — ₦"}
-                          {plan.price.toLocaleString()}
-                          {" — "}
-                          {plan.days}
-                        </option>
-                      )
-                    )}
-                </select>
-              </label>
-
-              <Field
-                label="Phone number"
-                value={
-                  form.phone
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "phone",
-                    e.target.value
-                  )
-                }
-                placeholder="08143140831"
-                inputMode="numeric"
-              />
-
-              <Field
-                label="Amount (₦)"
-                value={
-                  form.amount
-                }
-                readOnly
-              />
-
-              <Field
-                label="4-digit PIN"
-                value={
-                  form.pin
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "pin",
-                    e.target.value
-                      .replace(
-                        /\D/g,
-                        ""
-                      )
-                      .slice(
-                        0,
-                        4
-                      )
-                  )
-                }
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-              />
-            </>
-          )}
-
-          {/* =================================================
-              ELECTRICITY
-          ================================================ */}
-
-          {tab === "electricity" && (
-            <>
-              <h2>
-                ⚡ Electricity
-              </h2>
-
-              <label className="field">
-                <span>
-                  Electricity Company
-                </span>
-
-                <select
-                  className="input"
-                  value={
-                    form.provider
-                  }
-                  onChange={(e) =>
-                    update(
-                      "provider",
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="">
-                    {electricityProviders.length ===
-                    0
-                      ? "No electricity companies available"
-                      : "Select electricity company"}
-                  </option>
-
-                  {electricityProviders.map(
-                    (
-                      provider: any,
-                      index
-                    ) => {
-                      const code =
-                        String(
-                          provider?.provider_code ??
-                            ""
-                        ).trim();
-
-                      const name =
-                        String(
-                          provider?.name ??
-                            ""
-                        ).trim();
-
-                      if (
-                        !code ||
-                        !name
-                      ) {
-                        return null;
-                      }
-
-                      return (
-                        <option
-                          key={`electricity-${code}-${index}`}
-                          value={code}
-                        >
-                          {name}
-                        </option>
-                      );
+              {networkOptions.map(
+                (network) => (
+                  <option
+                    key={
+                      network.id
                     }
-                  )}
-                </select>
-              </label>
-
-              <label className="field">
-                <span>
-                  Meter type
-                </span>
-
-                <select
-                  className="input"
-                  value={
-                    form.metertype
-                  }
-                  onChange={(e) =>
-                    update(
-                      "metertype",
-                      e.target.value
-                    )
-                  }
-                >
-                  <option value="prepaid">
-                    Prepaid
+                    value={
+                      network.id
+                    }
+                  >
+                    {
+                      network.name
+                    }
                   </option>
+                )
+              )}
+            </select>
+          </label>
 
-                  <option value="postpaid">
-                    Postpaid
+          {/* SERVICE TYPE */}
+
+          <label className="field">
+            <span>
+              Service type
+            </span>
+
+            <select
+              className="input"
+              value={
+                serviceType
+              }
+              disabled={
+                !form.network
+              }
+              onChange={(e) => {
+                setServiceType(
+                  e.target.value
+                );
+
+                update(
+                  "data_plan",
+                  ""
+                );
+
+                update(
+                  "amount",
+                  ""
+                );
+              }}
+            >
+              <option value="">
+                {!form.network
+                  ? "Select a network first"
+                  : "Select service type"}
+              </option>
+
+              {serviceTypes.map(
+                (type) => (
+                  <option
+                    key={type}
+                    value={type}
+                  >
+                    {type}
                   </option>
-                </select>
-              </label>
+                )
+              )}
+            </select>
+          </label>
 
-              <Field
-                label="Meter number"
-                value={
-                  form.meternumber
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "meternumber",
-                    e.target.value
-                  )
-                }
-                placeholder="1111111111111"
-                inputMode="numeric"
-              />
+          {/* DATA PLAN */}
 
-              <button
-                className="btn"
-                type="button"
-                onClick={
-                  verifyElectricity
-                }
-                disabled={loading}
-              >
-                {loading
-                  ? "Verifying..."
-                  : "Verify meter"}
-              </button>
+          <label className="field">
+            <span>
+              Data plan
+            </span>
 
-              <Field
-                label="Phone number"
-                value={
-                  form.phone
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "phone",
-                    e.target.value
-                  )
-                }
-                placeholder="08143140831"
-                inputMode="numeric"
-              />
+            <select
+              className="input"
+              value={
+                form.data_plan
+              }
+              disabled={
+                !form.network ||
+                !serviceType
+              }
+              onChange={(e) => {
+                const selectedId =
+                  e.target.value;
 
-              <Field
-                label="Amount (₦)"
-                value={
-                  form.amount
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "amount",
-                    e.target.value
-                  )
-                }
-                type="number"
-                min="100"
-              />
+                update(
+                  "data_plan",
+                  selectedId
+                );
 
-              <Field
-                label="4-digit PIN"
-                value={
-                  form.pin
-                }
-                onChange={(
-                  e: any
-                ) =>
-                  update(
-                    "pin",
-                    e.target.value
-                      .replace(
-                        /\D/g,
-                        ""
+                const plan =
+                  dataPlans.find(
+                    (item) =>
+                      item.key ===
+                      selectedId
+                  );
+
+                update(
+                  "amount",
+                  plan?.price
+                    ? String(
+                        plan.price
                       )
-                      .slice(
-                        0,
-                        4
-                      )
+                    : ""
+                );
+              }}
+            >
+              <option value="">
+                {!form.network
+                  ? "Select a network first"
+                  : !serviceType
+                  ? "Select a service type first"
+                  : "Select a plan"}
+              </option>
+
+              {dataPlans
+                .filter(
+                  (plan) =>
+                    plan.networkId ===
+                      String(
+                        form.network
+                      ) &&
+                    plan.type ===
+                      serviceType
+                )
+                .map(
+                  (plan) => (
+                    <option
+                      key={
+                        plan.key
+                      }
+                      value={
+                        plan.key
+                      }
+                    >
+                      {plan.name.trim()}
+                      {" — ₦"}
+                      {plan.price.toLocaleString()}
+                      {" — "}
+                      {plan.days}
+                    </option>
                   )
-                }
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-              />
-            </>
-          )}
+                )}
+            </select>
+          </label>
 
-          {/* =================================================
-              CABLE TV
-          ================================================ */}
+          {/* PHONE */}
 
-          {tab === "cable" && (
-  <>
-    <h2>📺 Cable TV</h2>
-
-    {/* PROVIDER */}
-    <label className="field">
-      <span>Provider</span>
-
-      <select
-        className="input"
-        value={form.provider}
-        onChange={e => {
-          const provider = e.target.value;
-
-          update("provider", provider);
-          update("plan", "");
-          update("amount", "");
-
-          if (provider) {
-            loadCablePlans(provider);
-          } else {
-            setCablePlans([]);
-          }
-        }}
-        disabled={loading && cableProviders.length === 0}
-      >
-        <option value="">
-          {cableProviders.length === 0
-            ? "No cable providers available"
-            : "Select provider"}
-        </option>
-
-        {cableProviders.map(
-          (provider: any, index: number) => {
-            const providerCode = String(
-              provider?.provider_code ?? ""
-            ).trim();
-
-            const providerName = String(
-              provider?.name ?? ""
-            ).trim();
-
-            if (!providerCode || !providerName) {
-              return null;
+          <Field
+            label="Phone number"
+            value={
+              form.phone
             }
-
-            return (
-              <option
-                key={`cable-provider-${providerCode}-${index}`}
-                value={providerCode}
-              >
-                {providerName}
-              </option>
-            );
-          }
-        )}
-      </select>
-    </label>
-
-    {/* IUC / SMART CARD */}
-    <Field
-      label="IUC / Smart-card number"
-      value={form.iucnumber}
-      onChange={(e: any) =>
-        update(
-          "iucnumber",
-          e.target.value
-        )
-      }
-      placeholder="1212121212"
-      inputMode="numeric"
-    />
-
-    {/* VERIFY IUC */}
-    <button
-      className="btn"
-      type="button"
-      onClick={verifyCable}
-      disabled={
-        loading ||
-        !form.provider ||
-        !form.iucnumber
-      }
-    >
-      {loading
-        ? "Verifying..."
-        : "Verify IUC"}
-    </button>
-
-    {/* CABLE PLAN */}
-    <label className="field">
-      <span>Plan</span>
-
-      <select
-        className="input"
-        value={form.plan}
-        disabled={
-          !form.provider ||
-          loading ||
-          cablePlans.length === 0
-        }
-        onChange={e => {
-          const selectedPlan =
-            e.target.value;
-
-          update(
-            "plan",
-            selectedPlan
-          );
-
-          const selectedPackage =
-            cablePlans.find(
-              (p: any) =>
-                String(
-                  p?.package_code ?? ""
-                ) ===
-                String(selectedPlan)
-            );
-
-          update(
-  "amount",
-  selectedPackage
-    ? customerPrice(
-        Number(
-          selectedPackage?.price ?? 0
-        ),
-        "cable"
-      )
-    : ""
-);
-        }}
-      >
-        <option value="">
-          {!form.provider
-            ? "Select provider first"
-            : loading
-            ? "Loading cable plans..."
-            : cablePlans.length === 0
-            ? "No cable plans available"
-            : "Select cable plan"}
-        </option>
-
-        {cablePlans.map(
-          (
-            plan: any,
-            index: number
-          ) => {
-            const code = String(
-              plan?.package_code ?? ""
-            ).trim();
-
-            const planName = String(
-              plan?.package_name ??
-                "Cable plan"
-            ).trim();
-
-            const cost = Number(
-  plan?.price ?? 0
-);
-
-const price = customerPrice(
-  cost,
-  "cable"
-);
-
-            if (!code) {
-              return null;
+            onChange={(
+              e: any
+            ) =>
+              update(
+                "phone",
+                e.target.value
+                  .replace(
+                    /\D/g,
+                    ""
+                  )
+                  .slice(
+                    0,
+                    11
+                  )
+              )
             }
+            placeholder="08143140831"
+            type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
+            maxLength={11}
+          />
 
-            return (
-              <option
-                key={`cable-plan-${code}-${index}`}
-                value={code}
-              >
-                {planName}
-                {" — ₦"}
-                {price.toLocaleString()}
-              </option>
-            );
-          }
-        )}
-      </select>
-    </label>
+          {/* AMOUNT */}
 
-    {/* AMOUNT */}
-    <Field
-      label="Amount (₦)"
-      value={form.amount}
-      readOnly
-    />
-
-    {/* PHONE */}
-    <Field
-      label="Phone number"
-      name="phone"
-      value={form.phone || ""}
-      onChange={(e: any) =>
-        update(
-          "phone",
-          e.target.value.replace(/\D/g, "").slice(0, 11)
-        )
-      }
-      placeholder="08143140831"
-      type="tel"
-  inputMode="numeric"
-  autoComplete="tel"
-    />
-
-    {/* SUBSCRIPTION TYPE */}
-    <label className="field">
-      <span>Subscription type</span>
-
-      <select
-        className="input"
-        value={form.subtype}
-        onChange={e =>
-          update(
-            "subtype",
-            e.target.value
-          )
-        }
-      >
-        <option value="renewal">
-          Renewal
-        </option>
-
-        <option value="new">
-          New
-        </option>
-      </select>
-    </label>
-
-    {/* PIN */}
-    <Field
-      label="4-digit PIN"
-      value={form.pin}
-      onChange={(e: any) =>
-        update(
-          "pin",
-          e.target.value
-            .replace(/\D/g, "")
-            .slice(0, 4)
-        )
-      }
-      type="password"
-      inputMode="numeric"
-      maxLength={4}
-    />
-  </>
-)}
-
-          {/* =================================================
-              EDUCATION
-          ================================================ */}
-
-          {tab === "education" && (
-  <>
-    <h2>🎓 Education / Exam PIN</h2>
-
-    {/* EDUCATION PRODUCT / PROVIDER */}
-    <label className="field">
-      <span>Education product</span>
-
-      <select
-        className="input"
-        value={form.examProvider}
-        onChange={async (e) => {
-          const provider = e.target.value;
-
-          update("examProvider", provider);
-          update("plan", "");
-          update("amount", "");
-
-          if (!provider) {
-            setEducationPlans([]);
-            return;
-          }
-
-          await loadEducationPlans(provider);
-        }}
-        disabled={loading}
-      >
-        <option value="">
-          {educationProviders.length === 0
-            ? "No education products available"
-            : "Select education product"}
-        </option>
-
-        {educationProviders.map(
-          (provider: any, index: number) => {
-            const providerCode = String(
-              provider?.provider_code ?? ""
-            ).trim();
-
-            const providerName = String(
-              provider?.name ?? ""
-            ).trim();
-
-            if (!providerCode || !providerName) {
-              return null;
+          <Field
+            label="Amount (₦)"
+            value={
+              form.amount
             }
+            readOnly
+          />
 
-            return (
-              <option
-                key={`education-provider-${providerCode}-${index}`}
-                value={providerCode}
-              >
-                {providerName}
-              </option>
-            );
-          }
-        )}
-      </select>
-    </label>
+          {/* PIN */}
 
-    {/* EDUCATION PACKAGE */}
-    <label className="field">
-      <span>Package</span>
-
-      <select
-        className="input"
-        value={form.plan}
-        disabled={
-          !form.examProvider ||
-          loading ||
-          educationPlans.length === 0
-        }
-        onChange={(e) => {
-          const packageCode = e.target.value;
-
-          update("plan", packageCode);
-
-          const selectedPackage =
-            educationPlans.find(
-              (item: any) =>
-                String(item?.package_code ?? "") ===
-                String(packageCode)
-            );
-
-          update(
-            "amount",
-            selectedPackage?.price ?? ""
-          );
-        }}
-      >
-        <option value="">
-          {!form.examProvider
-            ? "Select education product first"
-            : loading
-            ? "Loading packages..."
-            : educationPlans.length === 0
-            ? "No packages available"
-            : "Select package"}
-        </option>
-
-        {educationPlans.map(
-          (item: any, index: number) => {
-            const packageCode = String(
-              item?.package_code ?? ""
-            ).trim();
-
-            const packageName = String(
-              item?.package_name ??
-                item?.name ??
-                "Education package"
-            ).trim();
-
-            const cost = Number(
-  item?.price ?? 0
-);
-
-const price = customerPrice(
-  cost,
-  "education"
-);
-
-            if (!packageCode) {
-              return null;
+          <Field
+            label="4-digit PIN"
+            value={
+              form.pin
             }
+            onChange={(
+              e: any
+            ) =>
+              update(
+                "pin",
+                e.target.value
+                  .replace(
+                    /\D/g,
+                    ""
+                  )
+                  .slice(
+                    0,
+                    4
+                  )
+              )
+            }
+            type="password"
+            inputMode="numeric"
+            maxLength={4}
+            autoComplete="off"
+          />
 
-            return (
-              <option
-                key={`education-package-${packageCode}-${index}`}
-                value={packageCode}
-              >
-                {packageName} — ₦
-                {price.toLocaleString()}
-              </option>
-            );
-          }
-        )}
-      </select>
-    </label>
-
-    {/* PHONE NUMBER */}
-    <Field
-      label="Phone number"
-      name="phone"
-      value={form.phone || ""}
-      onChange={(e: any) =>
-        update("phone", e.target.value
-  .replace(/\D/g, "")
-  .slice(0, 11)
-	)
-      }
-      placeholder="08143140831"
-      type="tel"
-  inputMode="numeric"
-  autoComplete="tel"
-    />
-
-    {/* QUANTITY */}
-    <Field
-      label="Quantity"
-      value={form.quantity}
-      onChange={(e: any) =>
-        update("quantity", e.target.value)
-      }
-      type="number"
-      min="1"
-      max="20"
-    />
-
-    {/* AMOUNT */}
-    <div className="field">
-  <span>Amount</span>
-
-  <div className="input">
-    ₦{" "}
-    {customerPrice(
-      Number(
-        educationPlans.find(
-          (item: any) =>
-            String(
-              item?.package_code ?? ""
-            ) ===
-            String(form.plan)
-        )?.price ?? 0
-      ),
-      "education"
-    ) *
-      (Number(form.quantity) || 1)}
-  </div>
-</div>
-
-    {/* PIN */}
-    <Field
-      label="4-digit PIN"
-      value={form.pin}
-      onChange={(e: any) =>
-        update(
-          "pin",
-          e.target.value
-            .replace(/\D/g, "")
-            .slice(0, 4)
-        )
-      }
-      type="password"
-      inputMode="numeric"
-      maxLength={4}
-    />
-  </>
-)}
-
-          {/* =================================================
-              PURCHASE BUTTON
-          ================================================ */}
+          {/* PURCHASE BUTTON */}
 
           <button
             className="btn primary buy"
             type="button"
             onClick={buy}
-            disabled={loading}
+            disabled={
+              loading ||
+              !form.network ||
+              !form.data_plan ||
+              !form.phone ||
+              form.pin.length !== 4
+            }
           >
             {loading
               ? "Processing..."
@@ -2206,7 +943,7 @@ const price = customerPrice(
 
         {/* =================================================
             SIDE PANEL
-        ================================================ */}
+        ================================================= */}
 
         <aside className="card side">
 
@@ -2214,16 +951,154 @@ const price = customerPrice(
             Security
           </h3>
 
-            <a
+          <a
             className="btn"
             href="/forgot-pin"
           >
             Forgot PIN?
           </a>
 
-          </aside>
+        </aside>
 
       </div>
-    </main>
+   {receipt && (
+  <div
+    style={{
+      position: "fixed",
+      inset: 0,
+      zIndex: 9999,
+      background: "rgba(0,0,0,.65)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 16,
+    }}
+  >
+    <div
+      style={{
+        width: "100%",
+        maxWidth: 500,
+        maxHeight: "90vh",
+        overflowY: "auto",
+        background: "#fff",
+        borderRadius: 18,
+        padding: 24,
+      }}
+    >
+      <h2 style={{ marginTop: 0 }}>
+        Transaction Receipt
+      </h2>
+
+      <h3>
+        {receipt.status === "SUCCESS"
+          ? "✅ Transaction Successful"
+          : receipt.status === "FAILED"
+          ? "❌ Transaction Failed"
+          : "⏳ Transaction Processing"}
+      </h3>
+
+      <p>
+        <strong>Service:</strong>{" "}
+        Mobile Data
+      </p>
+
+      <p>
+        <strong>Network:</strong>{" "}
+        {receipt.network}
+      </p>
+
+      <p>
+        <strong>Data Plan:</strong>{" "}
+        {receipt.plan}
+      </p>
+
+      <p>
+        <strong>Plan Type:</strong>{" "}
+        {receipt.planType}
+      </p>
+
+      <p>
+        <strong>Validity:</strong>{" "}
+        {receipt.days}
+      </p>
+
+      <p>
+        <strong>Phone:</strong>{" "}
+        {receipt.phone}
+      </p>
+
+      <p>
+        <strong>Amount:</strong>{" "}
+        ₦{Number(
+          receipt.amount || 0
+        ).toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+        })}
+      </p>
+
+      <p>
+        <strong>Reference:</strong>{" "}
+        {receipt.reference || "—"}
+      </p>
+
+      <p>
+        <strong>Status:</strong>{" "}
+        {receipt.status}
+      </p>
+
+      {receipt.message && (
+        <p>
+          <strong>Message:</strong>{" "}
+          {receipt.message}
+        </p>
+      )}
+
+      {receipt.refunded && (
+        <p>
+          <strong>Refund:</strong>{" "}
+          Wallet refunded
+        </p>
+      )}
+
+      <p>
+        <strong>Date:</strong>{" "}
+        {receipt.createdAt}
+      </p>
+
+      <button
+        type="button"
+        className="btn primary"
+        onClick={() =>
+          setReceipt(null)
+        }
+        style={{
+          width: "100%",
+          marginTop: 12,
+        }}
+      >
+        Close Receipt
+      </button>
+
+      {receipt.reference && (
+        <a
+          href={`/dashboard/transactions/${encodeURIComponent(
+            receipt.reference
+          )}`}
+          className="btn"
+          style={{
+            display: "block",
+            width: "100%",
+            textAlign: "center",
+            marginTop: 10,
+          }}
+        >
+          View Full Receipt
+        </a>
+      )}
+    </div>
+  </div>
+)}
+
+</main>
   );
 }

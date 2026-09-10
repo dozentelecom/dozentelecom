@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-type GiftType = "AIRTIME" | "DATA";
+type GiftType = "DATA";
 
 type DataPlan = {
   id: string;
@@ -28,18 +28,16 @@ function money(value: number) {
 }
 
 export default function GiveawayPage() {
-  const [type, setType] = useState<GiftType>("AIRTIME");
+  const [type] = useState<GiftType>("DATA");
 
   const [plans, setPlans] = useState<DataPlan[]>([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
 
   const [dataMarkup, setDataMarkup] = useState(0);
-  const [airtimeRoundUnit, setAirtimeRoundUnit] = useState(10);
 
   const [network, setNetwork] = useState("");
   const [serviceType, setServiceType] = useState("");
   const [dataPlan, setDataPlan] = useState("");
-  const [amount, setAmount] = useState("");
   const [recipientLimit, setRecipientLimit] = useState("");
   const [pin, setPin] = useState("");
 
@@ -162,7 +160,7 @@ export default function GiveawayPage() {
 
   /*
    * =========================================================
-   * LOAD ADMIN PRICING
+   * LOAD ADMIN DATA PRICING
    * =========================================================
    */
 
@@ -187,15 +185,6 @@ export default function GiveawayPage() {
 
       setDataMarkup(
         Number(pricing?.dataMarkup ?? 0)
-      );
-
-      setAirtimeRoundUnit(
-        Math.max(
-          1,
-          Number(
-            pricing?.airtimeRoundUnit ?? 10
-          )
-        )
       );
     } catch (err) {
       console.error(
@@ -308,29 +297,6 @@ export default function GiveawayPage() {
 
   /*
    * =========================================================
-   * AIRTIME PRICE
-   * =========================================================
-   */
-
-  const airtimePrice = useMemo(() => {
-    const value = Number(amount);
-
-    if (
-      !Number.isFinite(value) ||
-      value <= 0
-    ) {
-      return 0;
-    }
-
-    return (
-      Math.ceil(
-        value / airtimeRoundUnit
-      ) * airtimeRoundUnit
-    );
-  }, [amount, airtimeRoundUnit]);
-
-  /*
-   * =========================================================
    * CREATE GIVEAWAY
    * =========================================================
    */
@@ -346,24 +312,8 @@ export default function GiveawayPage() {
         return;
       }
 
-      if (
-        type === "AIRTIME" &&
-        (!amount ||
-          Number(amount) <= 0)
-      ) {
-        setError(
-          "Enter a valid airtime amount."
-        );
-        return;
-      }
-
-      if (
-        type === "DATA" &&
-        !dataPlan
-      ) {
-        setError(
-          "Select a data plan."
-        );
+      if (!dataPlan) {
+        setError("Select a data plan.");
         return;
       }
 
@@ -402,19 +352,11 @@ export default function GiveawayPage() {
               "application/json",
           },
           body: JSON.stringify({
-            type,
+            type: "DATA",
 
             network: Number(network),
 
-            amount:
-              type === "AIRTIME"
-                ? Number(amount)
-                : undefined,
-
-            data_plan:
-              type === "DATA"
-                ? Number(dataPlan)
-                : undefined,
+            data_plan: Number(dataPlan),
 
             recipientLimit:
               Number(recipientLimit),
@@ -450,7 +392,7 @@ export default function GiveawayPage() {
       setGiftLink(link);
 
       setMessage(
-        "🎉 Giveaway created successfully!"
+        "🎉 Data giveaway created successfully!"
       );
 
       setPin("");
@@ -507,13 +449,12 @@ export default function GiveawayPage() {
 
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-white sm:text-3xl">
-              Create Giveaway
+              Create Data Giveaway
             </h1>
 
             <p className="mt-1.5 max-w-2xl text-sm leading-6 text-slate-400">
-              Send Airtime or Data to multiple
-              recipients through one secure
-              giveaway link.
+              Send Data to multiple recipients
+              through one secure giveaway link.
             </p>
           </div>
         </div>
@@ -526,92 +467,36 @@ export default function GiveawayPage() {
 
             {/* GIFT TYPE */}
 
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="mb-7">
+              <div className="rounded-2xl border border-blue-500 bg-blue-500/10 p-4 shadow-[0_0_0_1px_rgba(59,130,246,0.25)] sm:p-5">
 
-              {/* AIRTIME */}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setType("AIRTIME");
-                  setDataPlan("");
-                  setServiceType("");
-                }}
-                className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
-                  type === "AIRTIME"
-                    ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
-                    : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
-                      type === "AIRTIME"
-                        ? "bg-blue-500/15"
-                        : "bg-slate-800"
-                    }`}
-                  >
-                    📱
-                  </div>
-
-                  {type === "AIRTIME" && (
-                    <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
-                      Selected
-                    </span>
-                  )}
-                </div>
-
-                <div className="mt-3 sm:mt-4">
-                  <div className="truncate text-sm font-semibold text-white sm:text-base">
-                    Airtime
-                  </div>
-                </div>
-              </button>
-
-              {/* DATA */}
-
-              <button
-                type="button"
-                onClick={() => {
-                  setType("DATA");
-                  setAmount("");
-                }}
-                className={`min-w-0 rounded-2xl border p-3 text-left transition-all duration-200 sm:p-5 ${
-                  type === "DATA"
-                    ? "border-blue-500 bg-blue-500/10 shadow-[0_0_0_1px_rgba(59,130,246,0.25)]"
-                    : "border-slate-700 bg-slate-950/50 hover:border-slate-600 hover:bg-slate-800/70"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-lg sm:h-11 sm:w-11 sm:text-xl ${
-                      type === "DATA"
-                        ? "bg-blue-500/15"
-                        : "bg-slate-800"
-                    }`}
-                  >
+                <div className="flex items-center gap-3">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-xl">
                     🌐
                   </div>
 
-                  {type === "DATA" && (
-                    <span className="hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
-                      Selected
-                    </span>
-                  )}
-                </div>
+                  <div>
+                    <div className="text-sm font-semibold text-white sm:text-base">
+                      Data
+                    </div>
 
-                <div className="mt-3 sm:mt-4">
-                  <div className="truncate text-sm font-semibold text-white sm:text-base">
-                    Data
+                    <p className="mt-1 text-xs text-slate-400">
+                      Create a giveaway for a selected
+                      mobile data plan.
+                    </p>
                   </div>
-                </div>
-              </button>
 
+                  <span className="ml-auto hidden rounded-full bg-blue-500/15 px-2 py-1 text-[9px] font-semibold uppercase tracking-wide text-blue-400 sm:inline-flex">
+                    Selected
+                  </span>
+                </div>
+
+              </div>
             </div>
 
             {/* NETWORK */}
 
-            <div className="mb-7 mt-7">
+            <div className="mb-7">
               <label className="mb-2 block text-sm font-semibold text-slate-200">
                 Network
               </label>
@@ -658,199 +543,139 @@ export default function GiveawayPage() {
 
               <div className="space-y-5">
 
-                {/* AIRTIME */}
+                {/* DATA SERVICE */}
 
-                {type === "AIRTIME" && (
+                {serviceTypes.length > 0 && (
                   <div>
                     <label className="mb-2 block text-sm font-bold text-slate-100">
-                      Airtime Amount (₦)
+                      Data Service
                     </label>
 
                     <div className="relative">
-                      <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-500">
-                        ₦
-                      </span>
-
-                      <input
-                        type="number"
-                        min="1"
-                        placeholder="100"
-                        value={amount}
-                        onChange={(e) =>
-                          setAmount(
+                      <select
+                        value={serviceType}
+                        onChange={(e) => {
+                          setServiceType(
                             e.target.value
+                          );
+                          setDataPlan("");
+                        }}
+                        className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">
+                          All available services
+                        </option>
+
+                        {serviceTypes.map(
+                          (service) => (
+                            <option
+                              key={service}
+                              value={service}
+                            >
+                              {service}
+                            </option>
                           )
-                        }
-                        className="h-[52px] w-full rounded-xl border-none bg-[#eef2ff] pl-10 pr-4 text-base font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:ring-2 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {airtimePrice > 0 && (
-                      <div className="mt-3 rounded-xl border border-blue-500/20 bg-blue-500/10 p-3">
-
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="text-xs text-slate-400">
-                              Amount per recipient
-                            </p>
-
-                            <p className="mt-1 text-lg font-bold text-white">
-                              {money(
-                                airtimePrice
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-lg">
-                            💰
-                          </div>
-                        </div>
-
-                        {airtimePrice !==
-                          Number(amount) && (
-                          <p className="mt-2 border-t border-blue-500/10 pt-2 text-xs leading-5 text-slate-400">
-                            Rounded using your
-                            configured airtime
-                            unit of{" "}
-                            <span className="font-semibold text-slate-300">
-                              {money(
-                                airtimeRoundUnit
-                              )}
-                            </span>
-                            .
-                          </p>
                         )}
+                      </select>
 
-                      </div>
-                    )}
+                      <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                        ▼
+                      </span>
+                    </div>
                   </div>
                 )}
 
-                {/* DATA */}
+                {/* DATA PLAN */}
 
-                {type === "DATA" && (
-                  <>
-                    {/* DATA SERVICE */}
+                <div>
+                  <label className="mb-2 block text-sm font-bold text-slate-100">
+                    Data Plan
+                  </label>
 
-                    {serviceTypes.length > 0 && (
-                      <div>
-                        <label className="mb-2 block text-sm font-bold text-slate-100">
-                          Data Service
-                        </label>
+                  <div className="relative">
+                    <select
+                      value={dataPlan}
+                      disabled={
+                        loadingPlans ||
+                        !network
+                      }
+                      onChange={(e) =>
+                        setDataPlan(
+                          e.target.value
+                        )
+                      }
+                      className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:opacity-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">
+                        {loadingPlans
+                          ? "Loading data plans..."
+                          : !network
+                          ? "Select a network first"
+                          : "Select a data plan"}
+                      </option>
 
-                        <div className="relative">
-                          <select
-                            value={serviceType}
-                            onChange={(e) => {
-                              setServiceType(
-                                e.target.value
-                              );
-                              setDataPlan("");
-                            }}
-                            className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition focus:bg-white focus:ring-2 focus:ring-blue-500"
+                      {filteredPlans.map(
+                        (plan) => (
+                          <option
+                            key={plan.id}
+                            value={plan.id}
                           >
-                            <option value="">
-                              All available
-                              services
-                            </option>
-
-                            {serviceTypes.map(
-                              (service) => (
-                                <option
-                                  key={service}
-                                  value={service}
-                                >
-                                  {service}
-                                </option>
+                            {plan.name}
+                            {" — "}
+                            {money(
+                              percentPrice(
+                                plan.price,
+                                dataMarkup
                               )
                             )}
-                          </select>
-
-                          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-                            ▼
-                          </span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* DATA PLAN */}
-
-                    <div>
-                      <label className="mb-2 block text-sm font-bold text-slate-100">
-                        Data Plan
-                      </label>
-
-                      <div className="relative">
-                        <select
-                          value={dataPlan}
-                          disabled={
-                            loadingPlans ||
-                            !network
-                          }
-                          onChange={(e) =>
-                            setDataPlan(
-                              e.target.value
-                            )
-                          }
-                          className="h-[52px] w-full appearance-none rounded-xl border-none bg-[#eef2ff] px-4 pr-10 text-sm font-semibold text-slate-900 outline-none transition disabled:cursor-not-allowed disabled:opacity-50 focus:bg-white focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">
-                            {loadingPlans
-                              ? "Loading data plans..."
-                              : !network
-                              ? "Select a network first"
-                              : "Select a data plan"}
+                            {plan.days
+                              ? ` — ${plan.days}`
+                              : ""}
                           </option>
+                        )
+                      )}
+                    </select>
 
-                          {filteredPlans.map(
-                            (plan) => (
-                              <option
-                                key={plan.id}
-                                value={plan.id}
-                              >
-                                {plan.name}
-                                {" — "}
-                                {money(
-                                  percentPrice(
-                                    plan.price,
-                                    dataMarkup
-                                  )
-                                )}
-                              </option>
-                            )
-                          )}
-                        </select>
+                    <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                      ▼
+                    </span>
+                  </div>
 
-                        <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs text-slate-500">
-                          ▼
-                        </span>
-                      </div>
-
-                      {loadingPlans &&
-                        network && (
-                          <p className="mt-2 text-xs text-blue-400">
-                            Loading available
-                            plans...
-                          </p>
-                        )}
-                    </div>
-
-                    {/* SELECTED DATA PLAN */}
-
-                    {selectedPlan && (
-                      <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-4">
-
-                        <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                          Selected Gift
-                        </p>
-
-                        <p className="mt-1 text-base font-bold text-white">
-                          {selectedPlan.name}
-                        </p>
-
-                      </div>
+                  {loadingPlans &&
+                    network && (
+                      <p className="mt-2 text-xs text-blue-400">
+                        Loading available
+                        plans...
+                      </p>
                     )}
-                  </>
+                </div>
+
+                {/* SELECTED DATA PLAN */}
+
+                {selectedPlan && (
+                  <div className="rounded-xl border border-blue-500/20 bg-blue-500/10 px-4 py-4">
+
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                      Selected Gift
+                    </p>
+
+                    <p className="mt-1 text-base font-bold text-white">
+                      {selectedPlan.name}
+                    </p>
+
+                    <p className="mt-1 text-sm text-blue-400">
+                      {money(
+                        percentPrice(
+                          selectedPlan.price,
+                          dataMarkup
+                        )
+                      )}
+                      {selectedPlan.days
+                        ? ` • ${selectedPlan.days}`
+                        : ""}
+                    </p>
+
+                  </div>
                 )}
 
                 {/* NUMBER OF RECIPIENTS */}
@@ -912,9 +737,7 @@ export default function GiveawayPage() {
 
                 {/* SUMMARY */}
 
-                {(type === "AIRTIME"
-                  ? airtimePrice > 0
-                  : !!selectedPlan) && (
+                {selectedPlan && (
                   <div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
 
                     <div className="mb-4">
@@ -923,7 +746,7 @@ export default function GiveawayPage() {
                       </p>
 
                       <p className="mt-1 text-xs text-slate-500">
-                        Review your giveaway
+                        Review your data giveaway
                         before creating it.
                       </p>
                     </div>
@@ -936,11 +759,22 @@ export default function GiveawayPage() {
                         </span>
 
                         <span className="text-right font-semibold text-slate-200">
-                          {type === "AIRTIME"
-                            ? `${money(
-                                airtimePrice
-                              )} Airtime`
-                            : selectedPlan?.name}
+                          {selectedPlan.name}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-slate-500">
+                          Price per recipient
+                        </span>
+
+                        <span className="font-semibold text-slate-200">
+                          {money(
+                            percentPrice(
+                              selectedPlan.price,
+                              dataMarkup
+                            )
+                          )}
                         </span>
                       </div>
 
@@ -970,29 +804,21 @@ export default function GiveawayPage() {
                           </div>
 
                           <p className="text-xl font-bold text-blue-400">
-                            {type === "AIRTIME"
-                              ? money(
-                                  airtimePrice *
-                                    Number(
-                                      recipientLimit ||
-                                        0
-                                    )
+                            {money(
+                              percentPrice(
+                                Number(
+                                  selectedPlan.price ||
+                                    0
+                                ),
+                                Number(
+                                  dataMarkup || 0
                                 )
-                              : money(
-                                  percentPrice(
-                                    Number(
-                                      selectedPlan?.price ||
-                                        0
-                                    ),
-                                    Number(
-                                      dataMarkup || 0
-                                    )
-                                  ) *
-                                    Number(
-                                      recipientLimit ||
-                                        0
-                                    )
-                                )}
+                              ) *
+                                Number(
+                                  recipientLimit ||
+                                    0
+                                )
+                            )}
                           </p>
 
                         </div>
@@ -1069,7 +895,7 @@ export default function GiveawayPage() {
                   ) : (
                     <>
                       🎁
-                      Create Giveaway
+                      Create Data Giveaway
                     </>
                   )}
                 </button>
@@ -1129,7 +955,7 @@ export default function GiveawayPage() {
                   <p>
                     Recipients only need to enter
                     their phone number to claim
-                    their gift.
+                    their Data gift.
                   </p>
 
                 </div>

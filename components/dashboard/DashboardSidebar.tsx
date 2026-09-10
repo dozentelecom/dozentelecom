@@ -5,32 +5,12 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const services = [
-  {
-    name: "Airtime",
-    href: "/dashboard/services?service=airtime",
-    icon: "📱",
-  },
-  {
+    {
     name: "Data",
     href: "/dashboard/services?service=data",
     icon: "📶",
   },
-  {
-    name: "Electricity",
-    href: "/dashboard/services?service=electricity",
-    icon: "⚡",
-  },
-  {
-    name: "Cable TV",
-    href: "/dashboard/services?service=cable",
-    icon: "📺",
-  },
-  {
-    name: "Education / Exam PIN",
-    href: "/dashboard/services?service=education",
-    icon: "🎓",
-  },
-  {
+    {
     name: "Airtime to Cash",
     href: "/dashboard/airtime-to-cash",
     icon: "💸",

@@ -318,10 +318,7 @@ export default async function Dashboard() {
         <div className="service-card-grid">
 
           {[
-            ["Airtime", "📱"],
             ["Data", "📶"],
-            ["Electricity", "⚡"],
-            ["Education", "🎓"],
             ["Airtime to Cash", "💸"],
             ["Giveaway", "🎁"],
           ].map(([x, icon]) => (
