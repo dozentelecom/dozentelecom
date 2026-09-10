@@ -9,12 +9,12 @@ declare global {
   }
 }
 
-interface InstallStateEvent extends CustomEvent {
-  detail?: {
-    available?: boolean;
-    installed?: boolean;
-  };
+interface InstallStateDetail {
+  available?: boolean;
+  installed?: boolean;
 }
+
+type InstallStateEvent = CustomEvent<InstallStateDetail>;
 
 export default function FloatingActions() {
   const [showInstallHelp, setShowInstallHelp] =
