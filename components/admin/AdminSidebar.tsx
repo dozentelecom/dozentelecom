@@ -291,60 +291,58 @@ export default function AdminSidebar() {
           </Link>
 
           {/* PROFIT & WITHDRAW */}
-          <Link
-            href="/admin/profit"
-            className={`admin-sidebar-link ${
-              pathname.startsWith(
-                "/admin/profit"
-              )
-                ? "active"
-                : ""
-            }`}
-            title="Profit & Withdraw"
-          >
-            <span className="admin-sidebar-icon">
-              💰
-            </span>
+<Link
+  href="/admin/profit"
+  className={`admin-sidebar-link ${
+    pathname.startsWith("/admin/profit")
+      ? "active"
+      : ""
+  }`}
+  title="Profit & Withdraw"
+>
+  <span className="admin-sidebar-icon">
+    💰
+  </span>
 
-            {open && (
-              <span>
-                Profit & Withdraw
-              </span>
-            )}
-          </Link>
+  {open && (
+    <span>
+      Profit & Withdraw
+    </span>
+  )}
+</Link>
 
-        </nav>
+{/* LOGOUT */}
+<a
+  href="/api/auth/logout"
+  className="admin-sidebar-link admin-logout"
+  title="Logout"
+>
+  <span className="admin-sidebar-icon">
+    🚪
+  </span>
 
-        {/* LOGOUT */}
-        <div className="admin-sidebar-bottom">
-          <a
-            href="/api/auth/logout"
-            className="admin-sidebar-link admin-logout"
-            title="Logout"
-          >
-            <span className="admin-sidebar-icon">
-              🚪
-            </span>
+  {open && (
+    <span>
+      Logout
+    </span>
+  )}
+</a>
 
-            {open && (
-              <span>
-                Logout
-              </span>
-            )}
-          </a>
-        </div>
-      </aside>
+</nav>
 
-      {!open && (
-        <button
-          type="button"
-          className="admin-sidebar-open"
-          onClick={() => setOpen(true)}
-          aria-label="Open admin sidebar"
-        >
-          ☰
-        </button>
-      )}
-    </>
-  );
+</aside>
+
+{!open && (
+  <button
+    type="button"
+    className="admin-sidebar-open"
+    onClick={() => setOpen(true)}
+    aria-label="Open admin sidebar"
+  >
+    ☰
+  </button>
+)}
+
+</>
+);
 }

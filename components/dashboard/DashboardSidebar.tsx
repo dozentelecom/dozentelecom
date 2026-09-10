@@ -483,94 +483,87 @@ export default function DashboardSidebar() {
           </Link>
 
           {/* SETTINGS */}
-          <Link
-            href="/dashboard/settings"
-            className={`sidebar-link ${
-              pathname.startsWith(
-                "/dashboard/settings"
-              )
-                ? "active"
-                : ""
-            }`}
-          >
-            <span className="sidebar-icon">
-              ⚙️
-            </span>
+<Link
+  href="/dashboard/settings"
+  className={`sidebar-link ${
+    pathname.startsWith("/dashboard/settings")
+      ? "active"
+      : ""
+  }`}
+>
+  <span className="sidebar-icon">
+    ⚙️
+  </span>
 
-            <span className="sidebar-text">
-              Settings
-            </span>
-          </Link>
-        </nav>
+  <span className="sidebar-text">
+    Settings
+  </span>
+</Link>
 
-        {/* =====================================================
-            FOOTER
-        ===================================================== */}
+{/* LOGOUT */}
+<button
+  type="button"
+  className="sidebar-link logout-button"
+  onClick={handleLogout}
+  disabled={loggingOut}
+>
+  <span className="sidebar-icon">
+    🚪
+  </span>
 
-        <div className="sidebar-footer">
-          <button
-            type="button"
-            className="logout-button"
-            onClick={handleLogout}
-            disabled={loggingOut}
-          >
-            <span className="sidebar-icon">
-              🚪
-            </span>
+  <span className="sidebar-text">
+    {loggingOut ? "Logging out..." : "Logout"}
+  </span>
+</button>
 
-            <span className="sidebar-text">
-              {loggingOut
-                ? "Logging out..."
-                : "Logout"}
-            </span>
-          </button>
-        </div>
-      </aside>
+</nav>
 
-      {/* =======================================================
-          MOBILE OPEN BUTTON
-      ======================================================= */}
+</aside>
 
-      {!open && (
-        <button
-          type="button"
-          className="sidebar-open-button"
-          onClick={() => setOpen(true)}
-          aria-label="Open sidebar"
-        >
-          ☰
-        </button>
-      )}
+{/* =======================================================
+    MOBILE OPEN BUTTON
+======================================================= */}
 
-      {/* =======================================================
-          DARK BLUE SIDEBAR STYLES
-      ======================================================= */}
+{!open && (
+  <button
+    type="button"
+    className="sidebar-open-button"
+    onClick={() => setOpen(true)}
+    aria-label="Open sidebar"
+  >
+    ☰
+  </button>
+)}
 
-      <style>{`
-        .dashboard-sidebar {
-          width: 250px;
-          min-width: 250px;
-          height: 100vh;
+{/* =======================================================
+    DARK BLUE SIDEBAR STYLES
+======================================================= */}
 
-          position: sticky;
-          top: 0;
-          left: 0;
+<style>{`
+  .dashboard-sidebar {
+    width: 250px;
+    min-width: 250px;
+    height: 100vh;
 
-          z-index: 1000;
+    position: sticky;
+    top: 0;
+    left: 0;
 
-          display: flex;
-          flex-direction: column;
+    z-index: 1000;
 
-          background: #071a33;
-          border-right: 1px solid #0b3a6f;
+    display: flex;
+    flex-direction: column;
 
-          transition:
-            width 0.2s ease,
-            min-width 0.2s ease,
-            transform 0.2s ease;
+    background: #071a33;
+    border-right: 1px solid #0b3a6f;
 
-          overflow-y: auto;
-        }
+    transition:
+      width 0.2s ease,
+      min-width 0.2s ease,
+      transform 0.2s ease;
+
+    overflow-y: auto;
+  }
 
         .dashboard-sidebar.closed {
           width: 0;
@@ -931,6 +924,7 @@ export default function DashboardSidebar() {
           }
         }
       `}</style>
+
     </>
   );
 }
