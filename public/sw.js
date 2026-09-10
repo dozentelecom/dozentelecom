@@ -1,8 +1,7 @@
-const CACHE_NAME = "dozentelecom-static-v1";
+const CACHE_NAME = "dozentelecom-static-v2";
 
 const STATIC_ASSETS = [
   "/",
-  "/manifest.webmanifest",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
 ];
@@ -44,9 +43,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  /*
-   * NEVER cache API/authenticated requests.
-   */
+  // Never cache API, admin, authentication, or dynamic data.
   if (
     url.pathname.startsWith("/api/") ||
     url.pathname.startsWith("/admin") ||
@@ -55,27 +52,18 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  /*
-   * Navigation requests use network first.
-   * This means website updates are picked up normally.
-   */
+  // Let navigation requests use the network.
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          return response;
-        })
-        .catch(() => {
-          return caches.match("/");
-        })
+      fetch(request).catch(() => {
+        return caches.match("/");
+      })
     );
 
     return;
   }
 
-  /*
-   * Static files use cache first.
-   */
+  // Cache static Next.js assets and PWA icons.
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/icons/")

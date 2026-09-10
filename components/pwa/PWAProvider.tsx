@@ -31,7 +31,7 @@ export default function PWAProvider() {
     }
 
     /*
-     * Register service worker.
+     * Register service worker
      */
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
@@ -50,19 +50,17 @@ export default function PWAProvider() {
     }
 
     /*
-     * Capture the browser's native PWA
-     * installation event.
-     *
-     * Supported mainly by Chromium browsers
-     * such as Chrome and Edge.
+     * Chrome / Android native installation event
      */
-    const handleBeforeInstallPrompt = (
-      event: Event
-    ) => {
+    const handleBeforeInstallPrompt = (event: Event) => {
       event.preventDefault();
 
       const promptEvent =
         event as BeforeInstallPromptEvent;
+
+      console.log(
+        "Dozentelecom: native install prompt available"
+      );
 
       setInstallPrompt(promptEvent);
     };
@@ -73,14 +71,26 @@ export default function PWAProvider() {
     );
 
     /*
-     * If the app becomes installed, remove
-     * the saved installation prompt.
+     * App successfully installed
      */
     const handleAppInstalled = () => {
+      console.log(
+        "Dozentelecom: app installed"
+      );
+
       setInstallPrompt(null);
 
       window.dozentelecomInstall = undefined;
       window.dozentelecomCanInstall = () => false;
+
+      window.dispatchEvent(
+        new CustomEvent("dozentelecom-install-state", {
+          detail: {
+            available: false,
+            installed: true,
+          },
+        })
+      );
     };
 
     window.addEventListener(
@@ -102,8 +112,8 @@ export default function PWAProvider() {
   }, []);
 
   /*
-   * Keep the native installation function
-   * available to FloatingActions.
+   * Expose the current install prompt to the rest
+   * of the application.
    */
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -113,6 +123,15 @@ export default function PWAProvider() {
     if (!installPrompt) {
       window.dozentelecomInstall = undefined;
       window.dozentelecomCanInstall = () => false;
+
+      window.dispatchEvent(
+        new CustomEvent("dozentelecom-install-state", {
+          detail: {
+            available: false,
+          },
+        })
+      );
+
       return;
     }
 
@@ -126,13 +145,22 @@ export default function PWAProvider() {
           await installPrompt.userChoice;
 
         /*
-         * The browser only allows a captured
-         * beforeinstallprompt event to be used once.
+         * beforeinstallprompt can only be used once.
          */
         setInstallPrompt(null);
 
         window.dozentelecomInstall = undefined;
         window.dozentelecomCanInstall = () => false;
+
+        window.dispatchEvent(
+          new CustomEvent("dozentelecom-install-state", {
+            detail: {
+              available: false,
+              installed:
+                result?.outcome === "accepted",
+            },
+          })
+        );
 
         return result?.outcome === "accepted";
       } catch (error) {
@@ -146,14 +174,25 @@ export default function PWAProvider() {
         window.dozentelecomInstall = undefined;
         window.dozentelecomCanInstall = () => false;
 
+        window.dispatchEvent(
+          new CustomEvent("dozentelecom-install-state", {
+            detail: {
+              available: false,
+            },
+          })
+        );
+
         return false;
       }
     };
 
-    return () => {
-      window.dozentelecomInstall = undefined;
-      window.dozentelecomCanInstall = () => false;
-    };
+    window.dispatchEvent(
+      new CustomEvent("dozentelecom-install-state", {
+        detail: {
+          available: true,
+        },
+      })
+    );
   }, [installPrompt]);
 
   return (

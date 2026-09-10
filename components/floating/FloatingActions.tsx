@@ -9,6 +9,13 @@ declare global {
   }
 }
 
+interface InstallStateEvent extends CustomEvent {
+  detail?: {
+    available?: boolean;
+    installed?: boolean;
+  };
+}
+
 export default function FloatingActions() {
   const [showInstallHelp, setShowInstallHelp] =
     useState(false);
@@ -25,42 +32,62 @@ export default function FloatingActions() {
     }
 
     /*
-     * Detect whether Dozentelecom is already
-     * running as an installed standalone app.
+     * Check whether the website is already running
+     * as an installed PWA.
      */
-    const standalone =
-      window.matchMedia?.(
-        "(display-mode: standalone)"
-      ).matches ||
-      (window.navigator as any).standalone === true;
+    const checkStandalone = () => {
+      const standalone =
+        window.matchMedia?.(
+          "(display-mode: standalone)"
+        ).matches ||
+        (window.navigator as any).standalone === true;
 
-    setIsInstalled(standalone);
+      setIsInstalled(standalone);
 
-    /*
-     * Check whether the PWA native install prompt
-     * is currently available.
-     */
-    const checkInstallAvailability = () => {
-      setIsInstallAvailable(
-        typeof window.dozentelecomCanInstall ===
-          "function" &&
-          window.dozentelecomCanInstall() === true
-      );
+      if (standalone) {
+        setIsInstallAvailable(false);
+      }
     };
 
-    checkInstallAvailability();
+    checkStandalone();
 
     /*
-     * The provider can load before or after this
-     * component. Check again shortly after mount.
+     * Receive install-state changes from PWAProvider.
+     *
+     * This is important because beforeinstallprompt
+     * may fire after this component has already mounted.
      */
-    const timer = window.setTimeout(
-      checkInstallAvailability,
-      500
+    const handleInstallState = (
+      event: Event
+    ) => {
+      const customEvent =
+        event as InstallStateEvent;
+
+      const available =
+        customEvent.detail?.available === true;
+
+      const installed =
+        customEvent.detail?.installed === true;
+
+      if (installed) {
+        setIsInstalled(true);
+        setIsInstallAvailable(false);
+        setShowInstallHelp(false);
+        return;
+      }
+
+      if (!isInstalled) {
+        setIsInstallAvailable(available);
+      }
+    };
+
+    window.addEventListener(
+      "dozentelecom-install-state",
+      handleInstallState
     );
 
     /*
-     * Listen for installation.
+     * App installed event.
      */
     const handleInstalled = () => {
       setIsInstalled(true);
@@ -73,32 +100,56 @@ export default function FloatingActions() {
       handleInstalled
     );
 
+    /*
+     * The provider may already have captured the
+     * install prompt before this component mounted.
+     */
+    const checkExistingPrompt = () => {
+      if (
+        typeof window.dozentelecomCanInstall ===
+          "function" &&
+        window.dozentelecomCanInstall()
+      ) {
+        setIsInstallAvailable(true);
+      }
+    };
+
+    checkExistingPrompt();
+
+    const timer = window.setTimeout(
+      checkExistingPrompt,
+      1000
+    );
+
     return () => {
       window.clearTimeout(timer);
+
+      window.removeEventListener(
+        "dozentelecom-install-state",
+        handleInstallState
+      );
 
       window.removeEventListener(
         "appinstalled",
         handleInstalled
       );
     };
-  }, []);
+  }, [isInstalled]);
 
   const installApp = async () => {
-    /*
-     * If already installed, don't attempt another
-     * installation.
-     */
     if (isInstalled) {
       return;
     }
 
+    /*
+     * Native Chrome installation prompt.
+     */
     const install =
       window.dozentelecomInstall;
 
-    /*
-     * Native browser installation prompt.
-     */
-    if (install) {
+    if (
+      typeof install === "function"
+    ) {
       try {
         const accepted = await install();
 
@@ -118,10 +169,13 @@ export default function FloatingActions() {
     }
 
     /*
-     * beforeinstallprompt is unavailable.
+     * No native prompt is currently available.
      *
-     * This is normal on iPhone/iPad Safari and
-     * some browsers.
+     * This normally happens on:
+     * - iPhone/iPad
+     * - unsupported browsers
+     * - browsers where PWA install criteria
+     *   have not yet been satisfied
      */
     setShowInstallHelp(true);
   };
@@ -153,10 +207,6 @@ export default function FloatingActions() {
     );
   };
 
-  /*
-   * Don't show the install button when the site
-   * is already running as an installed app.
-   */
   const showInstallButton = !isInstalled;
 
   return (
@@ -237,10 +287,9 @@ export default function FloatingActions() {
               </p>
 
               <p>
-                If your browser supports app
-                installation, tap the install
-                button again and the browser will
-                show the native installation prompt.
+                If Chrome supports installation,
+                the Install button will open the
+                native installation prompt.
               </p>
 
               <p>
@@ -250,9 +299,9 @@ export default function FloatingActions() {
               </p>
 
               <p>
-                Tap the{" "}
-                <strong>Share</strong>{" "}
-                button in Safari, then select{" "}
+                Open Dozentelecom in Safari, tap
+                the <strong>Share</strong> button,
+                then select{" "}
                 <strong>
                   Add to Home Screen
                 </strong>.
