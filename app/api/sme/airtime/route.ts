@@ -375,10 +375,14 @@ await assertServiceEnabled("airtime");
         providerReference || null,
       result,
     });
-  } catch (error: any) {
+    } catch (error: any) {
     console.error(
       "AIRTIME PURCHASE ERROR:",
-      error
+      {
+        message: error?.message,
+        status: error?.status,
+        details: error?.details,
+      }
     );
 
     /*
@@ -386,52 +390,55 @@ await assertServiceEnabled("airtime");
      * Do not attempt another refund here.
      */
 
-	if (
-  error?.message ===
-  "SERVICE_DISABLED"
-) {
-  return NextResponse.json(
-    {
-      error:
-        "Airtime service is temporarily unavailable.",
-      reference,
-    },
-    { status: 403 }
-  );
-}
-
-    if (
-      error?.message ===
-      "INSUFFICIENT_BALANCE"
-    ) {
+    if (error?.message === "SERVICE_DISABLED") {
       return NextResponse.json(
         {
-          error:
-            "Insufficient wallet balance.",
+          error: "Airtime service is temporarily unavailable.",
+          reference,
+        },
+        { status: 403 }
+      );
+    }
+
+    if (error?.message === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json(
+        {
+          error: "Insufficient wallet balance.",
           reference,
         },
         { status: 400 }
       );
     }
 
-    if (
-      error?.message ===
-      "UNAUTHORIZED"
-    ) {
+    if (error?.message === "UNAUTHORIZED") {
       return NextResponse.json(
-        { error: "Unauthorized." },
+        {
+          error: "Unauthorized.",
+          reference,
+        },
         { status: 401 }
       );
     }
 
+    /*
+     * Provider errors:
+     * Return the actual SMEAPI response so we can
+     * identify exactly why SMEAPI rejected the request.
+     */
     return NextResponse.json(
       {
         error:
           error?.message ||
           "Unable to process airtime purchase.",
+        details: error?.details || null,
         reference,
       },
-      { status: 400 }
+      {
+        status:
+          typeof error?.status === "number"
+            ? error.status
+            : 400,
+      }
     );
   }
 }
