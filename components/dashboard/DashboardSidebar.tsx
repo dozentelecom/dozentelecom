@@ -42,7 +42,7 @@ export default function DashboardSidebar() {
   const router = useRouter();
 
   const [mounted, setMounted] = useState(false);
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
@@ -176,19 +176,19 @@ export default function DashboardSidebar() {
         />
 
         <style>{`
-          .sidebar-hydration-placeholder {
-            width: 250px;
-            flex: 0 0 250px;
-            min-height: 100vh;
-            background: #062b55;
-          }
+         .sidebar-hydration-placeholder {
+  width: 0;
+  flex: 0 0 0;
+  min-height: 100vh;
+  background: transparent;
+}
 
           @media (max-width: 900px) {
-            .sidebar-hydration-placeholder {
-              width: 0;
-              flex: 0 0 0;
-            }
-          }
+  .sidebar-hydration-placeholder {
+    width: 0;
+    flex: 0 0 0;
+  }
+}
         `}</style>
       </>
     );
@@ -561,7 +561,7 @@ export default function DashboardSidebar() {
           display: flex;
           flex-direction: column;
 
-          background: #062b55;
+          background: #071a33;
           border-right: 1px solid #0b3a6f;
 
           transition:
@@ -855,7 +855,7 @@ export default function DashboardSidebar() {
           border: 0;
           border-radius: 10px;
 
-          background: #062b55;
+          background: #071a33;
           color: #ffffff;
 
           box-shadow:

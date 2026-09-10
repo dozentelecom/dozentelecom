@@ -426,7 +426,11 @@
 }
 
 .admin-sidebar.closed {
-  width: 76px;
+  width: 0;
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
 }
 
 .admin-sidebar-header {

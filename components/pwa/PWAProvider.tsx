@@ -11,6 +11,13 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
 }
 
+declare global {
+  interface Window {
+    dozentelecomInstall?: () => Promise<boolean>;
+    dozentelecomCanInstall?: () => boolean;
+  }
+}
+
 export default function PWAProvider() {
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
@@ -32,9 +39,6 @@ export default function PWAProvider() {
         .then((reg) => {
           setRegistration(reg);
 
-          /*
-           * Check for a new version whenever the app loads.
-           */
           reg.update().catch(() => {});
         })
         .catch((error) => {
@@ -46,14 +50,21 @@ export default function PWAProvider() {
     }
 
     /*
-     * Android / Chrome installation prompt.
+     * Capture the browser's native PWA
+     * installation event.
+     *
+     * Supported mainly by Chromium browsers
+     * such as Chrome and Edge.
      */
-    const handleBeforeInstallPrompt = (event: Event) => {
+    const handleBeforeInstallPrompt = (
+      event: Event
+    ) => {
       event.preventDefault();
 
-      setInstallPrompt(
-        event as BeforeInstallPromptEvent
-      );
+      const promptEvent =
+        event as BeforeInstallPromptEvent;
+
+      setInstallPrompt(promptEvent);
     };
 
     window.addEventListener(
@@ -61,47 +72,87 @@ export default function PWAProvider() {
       handleBeforeInstallPrompt
     );
 
+    /*
+     * If the app becomes installed, remove
+     * the saved installation prompt.
+     */
+    const handleAppInstalled = () => {
+      setInstallPrompt(null);
+
+      window.dozentelecomInstall = undefined;
+      window.dozentelecomCanInstall = () => false;
+    };
+
+    window.addEventListener(
+      "appinstalled",
+      handleAppInstalled
+    );
+
     return () => {
       window.removeEventListener(
         "beforeinstallprompt",
         handleBeforeInstallPrompt
       );
+
+      window.removeEventListener(
+        "appinstalled",
+        handleAppInstalled
+      );
     };
   }, []);
 
+  /*
+   * Keep the native installation function
+   * available to FloatingActions.
+   */
   useEffect(() => {
-    /*
-     * Expose the install prompt globally so
-     * FloatingActions can trigger it.
-     */
-    if (!installPrompt) {
+    if (typeof window === "undefined") {
       return;
     }
 
-    (
-      window as Window & {
-        dozentelecomInstall?: () => Promise<void>;
+    if (!installPrompt) {
+      window.dozentelecomInstall = undefined;
+      window.dozentelecomCanInstall = () => false;
+      return;
+    }
+
+    window.dozentelecomCanInstall = () => true;
+
+    window.dozentelecomInstall = async () => {
+      try {
+        await installPrompt.prompt();
+
+        const result =
+          await installPrompt.userChoice;
+
+        /*
+         * The browser only allows a captured
+         * beforeinstallprompt event to be used once.
+         */
+        setInstallPrompt(null);
+
+        window.dozentelecomInstall = undefined;
+        window.dozentelecomCanInstall = () => false;
+
+        return result?.outcome === "accepted";
+      } catch (error) {
+        console.error(
+          "Dozentelecom installation failed:",
+          error
+        );
+
+        setInstallPrompt(null);
+
+        window.dozentelecomInstall = undefined;
+        window.dozentelecomCanInstall = () => false;
+
+        return false;
       }
-    ).dozentelecomInstall = async () => {
-      await installPrompt.prompt();
-
-      await installPrompt.userChoice;
-
-      setInstallPrompt(null);
-
-      (
-        window as Window & {
-          dozentelecomInstall?: () => Promise<void>;
-        }
-      ).dozentelecomInstall = undefined;
     };
 
     return () => {
-      (
-        window as Window & {
-          dozentelecomInstall?: () => Promise<void>;
-        }
-      ).dozentelecomInstall = undefined;
+      window.dozentelecomInstall = undefined;
+      window.dozentelecomCanInstall = () => false;
     };
   }, [installPrompt]);
 

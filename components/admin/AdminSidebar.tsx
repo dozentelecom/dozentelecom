@@ -35,7 +35,7 @@ const services = [
 export default function AdminSidebar() {
   const pathname = usePathname();
 
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(true);
 
   return (
