@@ -529,17 +529,19 @@ async function buy() {
      * =====================================================
      */
 
-    const transactionMessage =
-      json?.message ||
-      json?.error ||
-      purchaseData?.message ||
-      purchaseData?.error ||
-      json?.detail ||
-      "";
+   let transactionMessage =
+  json?.message ||
+  json?.error ||
+  purchaseData?.message ||
+  purchaseData?.error ||
+  json?.detail ||
+  "";
 
-	if (
+if (
   response.status === 400 &&
-  String(transactionMessage).toLowerCase().includes("sme api request failed")
+  String(transactionMessage)
+    .toLowerCase()
+    .includes("sme api request failed")
 ) {
   transactionMessage =
     "The number you entered is not eligible for this data plan.";
