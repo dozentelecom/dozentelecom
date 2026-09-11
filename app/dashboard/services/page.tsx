@@ -381,112 +381,183 @@ async function buy() {
   setLoading(true);
   setError("");
   setMessage("");
+  setReceipt(null);
 
   try {
     if (!form.network) {
-      throw new Error(
-        "Please select a network."
-      );
+      throw new Error("Please select a network.");
     }
 
     if (!form.data_plan) {
-      throw new Error(
-        "Please select a data plan."
-      );
+      throw new Error("Please select a data plan.");
     }
 
     if (!form.phone) {
-      throw new Error(
-        "Please enter the phone number."
-      );
+      throw new Error("Please enter the phone number.");
     }
 
-    if (
-      !/^\d{11}$/.test(
-        form.phone
-      )
-    ) {
+    if (!/^\d{11}$/.test(form.phone)) {
       throw new Error(
         "Please enter a valid 11-digit phone number."
       );
     }
 
-    if (
-      !form.pin ||
-      form.pin.length !== 4
-    ) {
-      throw new Error(
-        "Please enter your 4-digit PIN."
-      );
+    if (!form.pin || form.pin.length !== 4) {
+      throw new Error("Please enter your 4-digit PIN.");
     }
 
-    const response =
-      await post(
-        "/api/sme/data",
-        {
-          network:
-            Number(
-              form.network
-            ),
+    /*
+     * Do NOT use the generic post() helper here.
+     *
+     * A failed/pending provider transaction may still
+     * contain useful transaction information even when
+     * the API responds with HTTP 4xx/5xx.
+     */
+    const response = await fetch("/api/sme/data", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        network: Number(form.network),
+        data_plan: Number(form.data_plan),
+        phone: form.phone,
+        pin: form.pin,
+      }),
+    });
 
-          data_plan:
-            Number(
-              form.data_plan
-            ),
+    const json = await response
+      .json()
+      .catch(() => ({}));
 
-          phone:
-            form.phone,
-
-          pin:
-            form.pin,
-        }
-      );
+    console.log(
+      "DATA PURCHASE HTTP STATUS:",
+      response.status
+    );
 
     console.log(
       "DATA PURCHASE RESPONSE:",
-      response
+      json
     );
 
+    /*
+     * Provider / API response can be either at the
+     * root or inside data.
+     */
     const purchaseData =
-      response?.data || {};
+      json?.data &&
+      typeof json.data === "object"
+        ? json.data
+        : {};
 
     const reference =
-      response?.reference ||
+      json?.reference ||
       purchaseData?.reference ||
+      json?.transactionReference ||
+      purchaseData?.transactionReference ||
+      json?.externalReference ||
+      purchaseData?.externalReference ||
       "";
 
-    const selectedPlan =
-      dataPlans.find(
-        (item) =>
-          item.key === form.data_plan
-      );
+    const selectedPlan = dataPlans.find(
+      (item) =>
+        item.key === form.data_plan
+    );
+
+    /*
+     * =====================================================
+     * NORMALIZE STATUS
+     * =====================================================
+     */
 
     const rawStatus = String(
-  response?.status ||
-    purchaseData?.status ||
-    ""
-).toUpperCase();
+      json?.status ||
+        purchaseData?.status ||
+        json?.transactionStatus ||
+        purchaseData?.transactionStatus ||
+        ""
+    ).toUpperCase();
 
-const status =
-  response?.success === false ||
-  rawStatus === "FAILED" ||
-  rawStatus === "FAILURE" ||
-  rawStatus === "ERROR" ||
-  rawStatus === "REVERSED"
-    ? "FAILED"
-    : rawStatus === "PROCESSING" ||
-      rawStatus === "PENDING"
-    ? "PROCESSING"
-    : response?.success === true ||
+    let status:
+      | "SUCCESS"
+      | "FAILED"
+      | "PROCESSING";
+
+    if (
+      json?.success === false ||
+      rawStatus === "FAILED" ||
+      rawStatus === "FAILURE" ||
+      rawStatus === "ERROR" ||
+      rawStatus === "REVERSED" ||
+      rawStatus === "CANCELLED"
+    ) {
+      status = "FAILED";
+    } else if (
+      rawStatus === "PENDING" ||
+      rawStatus === "PROCESSING" ||
+      rawStatus === "IN_PROGRESS"
+    ) {
+      status = "PROCESSING";
+    } else if (
+      json?.success === true ||
       rawStatus === "SUCCESS" ||
       rawStatus === "SUCCESSFUL" ||
       rawStatus === "COMPLETED" ||
       rawStatus === "COMPLETE"
-    ? "SUCCESS"
-    : "PROCESSING";
+    ) {
+      status = "SUCCESS";
+    } else if (!response.ok) {
+      /*
+       * If the server returned an error HTTP status but
+       * supplied no explicit status, treat it as FAILED
+       * so the customer still gets a receipt/result.
+       */
+      status = "FAILED";
+    } else {
+      /*
+       * A successful HTTP response without a final status
+       * is treated as processing rather than silently
+       * disappearing.
+       */
+      status = "PROCESSING";
+    }
 
-setReceipt({
-  status,
+    /*
+     * =====================================================
+     * MESSAGE / ERROR
+     * =====================================================
+     */
+
+    const transactionMessage =
+      json?.message ||
+      json?.error ||
+      purchaseData?.message ||
+      purchaseData?.error ||
+      json?.detail ||
+      "";
+
+    /*
+     * =====================================================
+     * REFUND STATUS
+     * =====================================================
+     */
+
+    const refunded = Boolean(
+      json?.refunded ||
+        purchaseData?.refunded
+    );
+
+    /*
+     * =====================================================
+     * ALWAYS SHOW RECEIPT
+     *
+     * SUCCESS / FAILED / PROCESSING
+     * =====================================================
+     */
+
+    setReceipt({
+      status,
 
       service: "DATA",
 
@@ -519,15 +590,9 @@ setReceipt({
       reference,
 
       message:
-        response?.message ||
-        purchaseData?.message ||
-        "",
+        transactionMessage,
 
-      refunded:
-        Boolean(
-          response?.refunded ||
-            purchaseData?.refunded
-        ),
+      refunded,
 
       createdAt:
         new Date().toLocaleString(
@@ -535,20 +600,32 @@ setReceipt({
         ),
     });
 
-    let successMessage =
-      response?.message ||
-      "Data purchase submitted successfully.";
+    /*
+     * =====================================================
+     * PAGE MESSAGE
+     * =====================================================
+     */
 
-    if (
-      purchaseData?.reference
-    ) {
-      successMessage +=
-        ` Reference: ${purchaseData.reference}`;
+    if (status === "SUCCESS") {
+      setMessage(
+        transactionMessage ||
+          "Data purchase completed successfully."
+      );
+    } else if (status === "FAILED") {
+      setMessage("");
+
+      /*
+       * Don't throw here.
+       *
+       * The receipt popup is now the place where the
+       * failed transaction is displayed.
+       */
+    } else {
+      setMessage(
+        transactionMessage ||
+          "Data purchase is still being processed."
+      );
     }
-
-    setMessage(
-      successMessage
-    );
 
     update("pin", "");
   } catch (e: any) {
@@ -557,9 +634,14 @@ setReceipt({
       e
     );
 
+    /*
+     * This catch is now reserved for genuine frontend/
+     * network failures where there is no usable transaction
+     * response at all.
+     */
     setError(
       e?.message ||
-        "Data purchase failed"
+        "Unable to process data purchase."
     );
   } finally {
     setLoading(false);
@@ -1037,30 +1119,30 @@ setReceipt({
           ? "Transaction Successful"
           : receipt.status === "FAILED"
           ? "Transaction Failed"
-          : "Transaction Processing"}
+          : "Transaction Pending"}
       </h3>
 
-      {receipt.status === "FAILED" && (
-        <div
-          style={{
-            background: receipt.refunded
-              ? "#ecfdf5"
-              : "#fef2f2",
-            color: receipt.refunded
-              ? "#166534"
-              : "#991b1b",
-            borderRadius: 10,
-            padding: "12px 14px",
-            marginBottom: 18,
-            fontWeight: 700,
-            lineHeight: 1.5,
-          }}
-        >
-          {receipt.refunded
-            ? "Wallet refunded successfully."
-            : "Transaction failed. Wallet refund is being processed."}
-        </div>
-      )}
+     {receipt.status === "FAILED" && (
+  <div
+    style={{
+      background: receipt.refunded
+        ? "#ecfdf5"
+        : "#fef2f2",
+      color: receipt.refunded
+        ? "#166534"
+        : "#991b1b",
+      borderRadius: 10,
+      padding: "12px 14px",
+      marginBottom: 18,
+      fontWeight: 700,
+      lineHeight: 1.5,
+    }}
+  >
+    {receipt.refunded
+      ? "Transaction failed. Wallet refunded successfully."
+      : "Transaction failed."}
+  </div>
+)}
 
       <p style={{ color: "#111827" }}>
         <strong>Service:</strong>{" "}
