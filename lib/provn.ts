@@ -1,17 +1,15 @@
 const base = (
-  process.env.CLOUDEYE_BASE_URL || "https://api.cloudeye.ng"
+  process.env.PROVN_BASE_URL || "https://api.provn.ng"
 ).replace(/\/+$/, "");
 
 function headers() {
-  const access = process.env.PROVN_ACCESS_KEY || "";
-  const test = process.env.PROVN_TEST_KEY || "";
+  const apiKey = process.env.PROVN_TEST_KEY || "";
+  const accessKey = process.env.PROVN_ACCESS_KEY || "";
 
   return {
     "Content-Type": "application/json",
-    Authorization: `Bearer ${access}`,
-    "X-API-KEY": test,
-    "API-Key": test,
-    "Access-Key": access,
+    "API-Key": apiKey,
+    "Access-Key": accessKey,
     Accept: "application/json",
   };
 }
@@ -52,7 +50,8 @@ async function verify(
 
   if (!r.ok) {
     throw new Error(
-      data?.message ||
+      data?.detail ||
+        data?.message ||
         data?.error ||
         data?.raw ||
         `KYC provider error (${r.status})`
