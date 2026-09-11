@@ -129,9 +129,13 @@ export async function POST(
       await getRates();
 
     const fundingRate =
-      Number(
-        rates.funding || 0
-      );
+  Number(
+    rates.funding ?? 0
+  );
+
+console.log("=== FUNDING RATE DEBUG ===");
+console.log("rates:", rates);
+console.log("fundingRate:", fundingRate);
 
     if (
       !Number.isFinite(

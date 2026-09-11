@@ -44,13 +44,7 @@ export async function startServiceTransaction({
     makeReference(service);
 
   /*
-   * IMPORTANT:
-   *
-   * A reference is the idempotency key.
-   *
-   * If the same purchase request reaches the
-   * server twice, we return the existing
-   * transaction instead of charging twice.
+   * Reference is the idempotency key.
    */
   const existing =
     await Transaction.findOne({
@@ -58,10 +52,6 @@ export async function startServiceTransaction({
     });
 
   if (existing) {
-    /*
-     * Make sure the transaction belongs
-     * to the same customer.
-     */
     if (
       String(existing.userId) !==
       String(userId)
@@ -75,8 +65,7 @@ export async function startServiceTransaction({
   }
 
   /*
-   * Create the transaction BEFORE touching
-   * the wallet.
+   * Create transaction BEFORE touching wallet.
    */
   const tx =
     await Transaction.create({
@@ -112,8 +101,7 @@ export async function startServiceTransaction({
     );
 
     /*
-     * Record that the wallet was actually
-     * debited.
+     * Wallet was successfully debited.
      */
     tx.metadata = {
       ...(tx.metadata || {}),
@@ -127,20 +115,27 @@ export async function startServiceTransaction({
     return tx;
   } catch (error) {
     /*
-     * The debit did not succeed.
+     * Debit failed.
      *
-     * DO NOT refund here because there was
-     * no successful wallet debit.
+     * No refund because no successful debit
+     * was recorded.
      */
     tx.status = "FAILED";
 
     tx.metadata = {
       ...(tx.metadata || {}),
       walletDebited: false,
+      walletRefunded: false,
       walletError:
         error instanceof Error
           ? error.message
           : String(error),
+      failureReason:
+        error instanceof Error
+          ? error.message
+          : String(error),
+      failedAt:
+        new Date().toISOString(),
     };
 
     await tx.save();
@@ -174,8 +169,7 @@ export async function processServiceTransaction({
   }
 
   /*
-   * Final transactions must never be moved
-   * backwards.
+   * Final transactions cannot move backwards.
    */
   if (
     tx.status === "SUCCESS" ||
@@ -229,18 +223,15 @@ export async function completeServiceTransaction({
   }
 
   /*
-   * Idempotent SUCCESS.
-   *
-   * Calling complete twice will NOT create
-   * another wallet movement.
+   * Already successful.
    */
   if (tx.status === "SUCCESS") {
     return tx;
   }
 
   /*
-   * Never turn a refunded transaction back
-   * into SUCCESS.
+   * Never turn a failed/reversed transaction
+   * back into SUCCESS.
    */
   if (
     tx.status === "FAILED" ||
@@ -263,19 +254,6 @@ export async function completeServiceTransaction({
     Number(costKobo || 0)
   );
 
-  /*
-   * Customer price:
-   *
-   * amountKobo
-   *
-   * Provider cost:
-   *
-   * costKobo
-   *
-   * Business profit:
-   *
-   * amountKobo - costKobo
-   */
   const profitKobo = Math.max(
     0,
     amountKobo -
@@ -290,9 +268,7 @@ export async function completeServiceTransaction({
   tx.profitKobo =
     profitKobo;
 
-  if (
-    providerTransactionId
-  ) {
+  if (providerTransactionId) {
     tx.providerTransactionId =
       providerTransactionId;
   }
@@ -307,6 +283,134 @@ export async function completeServiceTransaction({
   await tx.save();
 
   return tx;
+}
+
+/* =========================================================
+   REFUND ONE FAILED TRANSACTION
+   ========================================================= */
+
+export async function refundFailedServiceTransaction(
+  tx: any,
+  reason?: string
+) {
+  /*
+   * Only transactions that actually debited
+   * the customer's wallet should be refunded.
+   */
+  const walletDebited =
+    Boolean(
+      tx.metadata?.walletDebited
+    );
+
+  if (!walletDebited) {
+    /*
+     * Nothing was taken from wallet.
+     */
+    tx.metadata = {
+      ...(tx.metadata || {}),
+      walletRefunded: false,
+      refundSkipped: true,
+      refundSkipReason:
+        "Wallet was not debited",
+    };
+
+    await tx.save();
+
+    return tx;
+  }
+
+  /*
+   * Already refunded.
+   */
+  if (
+    Boolean(
+      tx.metadata?.walletRefunded
+    )
+  ) {
+    return tx;
+  }
+
+  const amountKobo =
+    Number(tx.amountKobo || 0);
+
+  if (!validKobo(amountKobo)) {
+    throw new Error(
+      "INVALID_REFUND_AMOUNT"
+    );
+  }
+
+  /*
+   * Deterministic refund reference.
+   *
+   * Running this function multiple times
+   * cannot create multiple refunds.
+   */
+  const refundReference =
+    `REFUND-${tx.externalReference}`;
+
+  try {
+    await creditWallet(
+      String(tx.userId),
+      amountKobo,
+      refundReference,
+      {
+        reason:
+          reason ||
+          tx.metadata?.failureReason ||
+          "Service transaction failed",
+        transaction:
+          tx.externalReference,
+        type:
+          "SERVICE_REVERSAL",
+      }
+    );
+
+    /*
+     * Refund succeeded.
+     */
+    tx.metadata = {
+      ...(tx.metadata || {}),
+      walletRefunded: true,
+      walletRefundedAt:
+        new Date().toISOString(),
+      refundReference,
+    };
+
+    await tx.save();
+
+    return tx;
+  } catch (error: any) {
+    /*
+     * If the ledger says the reference already
+     * exists, the refund already happened.
+     */
+    if (
+      /duplicate|E11000|unique/i.test(
+        error?.message || ""
+      )
+    ) {
+      tx.metadata = {
+        ...(tx.metadata || {}),
+        walletRefunded: true,
+        walletRefundedAt:
+          tx.metadata?.walletRefundedAt ||
+          new Date().toISOString(),
+        refundReference,
+      };
+
+      await tx.save();
+
+      return tx;
+    }
+
+    /*
+     * DO NOT mark walletRefunded=true when
+     * creditWallet actually failed.
+     *
+     * This allows the refund to be retried.
+     */
+    throw error;
+  }
 }
 
 /* =========================================================
@@ -336,120 +440,75 @@ export async function failServiceTransaction({
   }
 
   /*
-   * Already failed.
+   * IMPORTANT:
    *
-   * Do NOT refund again.
+   * Do NOT immediately return just because
+   * status === FAILED.
+   *
+   * An old FAILED transaction may have:
+   *
+   * walletDebited: true
+   * walletRefunded: false
+   *
+   * In that situation we MUST refund it.
    */
-  if (tx.status === "FAILED") {
-    return tx;
-  }
-
-  /*
-   * Successful transactions must never
-   * be refunded by this function.
-   */
-  if (tx.status === "SUCCESS") {
-    return tx;
-  }
-
-  /*
-   * Already reversed.
-   */
-  if (tx.status === "REVERSED") {
-    return tx;
-  }
 
   const walletDebited =
     Boolean(
       tx.metadata?.walletDebited
     );
 
+  const walletRefunded =
+    Boolean(
+      tx.metadata?.walletRefunded
+    );
+
   /*
-   * If the wallet was never debited,
-   * there is nothing to refund.
+   * SUCCESS transactions must never be
+   * refunded by this function.
    */
-  if (walletDebited) {
-    /*
-     * CRITICAL IDEMPOTENCY PROTECTION
-     *
-     * The refund reference is deterministic.
-     *
-     * If this function runs twice, the second
-     * credit will hit the duplicate reference
-     * protection instead of giving the customer
-     * two refunds.
-     */
-    const refundReference =
-      `REFUND-${reference}`;
-
-    const alreadyRefunded =
-      Boolean(
-        tx.metadata?.walletRefunded
-      );
-
-    if (!alreadyRefunded) {
-      try {
-        await creditWallet(
-          String(tx.userId),
-          Number(
-            tx.amountKobo
-          ),
-          refundReference,
-          {
-            reason,
-            transaction:
-              reference,
-            type:
-              "SERVICE_REVERSAL",
-          }
-        );
-
-        tx.metadata = {
-          ...(tx.metadata || {}),
-          walletRefunded: true,
-          walletRefundedAt:
-            new Date().toISOString(),
-        };
-
-        await tx.save();
-      } catch (error: any) {
-        /*
-         * Duplicate ledger/reference means the
-         * refund already happened.
-         *
-         * Mark it as refunded instead of paying
-         * the customer twice.
-         */
-        if (
-          /duplicate|E11000|unique/i.test(
-            error?.message ||
-              ""
-          )
-        ) {
-          tx.metadata = {
-            ...(tx.metadata || {}),
-            walletRefunded: true,
-            walletRefundedAt:
-              new Date().toISOString(),
-          };
-
-          await tx.save();
-        } else {
-          /*
-           * IMPORTANT:
-           *
-           * Do not mark the transaction FAILED
-           * until the wallet refund succeeds.
-           *
-           * This allows a retry to complete the
-           * refund safely.
-           */
-          throw error;
-        }
-      }
-    }
+  if (tx.status === "SUCCESS") {
+    return tx;
   }
 
+  /*
+   * REVERSED transactions are already final.
+   *
+   * However, if somehow a reversed transaction
+   * has a debit without a refund, recover it.
+   */
+  if (
+    tx.status === "REVERSED" &&
+    (!walletDebited ||
+      walletRefunded)
+  ) {
+    return tx;
+  }
+
+  /*
+   * If wallet was debited and has not yet been
+   * refunded, perform the refund NOW.
+   *
+   * This also repairs old FAILED transactions.
+   */
+  if (
+    walletDebited &&
+    !walletRefunded
+  ) {
+    await refundFailedServiceTransaction(
+      tx,
+      reason
+    );
+  }
+
+  /*
+   * Mark transaction FAILED only after
+   * successful refund.
+   *
+   * If refundFailedServiceTransaction()
+   * throws, the transaction remains in its
+   * previous state and can be retried safely.
+   */
   tx.status = "FAILED";
 
   tx.metadata = {
@@ -457,10 +516,200 @@ export async function failServiceTransaction({
     ...(metadata || {}),
     failureReason: reason,
     failedAt:
+      tx.metadata?.failedAt ||
       new Date().toISOString(),
   };
 
   await tx.save();
 
   return tx;
+}
+
+/* =========================================================
+   RECOVER OLD FAILED TRANSACTIONS FOR ONE USER
+   =========================================================
+   This repairs transactions created before the
+   refund bug was fixed.
+
+   It finds:
+     FAILED
+     walletDebited = true
+     walletRefunded != true
+
+   and refunds them.
+   ========================================================= */
+
+export async function recoverFailedServiceTransactions(
+  userId: string
+) {
+  await db();
+
+  const failedTransactions: any[] =
+    await Transaction.find({
+      userId,
+      status: "FAILED",
+      "metadata.walletDebited": true,
+      $or: [
+        {
+          "metadata.walletRefunded":
+            {
+              $exists: false,
+            },
+        },
+        {
+          "metadata.walletRefunded":
+            false,
+        },
+      ],
+    }).sort({
+      createdAt: 1,
+    });
+
+  const recovered: any[] = [];
+  const failed: any[] = [];
+
+  for (
+    const tx of failedTransactions
+  ) {
+    try {
+      /*
+       * Calling failServiceTransaction()
+       * is safe because the function is now
+       * idempotent.
+       */
+      const repaired =
+        await failServiceTransaction({
+          reference:
+            String(
+              tx.externalReference
+            ),
+          reason:
+            tx.metadata
+              ?.failureReason ||
+            "Automatic recovery of failed service transaction",
+          metadata: {
+            automaticRefundRecovery:
+              true,
+            recoveredAt:
+              new Date().toISOString(),
+          },
+        });
+
+      recovered.push(
+        repaired
+      );
+    } catch (error: any) {
+      /*
+       * Keep going so one bad transaction
+       * does not prevent other refunds.
+       */
+      failed.push({
+        reference:
+          tx.externalReference,
+        error:
+          error?.message ||
+          String(error),
+      });
+    }
+  }
+
+  return {
+    found:
+      failedTransactions.length,
+    recovered:
+      recovered.length,
+    failed:
+      failed.length,
+    transactions:
+      recovered,
+    errors:
+      failed,
+  };
+}
+
+/* =========================================================
+   RECOVER ALL FAILED TRANSACTIONS
+   =========================================================
+   Admin/system recovery helper.
+
+   This can be used once to repair ALL customers
+   affected by the old refund bug.
+   ========================================================= */
+
+export async function recoverAllFailedServiceTransactions() {
+  await db();
+
+  const failedTransactions: any[] =
+    await Transaction.find({
+      status: "FAILED",
+      "metadata.walletDebited": true,
+      $or: [
+        {
+          "metadata.walletRefunded":
+            {
+              $exists: false,
+            },
+        },
+        {
+          "metadata.walletRefunded":
+            false,
+        },
+      ],
+    }).sort({
+      createdAt: 1,
+    });
+
+  const recovered: any[] = [];
+  const failed: any[] = [];
+
+  for (
+    const tx of failedTransactions
+  ) {
+    try {
+      const repaired =
+        await failServiceTransaction({
+          reference:
+            String(
+              tx.externalReference
+            ),
+          reason:
+            tx.metadata
+              ?.failureReason ||
+            "Automatic recovery of old failed service transaction",
+          metadata: {
+            automaticRefundRecovery:
+              true,
+            recoveredAt:
+              new Date().toISOString(),
+          },
+        });
+
+      recovered.push(
+        repaired
+      );
+    } catch (error: any) {
+      failed.push({
+        reference:
+          tx.externalReference,
+        userId:
+          String(tx.userId),
+        error:
+          error?.message ||
+          String(error),
+      });
+    }
+  }
+
+  return {
+    found:
+      failedTransactions.length,
+    recovered:
+      recovered.length,
+    failed:
+      failed.length,
+    transactions:
+      recovered,
+    errors:
+      failed,
+  };
 }

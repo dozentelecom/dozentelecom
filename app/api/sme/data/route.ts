@@ -534,12 +534,14 @@ export async function POST(
       reference,
     });
 
-    /* =======================================================
+        /* =======================================================
        SME PROVIDER PURCHASE
        ======================================================= */
 
-    const result =
-  await smeapi.data({
+    let result: any;
+
+try {
+  result = await smeapi.data({
     network,
     data_plan,
     phone,
@@ -549,14 +551,85 @@ export async function POST(
         : "false",
     ref: reference,
   });
+} catch (providerError: any) {
+  /*
+   * IMPORTANT:
+   *
+   * 4xx = definite provider rejection.
+   * Refund customer.
+   *
+   * 5xx / timeout = provider outcome is uncertain.
+   * DO NOT automatically refund because the provider
+   * may have received the request.
+   */
+
+  const isUncertain =
+    providerError instanceof ProviderError &&
+    (
+      providerError.status >= 500 ||
+      providerError.status === 504 ||
+      providerError.message
+        ?.toLowerCase()
+        .includes("timeout")
+    );
+
+  if (isUncertain) {
+    /*
+     * Leave transaction pending/processing.
+     *
+     * Do not refund automatically.
+     */
+    return NextResponse.json(
+      {
+        success: true,
+        pending: true,
+        message:
+          "Data transaction is being verified. Please check transaction status shortly.",
+        reference,
+      },
+      {
+        status: 202,
+      }
+    );
+  }
+
+  /*
+   * Definite provider rejection.
+   *
+   * Customer gets their wallet money back.
+   */
+  await failServiceTransaction({
+    reference,
+    reason:
+      providerError?.message ||
+      "Data provider rejected transaction",
+    metadata: {
+      providerError:
+        providerError?.details,
+    },
+  });
+
+  return NextResponse.json(
+    {
+      error:
+        providerError?.message ||
+        "Data transaction failed",
+      reference,
+    },
+    {
+      status:
+        providerError instanceof ProviderError
+          ? providerError.status
+          : 400,
+    }
+  );
+}
 
     /* =======================================================
        PROVIDER FAILURE
        ======================================================= */
 
-    if (
-      providerFailed(result)
-    ) {
+    if (providerFailed(result)) {
       await failServiceTransaction({
         reference,
 

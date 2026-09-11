@@ -461,24 +461,32 @@ async function buy() {
           item.key === form.data_plan
       );
 
-    const status =
-      String(
-        response?.status ||
-          purchaseData?.status ||
-          (response?.success === false
-            ? "FAILED"
-            : "SUCCESS")
-      ).toUpperCase();
+    const rawStatus = String(
+  response?.status ||
+    purchaseData?.status ||
+    ""
+).toUpperCase();
 
-    setReceipt({
-      status:
-        status === "FAILED" ||
-        status === "FAILURE"
-          ? "FAILED"
-          : status === "PROCESSING" ||
-            status === "PENDING"
-          ? "PROCESSING"
-          : "SUCCESS",
+const status =
+  response?.success === false ||
+  rawStatus === "FAILED" ||
+  rawStatus === "FAILURE" ||
+  rawStatus === "ERROR" ||
+  rawStatus === "REVERSED"
+    ? "FAILED"
+    : rawStatus === "PROCESSING" ||
+      rawStatus === "PENDING"
+    ? "PROCESSING"
+    : response?.success === true ||
+      rawStatus === "SUCCESS" ||
+      rawStatus === "SUCCESSFUL" ||
+      rawStatus === "COMPLETED" ||
+      rawStatus === "COMPLETE"
+    ? "SUCCESS"
+    : "PROCESSING";
+
+setReceipt({
+  status,
 
       service: "DATA",
 
@@ -980,87 +988,149 @@ async function buy() {
         maxWidth: 500,
         maxHeight: "90vh",
         overflowY: "auto",
-        background: "#fff",
+        background: "#ffffff",
+        color: "#111827",
         borderRadius: 18,
         padding: 24,
+        boxSizing: "border-box",
+        boxShadow: "0 20px 60px rgba(0,0,0,.35)",
       }}
     >
-      <h2 style={{ marginTop: 0 }}>
+      <h2
+        style={{
+          marginTop: 0,
+          marginBottom: 8,
+          color: "#111827",
+          fontSize: 24,
+          fontWeight: 800,
+        }}
+      >
         Transaction Receipt
       </h2>
 
-      <h3>
+      <h3
+        style={{
+          marginTop: 8,
+          marginBottom: 20,
+          color:
+            receipt.status === "SUCCESS"
+              ? "#15803d"
+              : receipt.status === "FAILED"
+              ? "#dc2626"
+              : "#b45309",
+          fontSize: 20,
+          fontWeight: 800,
+        }}
+      >
         {receipt.status === "SUCCESS"
-          ? "✅ Transaction Successful"
+          ? "Transaction Successful"
           : receipt.status === "FAILED"
-          ? "❌ Transaction Failed"
-          : "⏳ Transaction Processing"}
+          ? "Transaction Failed"
+          : "Transaction Processing"}
       </h3>
 
-      <p>
+      {receipt.status === "FAILED" && (
+        <div
+          style={{
+            background: receipt.refunded
+              ? "#ecfdf5"
+              : "#fef2f2",
+            color: receipt.refunded
+              ? "#166534"
+              : "#991b1b",
+            borderRadius: 10,
+            padding: "12px 14px",
+            marginBottom: 18,
+            fontWeight: 700,
+            lineHeight: 1.5,
+          }}
+        >
+          {receipt.refunded
+            ? "Wallet refunded successfully."
+            : "Transaction failed. Wallet refund is being processed."}
+        </div>
+      )}
+
+      <p style={{ color: "#111827" }}>
         <strong>Service:</strong>{" "}
         Mobile Data
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Network:</strong>{" "}
-        {receipt.network}
+        {receipt.network || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Data Plan:</strong>{" "}
-        {receipt.plan}
+        {receipt.plan || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Plan Type:</strong>{" "}
-        {receipt.planType}
+        {receipt.planType || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Validity:</strong>{" "}
-        {receipt.days}
+        {receipt.days || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Phone:</strong>{" "}
-        {receipt.phone}
+        {receipt.phone || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Amount:</strong>{" "}
-        ₦{Number(
+        ₦
+        {Number(
           receipt.amount || 0
         ).toLocaleString("en-NG", {
           minimumFractionDigits: 2,
         })}
       </p>
 
-      <p>
+      <p
+        style={{
+          color: "#111827",
+          wordBreak: "break-word",
+        }}
+      >
         <strong>Reference:</strong>{" "}
         {receipt.reference || "—"}
       </p>
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Status:</strong>{" "}
         {receipt.status}
       </p>
 
       {receipt.message && (
-        <p>
+        <p
+          style={{
+            color: "#111827",
+            wordBreak: "break-word",
+          }}
+        >
           <strong>Message:</strong>{" "}
           {receipt.message}
         </p>
       )}
 
       {receipt.refunded && (
-        <p>
+        <p
+          style={{
+            color: "#166534",
+            fontWeight: 700,
+          }}
+        >
           <strong>Refund:</strong>{" "}
           Wallet refunded
         </p>
       )}
 
-      <p>
+      <p style={{ color: "#111827" }}>
         <strong>Date:</strong>{" "}
         {receipt.createdAt}
       </p>
@@ -1068,9 +1138,7 @@ async function buy() {
       <button
         type="button"
         className="btn primary"
-        onClick={() =>
-          setReceipt(null)
-        }
+        onClick={() => setReceipt(null)}
         style={{
           width: "100%",
           marginTop: 12,
@@ -1090,6 +1158,7 @@ async function buy() {
             width: "100%",
             textAlign: "center",
             marginTop: 10,
+            boxSizing: "border-box",
           }}
         >
           View Full Receipt

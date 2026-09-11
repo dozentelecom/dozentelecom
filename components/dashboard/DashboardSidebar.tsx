@@ -362,6 +362,16 @@ export default function DashboardSidebar() {
             </span>
           </Link>
 
+<Link
+  href="/dashboard/vip"
+  className={`sidebar-link ${
+    pathname.startsWith("/dashboard/vip") ? "active" : ""
+  }`}
+>
+  <span className="sidebar-icon">👑</span>
+  <span className="sidebar-text">VIP Upgrade</span>
+</Link>
+
           {/* FUND WALLET */}
           <Link
             href="/dashboard/fund"
