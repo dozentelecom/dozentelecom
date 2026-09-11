@@ -656,24 +656,35 @@ setReceipt({
 
         <section className="card service-form">
 
-          <h2>
-            📶 Mobile Data
-          </h2>
+         <h2>
+  📶 Mobile Data
+</h2>
 
-          <div
-            className="alert"
-            style={{
-              marginBottom: "14px",
-              fontSize: "13px",
-            }}
-          >
-            ⚠️{" "}
-            <strong>Awoof Plans:</strong>{" "}
-            Only eligible numbers can use
-            Awoof plans. If an Awoof plan
-            fails, please try another plan.
-          </div>
+<div
+  className="alert"
+  style={{
+    marginBottom: "14px",
+    fontSize: "13px",
+  }}
+>
+  ⚠️{" "}
+  <strong>MTN Awoof Plans:</strong>{" "}
+  Only eligible numbers can use Awoof plans. If an Awoof plan
+  fails, please try another plan.
+</div>
 
+<div
+  className="alert"
+  style={{
+    marginBottom: "14px",
+    fontSize: "13px",
+  }}
+>
+  ⚠️{" "}
+  <strong>AIRTEL SME2:</strong>{" "}
+  Only eligible numbers can use SME2. If SME2 fails, please try
+  another plan.
+</div>
           {/* NETWORK */}
 
           <label className="field">
