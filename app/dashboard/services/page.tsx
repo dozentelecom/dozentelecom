@@ -537,6 +537,14 @@ async function buy() {
       json?.detail ||
       "";
 
+	if (
+  response.status === 400 &&
+  String(transactionMessage).toLowerCase().includes("sme api request failed")
+) {
+  transactionMessage =
+    "The number you entered is not eligible for this data plan.";
+}
+
     /*
      * =====================================================
      * REFUND STATUS
