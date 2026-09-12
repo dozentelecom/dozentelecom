@@ -7,6 +7,9 @@ export const metadata = {
   description:
     "Secure Nigerian VTU wallet and digital services",
   applicationName: "Dozentelecom",
+  verification: {
+    google: "Hxt1B5OARScy_xdaXHl21_YV3ZZONNQlg6lRRhmvVA8",
+  },
 };
 
 export default function Layout({
