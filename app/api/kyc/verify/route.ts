@@ -4,6 +4,8 @@ import { db } from "@/lib/db";
 import { User } from "@/lib/models";
 import { verifyNin, verifyBvn } from "@/lib/provn";
 
+const KYC_LOCK = "__PROVN_KYC_VERIFICATION_IN_PROGRESS__";
+
 export async function POST(req: Request) {
   const id = await currentUserId();
 
@@ -13,6 +15,8 @@ export async function POST(req: Request) {
       { status: 401 }
     );
   }
+
+  let locked = false;
 
   try {
     const form = await req.formData();
@@ -34,8 +38,67 @@ export async function POST(req: Request) {
       );
     }
 
-    // Use the same PROVN provider implementation
-    // for both NIN and BVN.
+    await db();
+
+    /*
+     * ATOMIC KYC LOCK
+     *
+     * This route uses the exact same lock as the
+     * dedicated NIN and BVN routes.
+     *
+     * Therefore /verify cannot run at the same time
+     * as /nin or /bvn for the same customer.
+     */
+    const lock = await User.findOneAndUpdate(
+      {
+        _id: id,
+        "kyc.status": { $ne: "VERIFIED" },
+        "kyc.reference": { $ne: KYC_LOCK },
+      },
+      {
+        $set: {
+          "kyc.status": "VERIFYING",
+          "kyc.type": type.toUpperCase(),
+          "kyc.reference": KYC_LOCK,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!lock) {
+      const existingUser = await User.findById(id).select("kyc");
+
+      if (existingUser?.kyc?.status === "VERIFIED") {
+        return NextResponse.redirect(
+          new URL("/dashboard", req.url)
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error:
+            "KYC verification is already in progress. Please wait.",
+        },
+        {
+          status: 409,
+        }
+      );
+    }
+
+    locked = true;
+
+    console.log("=== GENERIC KYC LOCK ACQUIRED ===");
+    console.log({
+      userId: String(id),
+      type: type.toUpperCase(),
+    });
+
+    /*
+     * PROVN is called exactly once after the
+     * atomic lock has been acquired.
+     */
     const result =
       type === "nin"
         ? await verifyNin(number)
@@ -44,19 +107,26 @@ export async function POST(req: Request) {
     console.log("=== PROVN KYC RESPONSE ===");
     console.log(JSON.stringify(result, null, 2));
 
-    await db();
+    /*
+     * PROVN succeeded.
+     * Save the verified KYC information.
+     */
+    const reference = String(
+      result?.data?.nin ||
+        result?.data?.bvn ||
+        number
+    );
 
-    const updatedUser = await User.findByIdAndUpdate(
-      id,
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: id,
+        "kyc.reference": KYC_LOCK,
+      },
       {
         $set: {
           "kyc.status": "VERIFIED",
           "kyc.type": type.toUpperCase(),
-          "kyc.reference": String(
-            result?.data?.nin ||
-              result?.data?.bvn ||
-              number
-          ),
+          "kyc.reference": reference,
           "kyc.verifiedAt": new Date(),
         },
       },
@@ -67,7 +137,9 @@ export async function POST(req: Request) {
     );
 
     if (!updatedUser) {
-      throw new Error("User account could not be found.");
+      throw new Error(
+        "KYC verification succeeded, but the KYC record could not be saved."
+      );
     }
 
     if (updatedUser.kyc?.status !== "VERIFIED") {
@@ -76,12 +148,48 @@ export async function POST(req: Request) {
       );
     }
 
+    locked = false;
+
     return NextResponse.redirect(
       new URL("/dashboard", req.url)
     );
   } catch (error: any) {
     console.error("=== KYC VERIFICATION ERROR ===");
     console.error(error);
+
+    /*
+     * Release the lock after a failed provider request
+     * or failed database save.
+     */
+    if (locked) {
+      try {
+        await db();
+
+        await User.findOneAndUpdate(
+          {
+            _id: id,
+            "kyc.reference": KYC_LOCK,
+          },
+          {
+            $set: {
+              "kyc.status": "PENDING",
+            },
+            $unset: {
+              "kyc.reference": "",
+              "kyc.type": "",
+              "kyc.verifiedAt": "",
+            },
+          }
+        );
+
+        console.log("=== GENERIC KYC LOCK RELEASED ===");
+      } catch (cleanupError) {
+        console.error(
+          "GENERIC KYC LOCK CLEANUP ERROR:",
+          cleanupError
+        );
+      }
+    }
 
     return NextResponse.json(
       {
@@ -94,4 +202,4 @@ export async function POST(req: Request) {
       }
     );
   }
-}
+  }
