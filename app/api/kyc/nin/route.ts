@@ -4,12 +4,16 @@ import { db } from "@/lib/db";
 import { User } from "@/lib/models";
 import { verifyNin } from "@/lib/provn";
 
+const KYC_LOCK = "__PROVN_KYC_VERIFICATION_IN_PROGRESS__";
+
 export async function POST(req: Request) {
   const id = await currentUserId();
 
   if (!id) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
+
+  let locked = false;
 
   try {
     const ct = req.headers.get("content-type") || "";
@@ -29,54 +33,160 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify with KYC provider
+    await db();
+
+    /*
+     * ATOMIC KYC LOCK
+     *
+     * This prevents:
+     * - double-clicks
+     * - browser retries
+     * - simultaneous NIN/BVN requests
+     * - another request reaching PROVN while one is running
+     *
+     * Only ONE request can successfully acquire this lock.
+     */
+    const lock = await User.findOneAndUpdate(
+      {
+        _id: id,
+        "kyc.status": { $ne: "VERIFIED" },
+        "kyc.reference": { $ne: KYC_LOCK },
+      },
+      {
+        $set: {
+          "kyc.status": "VERIFYING",
+          "kyc.type": "NIN",
+          "kyc.reference": KYC_LOCK,
+        },
+      },
+      {
+        new: true,
+      }
+    );
+
+    if (!lock) {
+      const existingUser = await User.findById(id).select("kyc");
+
+      if (existingUser?.kyc?.status === "VERIFIED") {
+        return NextResponse.redirect(
+          new URL("/dashboard", req.url)
+        );
+      }
+
+      return NextResponse.redirect(
+        new URL(
+          "/kyc?error=KYC%20verification%20is%20already%20in%20progress.%20Please%20wait.",
+          req.url
+        )
+      );
+    }
+
+    locked = true;
+
+    console.log("=== NIN KYC LOCK ACQUIRED ===");
+    console.log({
+      userId: String(id),
+      type: "NIN",
+    });
+
+    /*
+     * IMPORTANT:
+     * PROVN is called ONLY after the database lock
+     * has been successfully acquired.
+     */
     const result = await verifyNin(nin);
 
     console.log("=== NIN PROVIDER RESPONSE ===");
     console.log(JSON.stringify(result, null, 2));
 
-    await db();
+    /*
+     * PROVN succeeded.
+     * Now save the actual verified KYC information.
+     */
+    const updatedUser = await User.findOneAndUpdate(
+      {
+        _id: id,
+        "kyc.reference": KYC_LOCK,
+      },
+      {
+        $set: {
+          "kyc.reference": nin,
+          "kyc.status": "VERIFIED",
+          "kyc.type": "NIN",
+          "kyc.verifiedAt": new Date(),
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    );
 
-// Save verified KYC information
-const updatedUser = await User.findByIdAndUpdate(
-  id,
-  {
-    $set: {
-      "kyc.reference": nin,
-      "kyc.status": "VERIFIED",
-      "kyc.type": "NIN",
-      "kyc.verifiedAt": new Date(),
-    },
-  },
-  {
-    new: true,
-    runValidators: true,
-  }
-);
+    console.log("=== NIN KYC SAVED ===");
+    console.log({
+      userId: String(id),
+      foundUser: !!updatedUser,
+      kycStatus: updatedUser?.kyc?.status,
+      kycType: updatedUser?.kyc?.type,
+      hasKycReference: !!updatedUser?.kyc?.reference,
+    });
 
-console.log("=== NIN KYC SAVED ===");
-console.log({
-  userId: String(id),
-  foundUser: !!updatedUser,
-  kycStatus: updatedUser?.kyc?.status,
-  kycType: updatedUser?.kyc?.type,
-  hasKycReference: !!updatedUser?.kyc?.reference,
-});
+    if (!updatedUser) {
+      throw new Error(
+        "NIN verification succeeded, but the KYC record could not be saved."
+      );
+    }
 
-if (!updatedUser) {
-  throw new Error("User account could not be found.");
-}
+    if (updatedUser.kyc?.status !== "VERIFIED") {
+      throw new Error(
+        "NIN verification succeeded, but the KYC status could not be saved."
+      );
+    }
 
-if (updatedUser.kyc?.status !== "VERIFIED") {
-  throw new Error(
-    "NIN verification succeeded, but the KYC status could not be saved."
-  );
-}
+    locked = false;
 
-return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(
+      new URL("/dashboard", req.url)
+    );
   } catch (error: any) {
     console.error("=== NIN KYC ERROR ===");
     console.error(error);
+
+    /*
+     * PROVN failed.
+     *
+     * Release the lock so the customer can retry later.
+     * This does NOT make another PROVN request.
+     */
+    if (locked) {
+      try {
+        await db();
+
+        await User.findOneAndUpdate(
+          {
+            _id: id,
+            "kyc.reference": KYC_LOCK,
+          },
+          {
+            $set: {
+              "kyc.status": "PENDING",
+            },
+            $unset: {
+              "kyc.reference": "",
+              "kyc.type": "",
+              "kyc.verifiedAt": "",
+            },
+          }
+        );
+
+        console.log("=== NIN KYC LOCK RELEASED ===");
+      } catch (cleanupError) {
+        console.error(
+          "NIN KYC LOCK CLEANUP ERROR:",
+          cleanupError
+        );
+      }
+    }
 
     return NextResponse.redirect(
       new URL(
@@ -88,4 +198,4 @@ return NextResponse.redirect(new URL("/dashboard", req.url));
       )
     );
   }
-}
+                       }
