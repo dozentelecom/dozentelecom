@@ -1,0 +1,43 @@
+{
+  "packageId": "com.dozentelecom.app",
+  "host": "dozentelecom.vercel.app",
+  "name": "Dozentelecom",
+  "launcherName": "Dozentelecom",
+  "display": "standalone",
+  "themeColor": "#C90000",
+  "themeColorDark": "#000000",
+  "navigationColor": "#06111F",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#06111F",
+  "enableNotifications": false,
+  "startUrl": "/",
+  "iconUrl": "https://dozentelecom.vercel.app/icons/icon-512.png",
+  "maskableIconUrl": "https://dozentelecom.vercel.app/icons/icon-512.png",
+  "signingKey": {
+    "path": "android.keystore",
+    "alias": "dozentelecom"
+  },
+  "appVersionName": "1.0.0",
+  "appVersionCode": 3,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [
+    "EF:64:46:D7:AB:72:68:47:BF:B2:74:82:B7:F6:50:1E:05:D1:BF:CF:85:54:32:D6:50:82:94:21:BF:6B:74:C1"
+  ],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "displayOverride": [],
+  "appVersion": "1.0.0"
+}
