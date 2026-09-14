@@ -1,182 +1,35 @@
 "use client";
 
-import { useEffect, useState } from "react";
-
-declare global {
-  interface Window {
-    dozentelecomInstall?: () => Promise<boolean>;
-    dozentelecomCanInstall?: () => boolean;
-  }
-}
-
-interface InstallStateDetail {
-  available?: boolean;
-  installed?: boolean;
-}
-
-type InstallStateEvent = CustomEvent<InstallStateDetail>;
+import { useState } from "react";
 
 export default function FloatingActions() {
   const [showInstallHelp, setShowInstallHelp] =
     useState(false);
 
-  const [isInstallAvailable, setIsInstallAvailable] =
-    useState(false);
-
   const [isInstalled, setIsInstalled] =
     useState(false);
 
-  useEffect(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    /*
-     * Check whether the website is already running
-     * as an installed PWA.
-     */
-    const checkStandalone = () => {
-      const standalone =
-        window.matchMedia?.(
-          "(display-mode: standalone)"
-        ).matches ||
-        (window.navigator as any).standalone === true;
-
-      setIsInstalled(standalone);
-
-      if (standalone) {
-        setIsInstallAvailable(false);
-      }
-    };
-
-    checkStandalone();
-
-    /*
-     * Receive install-state changes from PWAProvider.
-     *
-     * This is important because beforeinstallprompt
-     * may fire after this component has already mounted.
-     */
-    const handleInstallState = (
-      event: Event
-    ) => {
-      const customEvent =
-        event as InstallStateEvent;
-
-      const available =
-        customEvent.detail?.available === true;
-
-      const installed =
-        customEvent.detail?.installed === true;
-
-      if (installed) {
-        setIsInstalled(true);
-        setIsInstallAvailable(false);
-        setShowInstallHelp(false);
-        return;
-      }
-
-      if (!isInstalled) {
-        setIsInstallAvailable(available);
-      }
-    };
-
-    window.addEventListener(
-      "dozentelecom-install-state",
-      handleInstallState
-    );
-
-    /*
-     * App installed event.
-     */
-    const handleInstalled = () => {
-      setIsInstalled(true);
-      setIsInstallAvailable(false);
-      setShowInstallHelp(false);
-    };
-
-    window.addEventListener(
-      "appinstalled",
-      handleInstalled
-    );
-
-    /*
-     * The provider may already have captured the
-     * install prompt before this component mounted.
-     */
-    const checkExistingPrompt = () => {
-      if (
-        typeof window.dozentelecomCanInstall ===
-          "function" &&
-        window.dozentelecomCanInstall()
-      ) {
-        setIsInstallAvailable(true);
-      }
-    };
-
-    checkExistingPrompt();
-
-    const timer = window.setTimeout(
-      checkExistingPrompt,
-      1000
-    );
-
-    return () => {
-      window.clearTimeout(timer);
-
-      window.removeEventListener(
-        "dozentelecom-install-state",
-        handleInstallState
-      );
-
-      window.removeEventListener(
-        "appinstalled",
-        handleInstalled
-      );
-    };
-  }, [isInstalled]);
-
-  const installApp = async () => {
+  const installApp = () => {
     if (isInstalled) {
       return;
     }
 
     /*
-     * Native Chrome installation prompt.
-     */
-    const install =
-      window.dozentelecomInstall;
-
-    if (
-      typeof install === "function"
-    ) {
-      try {
-        const accepted = await install();
-
-        if (accepted) {
-          setIsInstalled(true);
-          setIsInstallAvailable(false);
-          setShowInstallHelp(false);
-        }
-
-        return;
-      } catch (error) {
-        console.error(
-          "Dozentelecom installation failed:",
-          error
-        );
-      }
-    }
-
-    /*
-     * No native prompt is currently available.
+     * Download the official Dozentelecom Android APK.
      *
-     * This normally happens on:
-     * - iPhone/iPad
-     * - unsupported browsers
-     * - browsers where PWA install criteria
-     *   have not yet been satisfied
+     * The APK is hosted by Dozentelecom itself at:
+     * /downloads/dozentelecom.apk
      */
+    const link = document.createElement("a");
+
+    link.href = "/downloads/dozentelecom.apk";
+    link.download = "dozentelecom.apk";
+    link.rel = "noopener";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
     setShowInstallHelp(true);
   };
 
@@ -275,36 +128,29 @@ export default function FloatingActions() {
             </h3>
 
             <p>
-              Install Dozentelecom on your device
-              for quick access like a normal app.
+              The Dozentelecom Android app is
+              downloading now.
             </p>
 
             <div className="dt-install-instructions">
               <p>
                 <strong>
-                  Android / Chrome:
+                  Android:
                 </strong>
               </p>
 
               <p>
-                If Chrome supports installation,
-                the Install button will open the
-                native installation prompt.
+                Open the downloaded
+                <strong> dozentelecom.apk </strong>
+                file and follow the Android
+                installation instructions.
               </p>
 
               <p>
-                <strong>
-                  iPhone / iPad:
-                </strong>
-              </p>
-
-              <p>
-                Open Dozentelecom in Safari, tap
-                the <strong>Share</strong> button,
-                then select{" "}
-                <strong>
-                  Add to Home Screen
-                </strong>.
+                If Android asks for permission to
+                install apps from this browser,
+                allow it and continue the
+                installation.
               </p>
             </div>
 
@@ -322,4 +168,4 @@ export default function FloatingActions() {
       )}
     </>
   );
-}
+    }
