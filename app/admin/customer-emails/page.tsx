@@ -32,7 +32,9 @@ export default async function CustomerEmailsPage() {
             .trim()
             .toLowerCase()
         )
-        .filter(Boolean)
+        .filter(
+          (email: string) => email.length > 0
+        )
     )
   );
 
@@ -56,8 +58,10 @@ export default async function CustomerEmailsPage() {
           </div>
         </div>
 
-        <CustomerEmailsClient emails={emails} />
+        <CustomerEmailsClient
+          emails={emails}
+        />
       </main>
     </div>
   );
-    }
+}
