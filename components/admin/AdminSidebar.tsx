@@ -290,6 +290,27 @@ export default function AdminSidebar() {
             )}
           </Link>
 
+			{/* CUSTOMER EMAILS */}
+<Link
+  href="/admin/customer-emails"
+  className={`admin-sidebar-link ${
+    pathname.startsWith("/admin/customer-emails")
+      ? "active"
+      : ""
+  }`}
+  title="Customer Emails"
+>
+  <span className="admin-sidebar-icon">
+    📧
+  </span>
+
+  {open && (
+    <span>
+      Customer Emails
+    </span>
+  )}
+</Link>
+
           {/* PROFIT & WITHDRAW */}
 <Link
   href="/admin/profit"
