@@ -944,6 +944,183 @@ export const AuditLog =
   model("AuditLog", AuditLogSchema);
 
 /* =========================================================
+   API CUSTOMER
+   ========================================================= */
+
+const ApiCustomerSchema = new Schema(
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    email: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+      index: true,
+    },
+
+    companyName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
+    apiKeyHash: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    apiKeyPrefix: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    balanceKobo: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "ACTIVE",
+        "SUSPENDED",
+        "DISABLED",
+      ],
+      default: "ACTIVE",
+      index: true,
+    },
+
+    services: {
+      airtime: {
+        type: Boolean,
+        default: true,
+      },
+
+      data: {
+        type: Boolean,
+        default: true,
+      },
+
+      electricity: {
+        type: Boolean,
+        default: false,
+      },
+
+      cable: {
+        type: Boolean,
+        default: false,
+      },
+
+      education: {
+        type: Boolean,
+        default: false,
+      },
+    },
+
+    rateMarkup: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    monthlyLimitKobo: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+
+    lastUsedAt: Date,
+
+    lastIpAddress: String,
+
+    notes: {
+      type: String,
+      default: "",
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/* =========================================================
+   API TRANSACTION
+   ========================================================= */
+
+const ApiTransactionSchema = new Schema(
+  {
+    apiCustomerId: {
+      type: Schema.Types.ObjectId,
+      ref: "ApiCustomer",
+      required: true,
+      index: true,
+    },
+
+    service: {
+      type: String,
+      required: true,
+      index: true,
+    },
+
+    reference: {
+      type: String,
+      required: true,
+      unique: true,
+      index: true,
+    },
+
+    providerReference: String,
+
+    amountKobo: {
+      type: Number,
+      required: true,
+    },
+
+    costKobo: {
+      type: Number,
+      default: 0,
+    },
+
+    profitKobo: {
+      type: Number,
+      default: 0,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "PROCESSING",
+        "SUCCESS",
+        "FAILED",
+        "REFUNDED",
+      ],
+      default: "PROCESSING",
+      index: true,
+    },
+
+    requestData: Schema.Types.Mixed,
+
+    responseData: Schema.Types.Mixed,
+
+    error: String,
+
+    ipAddress: String,
+  },
+  {
+    timestamps: true,
+  }
+);
+
+/* =========================================================
    MODELS
    ========================================================= */
 
@@ -995,3 +1172,17 @@ export const Notification =
 export const Beneficiary =
   models.Beneficiary ||
   model("Beneficiary", BeneficiarySchema);
+
+export const ApiCustomer =
+  models.ApiCustomer ||
+  model(
+    "ApiCustomer",
+    ApiCustomerSchema
+  );
+
+export const ApiTransaction =
+  models.ApiTransaction ||
+  model(
+    "ApiTransaction",
+    ApiTransactionSchema
+  );
