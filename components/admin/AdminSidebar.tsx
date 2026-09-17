@@ -311,6 +311,26 @@ export default function AdminSidebar() {
   )}
 </Link>
 
+<Link
+  href="/admin/api-customers"
+  className={`admin-sidebar-link ${
+    pathname.startsWith("/admin/api-customers")
+      ? "active"
+      : ""
+  }`}
+  title="API Customers"
+>
+  <span className="admin-sidebar-icon">
+    🔑
+  </span>
+
+  {open && (
+    <span>
+      API Customers
+    </span>
+  )}
+</Link>
+			
           {/* PROFIT & WITHDRAW */}
 <Link
   href="/admin/profit"
