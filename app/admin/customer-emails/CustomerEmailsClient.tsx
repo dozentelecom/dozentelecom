@@ -21,10 +21,7 @@ export default function CustomerEmailsClient({
         setCopied(false);
       }, 2500);
     } catch (error) {
-      console.error(
-        "COPY EMAILS ERROR:",
-        error
-      );
+      console.error("COPY EMAILS ERROR:", error);
 
       alert(
         "Unable to copy emails. Please try again."
@@ -36,9 +33,7 @@ export default function CustomerEmailsClient({
     <>
       <div className="admin-analytics-grid">
         <div className="admin-stat-card">
-          <span>
-            Total Customer Emails
-          </span>
+          <span>Total Customer Emails</span>
 
           <strong>
             {emails.length.toLocaleString()}
@@ -67,9 +62,7 @@ export default function CustomerEmailsClient({
           }}
         >
           <div>
-            <h2>
-              Customer Email List
-            </h2>
+            <h2>Customer Email List</h2>
 
             <p className="muted">
               Copy all addresses and paste them
@@ -122,10 +115,10 @@ export default function CustomerEmailsClient({
             fontSize: "13px",
           }}
         >
-          Emails are automatically deduplicated
-          before copying.
+          Emails are automatically
+          deduplicated before copying.
         </p>
       </div>
     </>
   );
-}
+              }
