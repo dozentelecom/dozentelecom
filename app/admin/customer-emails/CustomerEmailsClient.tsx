@@ -6,33 +6,28 @@ type CustomerEmailsClientProps = {
   emails: string[];
   verifiedEmails: string[];
   unverifiedEmails: string[];
-  apiEmails: string[];
 };
 
 export default function CustomerEmailsClient({
   emails,
   verifiedEmails,
   unverifiedEmails,
-  apiEmails,
 }: CustomerEmailsClientProps) {
-  const [copiedGroup, setCopiedGroup] = useState<string | null>(null);
-
-  function getEmailText(list: string[]) {
-    return list.join(", ");
-  }
+  const [copiedGroup, setCopiedGroup] =
+    useState<string | null>(null);
 
   async function copyEmails(
-    groupName: string,
-    list: string[]
+    group: string,
+    emailList: string[]
   ) {
-    if (!list.length) return;
+    if (!emailList.length) return;
 
     try {
       await navigator.clipboard.writeText(
-        getEmailText(list)
+        emailList.join(", ")
       );
 
-      setCopiedGroup(groupName);
+      setCopiedGroup(group);
 
       setTimeout(() => {
         setCopiedGroup(null);
@@ -46,74 +41,60 @@ export default function CustomerEmailsClient({
     }
   }
 
-  const groups = [
-    {
-      key: "all",
-      title: "All Customers",
-      description:
-        "All unique registered customer email addresses.",
-      emails,
-    },
-    {
-      key: "verified",
-      title: "Verified Customers",
-      description:
-        "Customers who have completed KYC verification.",
-      emails: verifiedEmails,
-    },
-    {
-      key: "unverified",
-      title: "Not Verified Customers",
-      description:
-        "Customers who have not completed KYC verification.",
-      emails: unverifiedEmails,
-    },
-    {
-      key: "api",
-      title: "API Customers",
-      description:
-        "Customers registered for API access.",
-      emails: apiEmails,
-    },
-  ];
-
   return (
     <>
-      {/* SUMMARY */}
+      {/* EMAIL COUNTS */}
       <div className="admin-analytics-grid">
-        {groups.map((group) => (
-          <div
-            className="admin-stat-card"
-            key={group.key}
-          >
-            <span>{group.title}</span>
+        <div className="admin-stat-card">
+          <span>All Customers</span>
 
-            <strong>
-              {group.emails.length.toLocaleString()}
-            </strong>
+          <strong>
+            {emails.length.toLocaleString()}
+          </strong>
 
-            <small>{group.description}</small>
-          </div>
-        ))}
+          <small>
+            All unique customer email addresses
+          </small>
+        </div>
+
+        <div className="admin-stat-card">
+          <span>Verified Customers</span>
+
+          <strong>
+            {verifiedEmails.length.toLocaleString()}
+          </strong>
+
+          <small>
+            Customers who completed KYC
+          </small>
+        </div>
+
+        <div className="admin-stat-card">
+          <span>Not Verified Customers</span>
+
+          <strong>
+            {unverifiedEmails.length.toLocaleString()}
+          </strong>
+
+          <small>
+            Customers who have not completed KYC
+          </small>
+        </div>
       </div>
 
-      {/* EMAIL RECIPIENT GROUPS */}
+      {/* COPY EMAIL GROUPS */}
       <div
         className="card"
         style={{
           marginTop: "24px",
         }}
       >
-        <div
-          style={{
-            marginBottom: "20px",
-          }}
-        >
-          <h2>Email Recipients</h2>
+        <div style={{ marginBottom: "20px" }}>
+          <h2>Customer Email Groups</h2>
 
           <p className="muted">
-            Select the customer group you want to
-            email, then copy the addresses directly
+            Copy the email addresses for the customer
+            group you want to contact and paste them
             into the BCC field of your email.
           </p>
         </div>
@@ -122,75 +103,109 @@ export default function CustomerEmailsClient({
           style={{
             display: "grid",
             gridTemplateColumns:
-              "repeat(auto-fit, minmax(240px, 1fr))",
+              "repeat(auto-fit, minmax(220px, 1fr))",
             gap: "14px",
           }}
         >
-          {groups.map((group) => (
-            <div
-              key={group.key}
-              style={{
-                border: "1px solid #d1d5db",
-                borderRadius: "12px",
-                padding: "16px",
-              }}
+          {/* ALL */}
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <h3>All Customers</h3>
+
+            <p className="muted">
+              {emails.length.toLocaleString()} email
+              addresses
+            </p>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                copyEmails("all", emails)
+              }
+              disabled={!emails.length}
+              style={{ width: "100%" }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent:
-                    "space-between",
-                  alignItems: "center",
-                  gap: "10px",
-                  marginBottom: "8px",
-                }}
-              >
-                <strong>{group.title}</strong>
+              {copiedGroup === "all"
+                ? "✓ Emails Copied"
+                : "📋 Copy All Emails"}
+            </button>
+          </div>
 
-                <span
-                  style={{
-                    fontSize: "13px",
-                    fontWeight: 600,
-                  }}
-                >
-                  {group.emails.length.toLocaleString()}
-                </span>
-              </div>
+          {/* VERIFIED */}
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <h3>Verified Customers</h3>
 
-              <p
-                className="muted"
-                style={{
-                  fontSize: "13px",
-                  marginBottom: "14px",
-                }}
-              >
-                {group.description}
-              </p>
+            <p className="muted">
+              {verifiedEmails.length.toLocaleString()}{" "}
+              email addresses
+            </p>
 
-              <button
-                type="button"
-                className="primary-button"
-                onClick={() =>
-                  copyEmails(
-                    group.key,
-                    group.emails
-                  )
-                }
-                disabled={!group.emails.length}
-                style={{
-                  width: "100%",
-                }}
-              >
-                {copiedGroup === group.key
-                  ? "✓ Emails Copied"
-                  : "📋 Copy Emails"}
-              </button>
-            </div>
-          ))}
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                copyEmails(
+                  "verified",
+                  verifiedEmails
+                )
+              }
+              disabled={!verifiedEmails.length}
+              style={{ width: "100%" }}
+            >
+              {copiedGroup === "verified"
+                ? "✓ Emails Copied"
+                : "📋 Copy Verified Emails"}
+            </button>
+          </div>
+
+          {/* NOT VERIFIED */}
+          <div
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: "12px",
+              padding: "16px",
+            }}
+          >
+            <h3>Not Verified Customers</h3>
+
+            <p className="muted">
+              {unverifiedEmails.length.toLocaleString()}{" "}
+              email addresses
+            </p>
+
+            <button
+              type="button"
+              className="primary-button"
+              onClick={() =>
+                copyEmails(
+                  "unverified",
+                  unverifiedEmails
+                )
+              }
+              disabled={!unverifiedEmails.length}
+              style={{ width: "100%" }}
+            >
+              {copiedGroup === "unverified"
+                ? "✓ Emails Copied"
+                : "📋 Copy Unverified Emails"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* ALL EMAILS */}
+      {/* ALL EMAILS DISPLAY */}
       <div
         className="card"
         style={{
@@ -199,42 +214,20 @@ export default function CustomerEmailsClient({
       >
         <div
           style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            gap: "12px",
-            flexWrap: "wrap",
             marginBottom: "18px",
           }}
         >
-          <div>
-            <h2>Customer Email List</h2>
+          <h2>Customer Email List</h2>
 
-            <p className="muted">
-              All customer email addresses are shown
-              below. You can copy them and paste them
-              into BCC.
-            </p>
-          </div>
-
-          <button
-            type="button"
-            className="primary-button"
-            onClick={() =>
-              copyEmails("all", emails)
-            }
-            disabled={!emails.length}
-          >
-            {copiedGroup === "all"
-              ? "✓ Emails Copied"
-              : "📋 Copy All Emails"}
-          </button>
+          <p className="muted">
+            All customer email addresses.
+          </p>
         </div>
 
         {emails.length > 0 ? (
           <textarea
             readOnly
-            value={getEmailText(emails)}
+            value={emails.join(", ")}
             rows={10}
             onFocus={(event) =>
               event.currentTarget.select()
@@ -270,4 +263,4 @@ export default function CustomerEmailsClient({
       </div>
     </>
   );
-    }
+  }
