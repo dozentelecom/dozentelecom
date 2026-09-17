@@ -21,9 +21,15 @@ export default async function ApiCustomersPage() {
     companyName: customer.companyName || "",
     status: customer.status,
     balanceKobo: customer.balanceKobo || 0,
-    testApiKeyPrefix: customer.testApiKeyPrefix || "",
-    liveApiKeyPrefix: customer.liveApiKeyPrefix || "",
+
+    testApiKeyPrefix:
+      customer.testApiKeyPrefix || "",
+
+    liveApiKeyPrefix:
+      customer.liveApiKeyPrefix || "",
+
     services: customer.services || {},
+
     createdAt: customer.createdAt
       ? new Date(customer.createdAt).toISOString()
       : null,
@@ -53,4 +59,4 @@ export default async function ApiCustomersPage() {
       </main>
     </div>
   );
-  }
+    }
