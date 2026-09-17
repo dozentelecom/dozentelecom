@@ -969,18 +969,29 @@ const ApiCustomerSchema = new Schema(
       default: "",
     },
 
-    apiKeyHash: {
-      type: String,
-      required: true,
-      unique: true,
-      index: true,
-    },
+    testApiKeyHash: {
+  type: String,
+  unique: true,
+  sparse: true,
+  index: true,
+},
 
-    apiKeyPrefix: {
-      type: String,
-      required: true,
-      index: true,
-    },
+testApiKeyPrefix: {
+  type: String,
+  default: "",
+},
+
+liveApiKeyHash: {
+  type: String,
+  unique: true,
+  sparse: true,
+  index: true,
+},
+
+liveApiKeyPrefix: {
+  type: String,
+  default: "",
+},
 
     balanceKobo: {
       type: Number,
