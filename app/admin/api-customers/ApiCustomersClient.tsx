@@ -72,10 +72,8 @@ export default function ApiCustomersClient({
       setCompanyName("");
 
       alert(
-        "API customer created. Save both API keys now."
-      );
-
-      window.location.reload();
+  "API customer created. Save both API keys now. They will not be shown again."
+);
     } catch (error) {
       console.error(
         "CREATE API CUSTOMER ERROR:",
