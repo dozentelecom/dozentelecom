@@ -69,25 +69,6 @@ export default async function KycPage({
             Verify NIN
           </button>
         </form>
-
-        <hr />
-
-        <form action="/api/kyc/bvn" method="post">
-          <label className="label">BVN</label>
-
-          <input
-            className="input"
-            name="bvn"
-            inputMode="numeric"
-            pattern="[0-9]{11}"
-            maxLength={11}
-            required
-          />
-
-          <button type="submit" className="btn primary">
-            Verify BVN
-          </button>
-        </form>
       </div>
     </main>
   );
