@@ -219,6 +219,8 @@ export default async function TransactionsPage() {
     <div className="dashboard-layout">
       <DashboardSidebar />
 
+<TransactionAutoRefresh />
+
       <main className="dashboard-content">
         <BackButton />
 
