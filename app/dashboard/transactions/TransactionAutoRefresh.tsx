@@ -8,11 +8,8 @@ export default function TransactionAutoRefresh() {
   useEffect(() => {
     let cancelled = false;
 
-    const check = async () => {
-      if (
-        cancelled ||
-        running.current
-      ) {
+    async function checkTransactions() {
+      if (cancelled || running.current) {
         return;
       }
 
@@ -27,61 +24,45 @@ export default function TransactionAutoRefresh() {
           }
         );
 
-        const data =
-          await response.json().catch(
-            () => ({})
-          );
+        if (!response.ok) {
+          return;
+        }
+
+        const data = await response.json();
 
         console.log(
           "TRANSACTION RECONCILIATION:",
           data
         );
 
-        /*
-         * If any old transaction was changed,
-         * reload the page so the new DB status
-         * is displayed.
-         */
-
         if (
           !cancelled &&
           Number(data?.updated || 0) > 0
         ) {
           window.location.reload();
-          return;
         }
       } catch (error) {
         console.error(
-          "TRANSACTION AUTO REFRESH ERROR:",
+          "TRANSACTION RECONCILIATION ERROR:",
           error
         );
       } finally {
         running.current = false;
       }
-    };
+    }
 
-    /*
-     * Check immediately when the page opens.
-     */
-    check();
+    checkTransactions();
 
-    /*
-     * Then check every 10 seconds.
-     */
-    const interval =
-      window.setInterval(
-        check,
-        10000
-      );
+    const interval = window.setInterval(
+      checkTransactions,
+      10000
+    );
 
     return () => {
       cancelled = true;
-
-      window.clearInterval(
-        interval
-      );
+      window.clearInterval(interval);
     };
   }, []);
 
   return null;
-      }
+            }
