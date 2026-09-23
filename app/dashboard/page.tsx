@@ -404,7 +404,7 @@ export default async function Dashboard() {
           {/* WHATSAPP GROUP */}
 
           <a
-            href="https://chat.whatsapp.com/Euf9WLOfbIGD1BzH4c4jVE"
+            href="https://chat.whatsapp.com/Euf9WLOfblGD1BzH4c4jVE"
             target="_blank"
             rel="noopener noreferrer"
             className="card service-card"
