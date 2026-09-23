@@ -2,102 +2,66 @@
 
 import { useEffect, useRef } from "react";
 
-type Props = {
-  references: string[];
-};
-
-export default function TransactionAutoRefresh({
-  references,
-}: Props) {
+export default function TransactionAutoRefresh() {
   const running = useRef(false);
 
   useEffect(() => {
-    if (!references.length) return;
-
     let cancelled = false;
 
     const check = async () => {
-      if (cancelled || running.current) {
+      if (
+        cancelled ||
+        running.current
+      ) {
         return;
       }
 
       running.current = true;
 
       try {
-        let shouldReload = false;
-
-        for (const reference of references) {
-          if (cancelled) break;
-
-          try {
-            const response = await fetch(
-              "/api/transactions/status",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type":
-                    "application/json",
-                },
-                body: JSON.stringify({
-                  reference,
-                }),
-                cache: "no-store",
-              }
-            );
-
-            if (!response.ok) {
-              continue;
-            }
-
-            const data =
-              await response.json();
-
-            console.log(
-              "AUTO REFRESH STATUS:",
-              reference,
-              data
-            );
-
-            /*
-             * Only reload when the server confirms
-             * that the transaction has reached a
-             * final state.
-             */
-            if (
-              data?.final === true &&
-              (
-                data?.status === "SUCCESS" ||
-                data?.status === "FAILED" ||
-                data?.status === "REVERSED"
-              )
-            ) {
-              shouldReload = true;
-              break;
-            }
-          } catch (error) {
-            console.error(
-              "TRANSACTION AUTO REFRESH ERROR:",
-              error
-            );
-
-            // Continue checking other references.
+        const response = await fetch(
+          "/api/transactions/reconcile",
+          {
+            method: "POST",
+            cache: "no-store",
           }
-        }
+        );
+
+        const data =
+          await response.json().catch(
+            () => ({})
+          );
+
+        console.log(
+          "TRANSACTION RECONCILIATION:",
+          data
+        );
+
+        /*
+         * If any old transaction was changed,
+         * reload the page so the new DB status
+         * is displayed.
+         */
 
         if (
-          shouldReload &&
-          !cancelled
+          !cancelled &&
+          Number(data?.updated || 0) > 0
         ) {
           window.location.reload();
+          return;
         }
+      } catch (error) {
+        console.error(
+          "TRANSACTION AUTO REFRESH ERROR:",
+          error
+        );
       } finally {
         running.current = false;
       }
     };
 
     /*
-     * Check immediately when the Transactions
-     * page opens.
+     * Check immediately when the page opens.
      */
     check();
 
@@ -112,11 +76,12 @@ export default function TransactionAutoRefresh({
 
     return () => {
       cancelled = true;
+
       window.clearInterval(
         interval
       );
     };
-  }, [references]);
+  }, []);
 
   return null;
-}
+      }
