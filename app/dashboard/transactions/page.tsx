@@ -11,6 +11,7 @@ import {
 
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import BackButton from "@/components/dashboard/BackButton";
+import TransactionAutoRefresh from "./TransactionAutoRefresh";
 
 export const dynamic = "force-dynamic";
 
@@ -208,6 +209,24 @@ export default async function TransactionsPage() {
     return bTime - aTime;
   });
 
+   /*
+ * =========================================================
+ * PROCESSING SERVICE REFERENCES
+ * =========================================================
+ */
+
+const processingReferences = history
+  .filter(
+    (item) =>
+      item.type === "service" &&
+      (
+        item.status === "PROCESSING" ||
+        item.status === "PENDING"
+      ) &&
+      item.reference
+  )
+  .map((item) => item.reference);
+  
   /*
    * =========================================================
    * ONLY SERVICE TRANSACTIONS NEED SME STATUS POLLING
@@ -217,6 +236,10 @@ export default async function TransactionsPage() {
   return (
     <div className="dashboard-layout">
       <DashboardSidebar />
+      
+      <TransactionAutoRefresh
+  references={processingReferences}
+/>
 
       <main className="dashboard-content">
         <BackButton />
