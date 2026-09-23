@@ -373,97 +373,6 @@ const [receipt, setReceipt] =
     }
   }
 
-/* =======================================================
-   BUY DATA
-======================================================= */
-
-async function buy() {
-  setLoading(true);
-  setError("");
-  setMessage("");
-  setReceipt(null);
-
-  try {
-    if (!form.network) {
-      throw new Error("Please select a network.");
-    }
-
-    if (!form.data_plan) {
-      throw new Error("Please select a data plan.");
-    }
-
-    if (!form.phone) {
-      throw new Error("Please enter the phone number.");
-    }
-
-    if (!/^\d{11}$/.test(form.phone)) {
-      throw new Error(
-        "Please enter a valid 11-digit phone number."
-      );
-    }
-
-    if (!form.pin || form.pin.length !== 4) {
-      throw new Error("Please enter your 4-digit PIN.");
-    }
-
-    /*
-     * Do NOT use the generic post() helper here.
-     *
-     * A failed/pending provider transaction may still
-     * contain useful transaction information even when
-     * the API responds with HTTP 4xx/5xx.
-     */
-    const response = await fetch("/api/sme/data", {
-      method: "POST",
-      cache: "no-store",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        network: Number(form.network),
-        data_plan: Number(form.data_plan),
-        phone: form.phone,
-        pin: form.pin,
-      }),
-    });
-
-    const json = await response
-      .json()
-      .catch(() => ({}));
-
-    console.log(
-      "DATA PURCHASE HTTP STATUS:",
-      response.status
-    );
-
-    console.log(
-      "DATA PURCHASE RESPONSE:",
-      json
-    );
-
-    /*
-     * Provider / API response can be either at the
-     * root or inside data.
-     */
-    const purchaseData =
-      json?.data &&
-      typeof json.data === "object"
-        ? json.data
-        : {};
-
-    const reference =
-      json?.reference ||
-      purchaseData?.reference ||
-      json?.transactionReference ||
-      purchaseData?.transactionReference ||
-      json?.externalReference ||
-      purchaseData?.externalReference ||
-      "";
-
-    const selectedPlan = dataPlans.find(
-      (item) =>
-        item.key === form.data_plan
-    );
 
     /* =======================================================
    AUTO-CHECK PROCESSING TRANSACTION
@@ -561,6 +470,98 @@ async function monitorTransaction(reference: string) {
     }
   }
       }
+
+   /* =======================================================
+   BUY DATA
+======================================================= */
+
+async function buy() {
+  setLoading(true);
+  setError("");
+  setMessage("");
+  setReceipt(null);
+
+  try {
+    if (!form.network) {
+      throw new Error("Please select a network.");
+    }
+
+    if (!form.data_plan) {
+      throw new Error("Please select a data plan.");
+    }
+
+    if (!form.phone) {
+      throw new Error("Please enter the phone number.");
+    }
+
+    if (!/^\d{11}$/.test(form.phone)) {
+      throw new Error(
+        "Please enter a valid 11-digit phone number."
+      );
+    }
+
+    if (!form.pin || form.pin.length !== 4) {
+      throw new Error("Please enter your 4-digit PIN.");
+    }
+
+    /*
+     * Do NOT use the generic post() helper here.
+     *
+     * A failed/pending provider transaction may still
+     * contain useful transaction information even when
+     * the API responds with HTTP 4xx/5xx.
+     */
+    const response = await fetch("/api/sme/data", {
+      method: "POST",
+      cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        network: Number(form.network),
+        data_plan: Number(form.data_plan),
+        phone: form.phone,
+        pin: form.pin,
+      }),
+    });
+
+    const json = await response
+      .json()
+      .catch(() => ({}));
+
+    console.log(
+      "DATA PURCHASE HTTP STATUS:",
+      response.status
+    );
+
+    console.log(
+      "DATA PURCHASE RESPONSE:",
+      json
+    );
+
+    /*
+     * Provider / API response can be either at the
+     * root or inside data.
+     */
+    const purchaseData =
+      json?.data &&
+      typeof json.data === "object"
+        ? json.data
+        : {};
+
+    const reference =
+      json?.reference ||
+      purchaseData?.reference ||
+      json?.transactionReference ||
+      purchaseData?.transactionReference ||
+      json?.externalReference ||
+      purchaseData?.externalReference ||
+      "";
+
+    const selectedPlan = dataPlans.find(
+      (item) =>
+        item.key === form.data_plan
+    );
      
     /*
      * =====================================================
@@ -733,6 +734,20 @@ if (
   monitorTransaction(reference);
 }
 
+} catch (e: any) {
+  console.error(
+    "DATA PURCHASE ERROR:",
+    e
+  );
+
+  setError(
+    e?.message ||
+      "Unable to process data purchase."
+  );
+} finally {
+  setLoading(false);
+}
+       }
   /* =======================================================
      RENDER
   ======================================================= */
