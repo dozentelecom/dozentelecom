@@ -465,6 +465,103 @@ async function buy() {
         item.key === form.data_plan
     );
 
+    /* =======================================================
+   AUTO-CHECK PROCESSING TRANSACTION
+======================================================= */
+
+async function monitorTransaction(reference: string) {
+  if (!reference) return;
+
+  const maxAttempts = 30;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await new Promise((resolve) =>
+        setTimeout(resolve, 5000)
+      );
+
+      const response = await fetch(
+        "/api/transactions/status",
+        {
+          method: "POST",
+          cache: "no-store",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            reference,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        continue;
+      }
+
+      const data = await response.json();
+
+      console.log(
+        "TRANSACTION STATUS CHECK:",
+        data
+      );
+
+      const status = String(
+        data?.status ||
+          data?.transaction?.status ||
+          ""
+      ).toUpperCase();
+
+      if (
+        status === "SUCCESS" ||
+        status === "FAILED" ||
+        status === "REVERSED" ||
+        status === "REFUNDED"
+      ) {
+        setReceipt((current: any) => {
+          if (!current) return current;
+
+          return {
+            ...current,
+
+            status:
+              status === "REFUNDED"
+                ? "FAILED"
+                : status,
+
+            message:
+              data?.message ||
+              data?.error ||
+              current.message ||
+              "",
+
+            refunded:
+              Boolean(
+                data?.refunded ||
+                  status === "REFUNDED"
+              ),
+          };
+        });
+
+        if (status === "SUCCESS") {
+          setMessage(
+            data?.message ||
+              "Data purchase completed successfully."
+          );
+        } else {
+          setMessage("");
+        }
+
+        return;
+      }
+    } catch (error) {
+      console.error(
+        "TRANSACTION STATUS CHECK ERROR:",
+        error
+      );
+    }
+  }
+      }
+     
     /*
      * =====================================================
      * NORMALIZE STATUS
@@ -621,31 +718,19 @@ async function buy() {
        * failed transaction is displayed.
        */
     } else {
-      setMessage(
-        transactionMessage ||
-          "Data purchase is still being processed."
-      );
-    }
+  setMessage(
+    transactionMessage ||
+      "Data purchase is still being processed."
+  );
+}
 
-    update("pin", "");
-  } catch (e: any) {
-    console.error(
-      "DATA PURCHASE ERROR:",
-      e
-    );
+update("pin", "");
 
-    /*
-     * This catch is now reserved for genuine frontend/
-     * network failures where there is no usable transaction
-     * response at all.
-     */
-    setError(
-      e?.message ||
-        "Unable to process data purchase."
-    );
-  } finally {
-    setLoading(false);
-  }
+if (
+  status === "PROCESSING" &&
+  reference
+) {
+  monitorTransaction(reference);
 }
 
   /* =======================================================
