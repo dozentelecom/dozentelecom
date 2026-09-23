@@ -209,24 +209,6 @@ export default async function TransactionsPage() {
     return bTime - aTime;
   });
 
-   /*
- * =========================================================
- * PROCESSING SERVICE REFERENCES
- * =========================================================
- */
-
-const processingReferences = history
-  .filter(
-    (item) =>
-      item.type === "service" &&
-      (
-        item.status === "PROCESSING" ||
-        item.status === "PENDING"
-      ) &&
-      item.reference
-  )
-  .map((item) => item.reference);
-  
   /*
    * =========================================================
    * ONLY SERVICE TRANSACTIONS NEED SME STATUS POLLING
@@ -236,10 +218,6 @@ const processingReferences = history
   return (
     <div className="dashboard-layout">
       <DashboardSidebar />
-      
-      <TransactionAutoRefresh
-  references={processingReferences}
-/>
 
       <main className="dashboard-content">
         <BackButton />
