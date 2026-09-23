@@ -17,7 +17,9 @@ export default function TransactionAutoRefresh({
     let cancelled = false;
 
     const check = async () => {
-      if (cancelled || running.current) return;
+      if (cancelled || running.current) {
+        return;
+      }
 
       running.current = true;
 
@@ -33,7 +35,8 @@ export default function TransactionAutoRefresh({
               {
                 method: "POST",
                 headers: {
-                  "Content-Type": "application/json",
+                  "Content-Type":
+                    "application/json",
                 },
                 body: JSON.stringify({
                   reference,
@@ -42,24 +45,49 @@ export default function TransactionAutoRefresh({
               }
             );
 
-            if (!response.ok) continue;
+            if (!response.ok) {
+              continue;
+            }
 
-            const data = await response.json();
+            const data =
+              await response.json();
 
+            console.log(
+              "AUTO REFRESH STATUS:",
+              reference,
+              data
+            );
+
+            /*
+             * Only reload when the server confirms
+             * that the transaction has reached a
+             * final state.
+             */
             if (
-              data?.status === "SUCCESS" ||
-              data?.status === "FAILED" ||
-              data?.status === "REVERSED"
+              data?.final === true &&
+              (
+                data?.status === "SUCCESS" ||
+                data?.status === "FAILED" ||
+                data?.status === "REVERSED"
+              )
             ) {
               shouldReload = true;
               break;
             }
-          } catch {
-            // Ignore temporary network errors.
+          } catch (error) {
+            console.error(
+              "TRANSACTION AUTO REFRESH ERROR:",
+              error
+            );
+
+            // Continue checking other references.
           }
         }
 
-        if (shouldReload && !cancelled) {
+        if (
+          shouldReload &&
+          !cancelled
+        ) {
           window.location.reload();
         }
       } finally {
@@ -67,16 +95,26 @@ export default function TransactionAutoRefresh({
       }
     };
 
+    /*
+     * Check immediately when the Transactions
+     * page opens.
+     */
     check();
 
-    const interval = window.setInterval(
-      check,
-      10000
-    );
+    /*
+     * Then check every 10 seconds.
+     */
+    const interval =
+      window.setInterval(
+        check,
+        10000
+      );
 
     return () => {
       cancelled = true;
-      window.clearInterval(interval);
+      window.clearInterval(
+        interval
+      );
     };
   }, [references]);
 
