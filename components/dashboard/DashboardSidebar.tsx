@@ -10,11 +10,6 @@ const services = [
     href: "/dashboard/services?service=data",
     icon: "📶",
   },
-    {
-    name: "Airtime to Cash",
-    href: "/dashboard/airtime-to-cash",
-    icon: "💸",
-  },
 ];
 
 export default function DashboardSidebar() {
