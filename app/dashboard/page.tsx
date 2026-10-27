@@ -319,15 +319,12 @@ export default async function Dashboard() {
 
           {[
             ["Data", "📶"],
-            ["Airtime to Cash", "💸"],
             ["Giveaway", "🎁"],
           ].map(([x, icon]) => (
 
             <Link
               href={
-                x === "Airtime to Cash"
-                  ? "/dashboard/airtime-to-cash"
-                  : x === "Giveaway"
+                x === "Giveaway"
                   ? "/dashboard/giveaway"
                   : "/dashboard/services"
               }
