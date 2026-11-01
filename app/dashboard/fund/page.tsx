@@ -8,8 +8,8 @@ export default function Fund() {
         <h1>Fund wallet</h1>
 
         <p className="muted">
-          The applicable funding fee is calculated automatically
-          from your current admin-configured funding rate.
+          Enter the amount you want to fund. Your applicable
+          funding fee will be calculated automatically.
         </p>
 
         <form
@@ -21,15 +21,16 @@ export default function Fund() {
             name="amount"
             type="number"
             min="100"
+            step="1"
             required
-            placeholder="Amount"
+            placeholder="Amount in ₦"
           />
 
           <button
             className="btn primary"
             type="submit"
           >
-            Continue to Paystack
+            Continue to Flutterwave
           </button>
         </form>
       </div>

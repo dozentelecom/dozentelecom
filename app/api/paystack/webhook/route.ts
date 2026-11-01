@@ -16,8 +16,6 @@ import { creditWallet } from "@/lib/ledger";
    ========================================================= */
 
 export async function GET() {
-  console.log("=== PAYSTACK WEBHOOK GET TEST ===");
-
   return NextResponse.json({
     ok: true,
     message: "Paystack webhook route is live",
@@ -29,76 +27,43 @@ export async function GET() {
    ========================================================= */
 
 export async function POST(req: Request) {
-  console.log("=== PAYSTACK WEBHOOK POST RECEIVED ===");
-
   try {
     /* =======================================================
-       READ RAW BODY
-       IMPORTANT:
-       Paystack signature must be calculated from the
-       exact raw request body.
+       READ RAW BODY AND VERIFY SIGNATURE
        ======================================================= */
 
     const raw = await req.text();
-
     const signature =
       req.headers.get("x-paystack-signature") || "";
-
-    const secret =
-      process.env.PAYSTACK_SECRET_KEY || "";
+    const secret = process.env.PAYSTACK_SECRET_KEY || "";
 
     if (!secret) {
-      console.error(
-        "=== PAYSTACK WEBHOOK ERROR ==="
-      );
-
-      console.error(
-        "PAYSTACK_SECRET_KEY is missing"
-      );
+      console.error("PAYSTACK_SECRET_KEY is missing");
 
       return NextResponse.json(
-        {
-          error: "Webhook configuration error",
-        },
-        {
-          status: 500,
-        }
+        { error: "Webhook configuration error" },
+        { status: 500 }
       );
     }
 
-    /* =======================================================
-       VERIFY PAYSTACK SIGNATURE
-       ======================================================= */
-
-    const expectedSignature =
-      crypto
-        .createHmac("sha512", secret)
-        .update(raw)
-        .digest("hex");
+    const expectedSignature = crypto
+      .createHmac("sha512", secret)
+      .update(raw)
+      .digest("hex");
 
     const isValidSignature =
-      signature.length ===
-        expectedSignature.length &&
+      signature.length === expectedSignature.length &&
       crypto.timingSafeEqual(
         Buffer.from(signature, "utf8"),
-        Buffer.from(
-          expectedSignature,
-          "utf8"
-        )
+        Buffer.from(expectedSignature, "utf8")
       );
 
     if (!isValidSignature) {
-      console.error(
-        "=== INVALID PAYSTACK WEBHOOK SIGNATURE ==="
-      );
+      console.error("Invalid Paystack webhook signature");
 
       return NextResponse.json(
-        {
-          error: "Invalid signature",
-        },
-        {
-          status: 401,
-        }
+        { error: "Invalid signature" },
+        { status: 401 }
       );
     }
 
@@ -111,32 +76,25 @@ export async function POST(req: Request) {
     try {
       event = JSON.parse(raw);
     } catch {
-      console.error(
-        "=== PAYSTACK WEBHOOK INVALID JSON ==="
-      );
-
       return NextResponse.json(
-        {
-          error: "Invalid JSON",
-        },
-        {
-          status: 400,
-        }
+        { error: "Invalid JSON" },
+        { status: 400 }
+      );
+    }
+
+    if (!event || typeof event.event !== "string") {
+      return NextResponse.json(
+        { error: "Invalid Paystack event" },
+        { status: 400 }
       );
     }
 
     await db();
 
-    console.log(
-      "=== PAYSTACK WEBHOOK EVENT ==="
-    );
-
-    console.log(
-      JSON.stringify(event, null, 2)
-    );
+    console.log("PAYSTACK WEBHOOK EVENT:", event.event);
 
     /* =========================================================
-       TRANSFER EVENTS
+       1. TRANSFER EVENTS — CUSTOMER AND PROFIT WITHDRAWALS
        ========================================================= */
 
     const transferEvents = [
@@ -145,23 +103,14 @@ export async function POST(req: Request) {
       "transfer.reversed",
     ];
 
-    if (
-      transferEvents.includes(event.event)
-    ) {
+    if (transferEvents.includes(event.event)) {
       const data = event.data || {};
-
-      const reference = String(
-        data.reference || ""
-      ).trim();
+      const reference = String(data.reference || "").trim();
 
       if (!reference) {
-        console.error(
-          "=== TRANSFER EVENT WITHOUT REFERENCE ==="
-        );
+        console.error("Transfer event without reference");
 
-        return NextResponse.json({
-          ok: true,
-        });
+        return NextResponse.json({ ok: true });
       }
 
       /* =====================================================
@@ -171,283 +120,109 @@ export async function POST(req: Request) {
       const customerWithdrawal: any =
         await Withdrawal.findOne({
           $or: [
-            {
-              reference,
-            },
-            {
-              paystackReference:
-                reference,
-            },
+            { reference },
+            { paystackReference: reference },
           ],
         });
 
       if (customerWithdrawal) {
-        console.log(
-          "=== CUSTOMER WITHDRAWAL WEBHOOK ==="
-        );
-
-        console.log({
-          reference,
-          withdrawalReference:
-            customerWithdrawal.reference,
-          event: event.event,
-          currentStatus:
-            customerWithdrawal.status,
-          userId:
-            String(
-              customerWithdrawal.userId
-            ),
-        });
-
-        /* ===================================================
-           SAVE PAYSTACK TRANSFER DATA
-           =================================================== */
-
-        customerWithdrawal.paystackData =
-          data;
+        customerWithdrawal.paystackData = data;
 
         if (data.transfer_code) {
           customerWithdrawal.paystackTransferCode =
             data.transfer_code;
         }
 
-        /* ===================================================
-           TRANSFER SUCCESS
-           =================================================== */
-
-        if (
-          event.event ===
-          "transfer.success"
-        ) {
-          /*
-           * SUCCESS is terminal.
-           *
-           * FAILED and REVERSED are also terminal.
-           * Never allow a late success webhook to
-           * change a withdrawal that has already been
-           * refunded.
-           */
-
+        if (event.event === "transfer.success") {
           if (
-            customerWithdrawal.status ===
-              "PENDING" ||
-            customerWithdrawal.status ===
-              "PROCESSING"
+            customerWithdrawal.status === "PENDING" ||
+            customerWithdrawal.status === "PROCESSING"
           ) {
-            customerWithdrawal.status =
-              "SUCCESS";
-
-            customerWithdrawal.completedAt =
-              new Date();
-
-            customerWithdrawal.error =
-              undefined;
-
-            await customerWithdrawal.save();
-
-            console.log(
-              "=== CUSTOMER WITHDRAWAL SUCCESS ==="
-            );
-
-            console.log({
-              reference,
-              amountKobo:
-                customerWithdrawal.amountKobo,
-              payoutKobo:
-                customerWithdrawal.payoutKobo,
-            });
-          } else {
-            console.log(
-              "=== CUSTOMER WITHDRAWAL SUCCESS EVENT ALREADY PROCESSED ==="
-            );
-
-            console.log({
-              reference,
-              currentStatus:
-                customerWithdrawal.status,
-            });
-
-            await customerWithdrawal.save();
+            customerWithdrawal.status = "SUCCESS";
+            customerWithdrawal.completedAt = new Date();
+            customerWithdrawal.error = undefined;
           }
+
+          await customerWithdrawal.save();
+
+          return NextResponse.json({ ok: true });
         }
 
-        /* ===================================================
-           TRANSFER FAILED / REVERSED
-           =================================================== */
-
         if (
-          event.event ===
-            "transfer.failed" ||
-          event.event ===
-            "transfer.reversed"
+          event.event === "transfer.failed" ||
+          event.event === "transfer.reversed"
         ) {
-          /*
-           * Only PENDING or PROCESSING withdrawals
-           * can be refunded.
-           *
-           * This prevents duplicate refunds when
-           * Paystack retries the same webhook.
-           */
-
           const shouldRefund =
-            customerWithdrawal.status ===
-              "PENDING" ||
-            customerWithdrawal.status ===
-              "PROCESSING";
+            customerWithdrawal.status === "PENDING" ||
+            customerWithdrawal.status === "PROCESSING";
 
           if (shouldRefund) {
             const refundReference =
               `withdrawal_refund_${customerWithdrawal.reference}`;
 
             try {
-              /* =========================================
-                 REFUND FULL CUSTOMER DEBIT
-                 ========================================= */
-
               await creditWallet(
-                String(
-                  customerWithdrawal.userId
-                ),
-                Number(
-                  customerWithdrawal.amountKobo
-                ),
+                String(customerWithdrawal.userId),
+                Number(customerWithdrawal.amountKobo),
                 refundReference,
                 {
                   withdrawalId:
                     customerWithdrawal._id.toString(),
-
                   withdrawalReference:
                     customerWithdrawal.reference,
-
                   reason:
-                    event.event ===
-                    "transfer.reversed"
+                    event.event === "transfer.reversed"
                       ? "Paystack withdrawal reversed"
                       : "Paystack withdrawal failed",
-
-                  paystack:
-                    data,
+                  paystack: data,
                 }
               );
-
-              console.log(
-                "=== CUSTOMER WITHDRAWAL REFUNDED ==="
-              );
-
-              console.log({
-                reference,
-                refundKobo:
-                  customerWithdrawal.amountKobo,
-              });
             } catch (refundError: any) {
               const message = String(
                 refundError?.message || ""
-              );
+              ).toLowerCase();
 
               const duplicate =
-                message
-                  .toLowerCase()
-                  .includes("duplicate") ||
-                message
-                  .toLowerCase()
-                  .includes("e11000");
+                message.includes("duplicate") ||
+                message.includes("e11000");
 
               if (!duplicate) {
                 console.error(
-                  "=== CUSTOMER WITHDRAWAL REFUND FAILED ==="
-                );
-
-                console.error(
+                  "Customer withdrawal refund failed",
                   refundError
                 );
 
-                /*
-                 * Do NOT mark the withdrawal as
-                 * FAILED/REVERSED if the wallet
-                 * refund itself failed.
-                 *
-                 * The customer is still owed
-                 * the money.
-                 */
-
                 return NextResponse.json(
-                  {
-                    error:
-                      "Withdrawal refund failed",
-                  },
-                  {
-                    status: 500,
-                  }
+                  { error: "Withdrawal refund failed" },
+                  { status: 500 }
                 );
               }
-
-              console.log(
-                "=== WITHDRAWAL REFUND ALREADY EXISTS ==="
-              );
             }
 
-            /* =========================================
-               MARK WITHDRAWAL TERMINAL
-               ========================================= */
-
             customerWithdrawal.status =
-              event.event ===
-              "transfer.reversed"
+              event.event === "transfer.reversed"
                 ? "REVERSED"
                 : "FAILED";
 
-            customerWithdrawal.error =
-              String(
-                data.reason ||
-                  data.failures ||
-                  (
-                    event.event ===
-                    "transfer.reversed"
-                      ? "Paystack transfer was reversed"
-                      : "Paystack transfer failed"
-                  )
-              );
+            customerWithdrawal.error = String(
+              data.reason ||
+                data.failures ||
+                (event.event === "transfer.reversed"
+                  ? "Paystack transfer was reversed"
+                  : "Paystack transfer failed")
+            );
 
-            customerWithdrawal.failedAt =
-              new Date();
+            customerWithdrawal.failedAt = new Date();
 
-            if (
-              event.event ===
-              "transfer.reversed"
-            ) {
-              customerWithdrawal.reversedAt =
-                new Date();
+            if (event.event === "transfer.reversed") {
+              customerWithdrawal.reversedAt = new Date();
             }
-
-            await customerWithdrawal.save();
-
-            console.log(
-              "=== CUSTOMER WITHDRAWAL STATUS UPDATED ==="
-            );
-
-            console.log({
-              reference,
-              status:
-                customerWithdrawal.status,
-            });
-          } else {
-            console.log(
-              "=== CUSTOMER WITHDRAWAL ALREADY PROCESSED ==="
-            );
-
-            console.log({
-              reference,
-              status:
-                customerWithdrawal.status,
-            });
-
-            await customerWithdrawal.save();
           }
-        }
 
-        return NextResponse.json({
-          ok: true,
-        });
+          await customerWithdrawal.save();
+
+          return NextResponse.json({ ok: true });
+        }
       }
 
       /* =====================================================
@@ -457,909 +232,585 @@ export async function POST(req: Request) {
       const profitWithdrawal: any =
         await ProfitWithdrawal.findOne({
           $or: [
-            {
-              reference,
-            },
-            {
-              paystackReference:
-                reference,
-            },
+            { reference },
+            { paystackReference: reference },
           ],
         });
 
       if (profitWithdrawal) {
-        profitWithdrawal.paystackData =
-          data;
+        profitWithdrawal.paystackData = data;
 
         if (data.transfer_code) {
           profitWithdrawal.paystackTransferCode =
             data.transfer_code;
         }
 
-        /* ===================================================
-           PROFIT TRANSFER SUCCESS
-           =================================================== */
+        const terminalStatuses = [
+          "SUCCESS",
+          "FAILED",
+          "REVERSED",
+        ];
 
         if (
-          event.event ===
-          "transfer.success"
+          !terminalStatuses.includes(
+            profitWithdrawal.status
+          )
         ) {
-          /*
-           * Do not move a terminal state backwards.
-           */
-
-          if (
-            profitWithdrawal.status !==
-              "SUCCESS" &&
-            profitWithdrawal.status !==
-              "FAILED" &&
-            profitWithdrawal.status !==
-              "REVERSED"
+          if (event.event === "transfer.success") {
+            profitWithdrawal.status = "SUCCESS";
+            profitWithdrawal.completedAt = new Date();
+            profitWithdrawal.error = undefined;
+          } else if (event.event === "transfer.failed") {
+            profitWithdrawal.status = "FAILED";
+            profitWithdrawal.error = String(
+              data.reason ||
+                data.failures ||
+                "Paystack transfer failed"
+            );
+          } else if (
+            event.event === "transfer.reversed"
           ) {
-            profitWithdrawal.status =
-              "SUCCESS";
-
-            profitWithdrawal.completedAt =
-              new Date();
-
-            profitWithdrawal.error =
-              undefined;
-          }
-        }
-
-        /* ===================================================
-           PROFIT TRANSFER FAILED
-           =================================================== */
-
-        if (
-          event.event ===
-          "transfer.failed"
-        ) {
-          if (
-            profitWithdrawal.status !==
-              "SUCCESS" &&
-            profitWithdrawal.status !==
-              "FAILED" &&
-            profitWithdrawal.status !==
-              "REVERSED"
-          ) {
-            profitWithdrawal.status =
-              "FAILED";
-
-            profitWithdrawal.error =
-              String(
-                data.reason ||
-                  data.failures ||
-                  "Paystack transfer failed"
-              );
-          }
-        }
-
-        /* ===================================================
-           PROFIT TRANSFER REVERSED
-           =================================================== */
-
-        if (
-          event.event ===
-          "transfer.reversed"
-        ) {
-          if (
-            profitWithdrawal.status !==
-              "SUCCESS" &&
-            profitWithdrawal.status !==
-              "FAILED" &&
-            profitWithdrawal.status !==
-              "REVERSED"
-          ) {
-            profitWithdrawal.status =
-              "REVERSED";
-
-            profitWithdrawal.error =
-              String(
-                data.reason ||
-                  "Paystack transfer was reversed"
-              );
+            profitWithdrawal.status = "REVERSED";
+            profitWithdrawal.error = String(
+              data.reason ||
+                "Paystack transfer was reversed"
+            );
           }
         }
 
         await profitWithdrawal.save();
 
-        console.log(
-          "=== PROFIT WITHDRAWAL UPDATED ==="
-        );
-
-        console.log({
-          reference,
-          status:
-            profitWithdrawal.status,
-        });
-
-        return NextResponse.json({
-          ok: true,
-        });
+        return NextResponse.json({ ok: true });
       }
 
-      console.log(
-        "=== TRANSFER REFERENCE NOT FOUND ==="
-      );
+      console.log("Transfer reference not found:", reference);
 
-      console.log({
-        reference,
-        event: event.event,
-      });
-
-      return NextResponse.json({
-        ok: true,
-      });
+      return NextResponse.json({ ok: true });
     }
 
     /* =========================================================
-       WALLET FUNDING / DIRECT DVA FUNDING
+       2. CHARGE SUCCESS — CHECKOUT OR DIRECT DVA
        ========================================================= */
 
-    if (
-      event.event ===
-      "charge.success"
-    ) {
+    if (event.event === "charge.success") {
       const data = event.data || {};
 
-      const reference = String(
-        data.reference || ""
+      const reference = String(data.reference || "").trim();
+      const amountKobo = Number(data.amount || 0);
+
+      const channel = String(
+        data.authorization?.channel ||
+          data.channel ||
+          ""
+      )
+        .trim()
+        .toLowerCase();
+
+      const receiverAccountNumber = String(
+        data.authorization?.receiver_bank_account_number ||
+          data.metadata?.receiver_account_number ||
+          data.receiver_bank_account_number ||
+          data.dedicated_account?.account_number ||
+          ""
       ).trim();
 
-      const amountKobo = Number(
-        data.amount || 0
-      );
+      const receiverBank = String(
+        data.authorization?.receiver_bank ||
+          data.metadata?.receiver_bank ||
+          data.receiver_bank ||
+          ""
+      ).trim();
 
-     const channel = String(
-  data.authorization?.channel ||
-  data.channel ||
-  ""
-).trim().toLowerCase();
+      const customerEmail = String(
+        data.customer?.email || data.email || ""
+      )
+        .trim()
+        .toLowerCase();
 
-      /* =====================================================
-         CUSTOMER INFORMATION
-         ===================================================== */
+      const customerCode = String(
+        data.customer?.customer_code ||
+          data.customer_code ||
+          ""
+      ).trim();
 
-      const receiverAccountNumber =
-        String(
-          data.authorization
-            ?.receiver_bank_account_number ||
-            data.metadata
-              ?.receiver_account_number ||
-            data.receiver_bank_account_number ||
-            data.dedicated_account
-              ?.account_number ||
-            ""
-        ).trim();
+      const isDvaCharge = channel === "dedicated_nuban";
 
-      const receiverBank =
-        String(
-          data.authorization
-            ?.receiver_bank ||
-            data.metadata?.receiver_bank ||
-            data.receiver_bank ||
-            ""
-        ).trim();
-
-      const customerEmail =
-        String(
-          data.customer?.email ||
-            data.email ||
-            ""
-        )
-          .trim()
-          .toLowerCase();
-
-      const customerCode =
-        String(
-          data.customer?.customer_code ||
-            data.customer_code ||
-            ""
-        ).trim();
-
-      /*
-       * IMPORTANT:
-       *
-       * Only a Paystack dedicated_nuban charge is
-       * automatically treated as DVA funding.
-       *
-       * We do NOT classify every charge containing
-       * a receiver account number as DVA.
-       */
-
-      const isDvaCharge =
-        channel ===
-        "dedicated_nuban";
-
-      console.log(
-        "=== PAYSTACK CHARGE SUCCESS ==="
-      );
-
-      console.log({
+      console.log("PAYSTACK CHARGE SUCCESS:", {
         reference,
         amountKobo,
-        amountNaira:
-          amountKobo / 100,
         channel,
-        currency:
-          data.currency || null,
-        receiverAccountNumber:
-          receiverAccountNumber ||
-          null,
-        receiverBank:
-          receiverBank || null,
-        customerEmail:
-          customerEmail || null,
-        customerCode:
-          customerCode || null,
+        currency: data.currency || null,
         isDvaCharge,
       });
 
       /* =====================================================
-         BASIC VALIDATION
+         BASIC CHARGE VALIDATION
          ===================================================== */
 
       if (
         !reference ||
-        !Number.isInteger(
-          amountKobo
-        ) ||
-        amountKobo <= 0
+        !Number.isSafeInteger(amountKobo) ||
+        amountKobo <= 0 ||
+        String(data.status || "").toLowerCase() !== "success" ||
+        String(data.currency || "").toUpperCase() !== "NGN"
       ) {
-        console.error(
-          "=== INVALID CHARGE.SUCCESS DATA ==="
-        );
-
-        return NextResponse.json({
-          ok: true,
+        console.error("Invalid Paystack charge details", {
+          reference,
+          amountKobo,
+          status: data.status,
+          currency: data.currency,
         });
+
+        return NextResponse.json({ ok: true });
       }
 
       /* =====================================================
-         1. DIRECT DVA FUNDING
+         2A. DIRECT DVA FUNDING
          ===================================================== */
 
       if (isDvaCharge) {
-        console.log(
-          "=== DIRECT DVA FUNDING ==="
-        );
-
         let user: any = null;
 
-        /*
-         * Strongest identifier:
-         * dedicated virtual account number.
-         */
+        if (receiverAccountNumber) {
+          const accountConditions: any[] = [
+            {
+              "kyc.accountNumber": receiverAccountNumber,
+            },
+          ];
 
-        if (
-          receiverAccountNumber
-        ) {
-          const accountConditions: any[] =
-            [
-              {
-                "kyc.accountNumber":
-                  receiverAccountNumber,
-              },
-            ];
-
-          if (
-            /^\d+$/.test(
-              receiverAccountNumber
-            )
-          ) {
+          if (/^\d+$/.test(receiverAccountNumber)) {
             accountConditions.push({
-              "kyc.accountNumber":
-                Number(
-                  receiverAccountNumber
-                ),
+              "kyc.accountNumber": Number(
+                receiverAccountNumber
+              ),
             });
           }
 
-          user =
-            await User.findOne({
-              $or:
-                accountConditions,
-            });
+          user = await User.findOne({
+            $or: accountConditions,
+          });
         }
 
-        /*
-         * Fallback:
-         * Paystack customer code.
-         */
-
-        if (
-          !user &&
-          customerCode
-        ) {
-          user =
-            await User.findOne({
-              "kyc.customerCode":
-                customerCode,
-            });
+        if (!user && customerCode) {
+          user = await User.findOne({
+            "kyc.customerCode": customerCode,
+          });
         }
 
-        /*
-         * Final fallback:
-         * customer email.
-         */
+        if (!user && customerEmail) {
+          const escapedEmail = customerEmail.replace(
+            /[.*+?^${}()|[\]\\]/g,
+            "\\$&"
+          );
 
-        if (
-          !user &&
-          customerEmail
-        ) {
-          const escapedEmail =
-            customerEmail.replace(
-              /[.*+?^${}()|[\]\\]/g,
-              "\\$&"
-            );
-
-          user =
-            await User.findOne({
-              email: {
-                $regex:
-                  `^${escapedEmail}$`,
-                $options: "i",
-              },
-            });
+          user = await User.findOne({
+            email: {
+              $regex: `^${escapedEmail}$`,
+              $options: "i",
+            },
+          });
         }
 
         if (!user) {
-          console.error(
-            "=== DVA USER NOT FOUND ==="
-          );
-
-          console.error({
+          console.error("DVA user not found", {
             receiverAccountNumber,
             customerEmail,
             customerCode,
             reference,
           });
 
-          /*
-           * Return 200 so Paystack does not endlessly
-           * retry an event that cannot currently be
-           * associated with a customer.
-           *
-           * Investigate this transaction manually.
-           */
-
-          return NextResponse.json({
-            ok: true,
-          });
+          // Acknowledge this event for manual investigation.
+          return NextResponse.json({ ok: true });
         }
 
-        console.log(
-          "=== DVA USER FOUND ==="
-        );
+        const dvaReference = `DVA-${reference}`;
 
-        console.log({
-          userId:
-            String(user._id),
-          email:
-            user.email,
-          accountNumber:
-            user.kyc?.accountNumber,
-          customerCode:
-            user.kyc?.customerCode,
-        });
-
-        /* =================================================
-           IDEMPOTENCY
-           ================================================= */
-
-        const dvaReference =
-          `DVA-${reference}`;
-
-        const existingLedger =
+        const existingLedger: any =
           await Ledger.findOne({
-            reference:
-              dvaReference,
+            reference: dvaReference,
           });
 
         if (existingLedger) {
-          console.log(
-            "=== DVA PAYMENT ALREADY CREDITED ==="
-          );
+          console.log("DVA payment already credited:", reference);
 
-          return NextResponse.json({
-            ok: true,
-          });
+          return NextResponse.json({ ok: true });
         }
-
-        /* =================================================
-           CREDIT CUSTOMER WALLET
-           ================================================= */
 
         await creditWallet(
           String(user._id),
           amountKobo,
           dvaReference,
           {
-            source:
-              "PAYSTACK_DEDICATED_VIRTUAL_ACCOUNT",
-
-            paystackReference:
-              reference,
-
+            source: "PAYSTACK_DEDICATED_VIRTUAL_ACCOUNT",
+            paystackReference: reference,
             receiverAccountNumber,
-
             receiverBank,
-
             customerEmail,
-
             customerCode,
-
-            paystack:
-              data,
+            paystack: data,
           }
         );
 
-        console.log(
-          "=== DVA WALLET CREDITED SUCCESSFULLY ==="
-        );
-
-        console.log({
-          userId:
-            String(user._id),
+        console.log("DVA wallet credited:", {
+          userId: String(user._id),
           reference,
           amountKobo,
-          amountNaira:
-            amountKobo / 100,
-          ledgerReference:
-            dvaReference,
+          ledgerReference: dvaReference,
         });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      /* =====================================================
+         2B. NORMAL WALLET FUNDING — V2 CHECKOUTS ONLY
+         ===================================================== */
+
+      /*
+       * New checkout references must start with DZT-FUND-V2-.
+       * Older checkout references are ignored.
+       * No old checkout payment is re-queried or credited here.
+       * DVA payments are handled separately above.
+       */
+
+      if (!reference.startsWith("DZT-FUND-V2-")) {
+        console.log("Legacy checkout ignored:", reference);
 
         return NextResponse.json({
           ok: true,
+          ignored: "legacy_checkout",
         });
       }
 
       /* =====================================================
-         2. NORMAL WALLET FUNDING
+         VERIFY NEW CHECKOUT METADATA
          ===================================================== */
 
-      console.log(
-        "=== NORMAL PAYSTACK FUNDING ==="
-      );
+      const metadata = data.metadata || {};
 
-      const funding: any =
-        await Funding.findOne({
+      if (
+        String(metadata.fundingReference || "").trim() !==
+          reference ||
+        !String(metadata.userId || "").trim()
+      ) {
+        console.error("Invalid V2 checkout metadata", {
           reference,
+          metadataReference:
+            metadata.fundingReference || null,
         });
+
+        return NextResponse.json({ ok: true });
+      }
+
+      /* =====================================================
+         FIND NEW FUNDING RECORD
+         ===================================================== */
+
+      const funding: any = await Funding.findOne({
+        reference,
+      });
 
       if (!funding) {
-        console.error(
-          "=== FUNDING RECORD NOT FOUND ==="
-        );
-
-        console.error({
+        console.error("V2 funding record not found:", {
           reference,
           amountKobo,
         });
 
-        return NextResponse.json({
-          ok: true,
-        });
+        // Do not create a Funding record from webhook metadata.
+        // Return an error for this new checkout event.
+        return NextResponse.json(
+          { error: "V2 funding record not found" },
+          { status: 500 }
+        );
       }
 
       /* =====================================================
-         IDEMPOTENCY
+         VERIFY CUSTOMER AND AMOUNT
          ===================================================== */
 
       if (
-        funding.status ===
-        "CREDITED"
+        String(funding.userId) !==
+          String(metadata.userId) ||
+        amountKobo !== Number(funding.grossKobo) ||
+        amountKobo !== Number(metadata.fundingAmountKobo)
       ) {
-        console.log(
-          "=== NORMAL FUNDING ALREADY CREDITED ==="
-        );
-
-        funding.providerData =
-          data;
-
-        funding.paystackReference =
-          reference;
-
-        await funding.save();
-
-        return NextResponse.json({
-          ok: true,
-        });
-      }
-
-      /* =====================================================
-         VERIFY PAYMENT AMOUNT
-         ===================================================== */
-
-      if (
-        amountKobo !==
-        Number(
-          funding.grossKobo
-        )
-      ) {
-        console.error(
-          "=== FUNDING AMOUNT MISMATCH ==="
-        );
-
-        console.error({
+        console.error("V2 funding validation failed", {
           reference,
-          webhookAmountKobo:
-            amountKobo,
-          fundingGrossKobo:
-            funding.grossKobo,
+          webhookAmountKobo: amountKobo,
+          expectedGrossKobo: Number(funding.grossKobo),
+          metadataAmountKobo: Number(
+            metadata.fundingAmountKobo
+          ),
         });
 
-        /*
-         * NEVER credit a mismatched payment.
-         */
-
-        funding.providerData =
-          data;
-
-        funding.paystackReference =
-          reference;
-
-        await funding.save();
-
-        return NextResponse.json({
-          ok: true,
-        });
+        return NextResponse.json({ ok: true });
       }
 
       /* =====================================================
-         CREDIT WALLET
+         ALREADY CREDITED
+         ===================================================== */
+
+      if (funding.status === "CREDITED") {
+        console.log("V2 funding already credited:", reference);
+
+        return NextResponse.json({ ok: true });
+      }
+
+      /* =====================================================
+         IDEMPOTENCY — CHECK EXISTING LEDGER
+         ===================================================== */
+
+      const ledgerReference = `FUND-${reference}`;
+
+      const existingFundingLedger: any =
+        await Ledger.findOne({
+          reference: ledgerReference,
+        });
+
+      if (existingFundingLedger) {
+        funding.status = "CREDITED";
+        funding.providerData = data;
+        funding.paystackReference = reference;
+
+        await funding.save();
+
+        console.log(
+          "V2 funding ledger already exists:",
+          ledgerReference
+        );
+
+        return NextResponse.json({ ok: true });
+      }
+
+      /* =====================================================
+         CREDIT CUSTOMER WALLET
          ===================================================== */
 
       await creditWallet(
         String(funding.userId),
-        Number(
-          funding.creditKobo
-        ),
-        `FUND-${funding.reference}`,
+        Number(funding.creditKobo),
+        ledgerReference,
         {
-          source:
-            "PAYSTACK_FUNDING",
-
-          paystack:
-            data,
-
-          feeKobo:
-            Number(
-              funding.feeKobo || 0
-            ),
+          source: "PAYSTACK_FUNDING",
+          paystack: data,
+          feeKobo: Number(funding.feeKobo || 0),
         }
       );
 
-      funding.status =
-        "CREDITED";
+      /* =====================================================
+         MARK FUNDING COMPLETE
+         ===================================================== */
 
-      funding.providerData =
-        data;
-
-      funding.paystackReference =
-        reference;
+      funding.status = "CREDITED";
+      funding.providerData = data;
+      funding.paystackReference = reference;
 
       await funding.save();
 
-      console.log(
-        "=== NORMAL FUNDING WALLET CREDITED ==="
-      );
-
-      console.log({
-        userId:
-          String(funding.userId),
-        reference:
-          funding.reference,
-        grossKobo:
-          funding.grossKobo,
-        creditKobo:
-          funding.creditKobo,
-        feeKobo:
-          funding.feeKobo,
+      console.log("V2 funding wallet credited:", {
+        userId: String(funding.userId),
+        reference: funding.reference,
+        grossKobo: funding.grossKobo,
+        creditKobo: funding.creditKobo,
+        feeKobo: funding.feeKobo,
+        ledgerReference,
       });
 
-      return NextResponse.json({
-        ok: true,
-      });
+      return NextResponse.json({ ok: true });
     }
 
     /* =========================================================
-       DVA ASSIGNMENT SUCCESS
+       3. DVA ASSIGNMENT SUCCESS
        ========================================================= */
 
-    if (
-      event.event ===
-      "dedicatedaccount.assign.success"
-    ) {
-      const data =
-        event.data || {};
+    if (event.event === "dedicatedaccount.assign.success") {
+      const data = event.data || {};
+      const customer = data.customer || {};
 
-      const customer =
-        data.customer || {};
+      const email = String(
+        customer.email || data.email || ""
+      )
+        .trim()
+        .toLowerCase();
 
-      const email =
-        String(
-          customer.email ||
-            data.email ||
-            ""
-        )
-          .trim()
-          .toLowerCase();
+      const customerCode = String(
+        customer.customer_code ||
+          data.customer_code ||
+          ""
+      ).trim();
 
-      const customerCode =
-        String(
-          customer.customer_code ||
-            data.customer_code ||
-            ""
-        ).trim();
+      const accountNumber = String(
+        data.account_number ||
+          data.account?.account_number ||
+          data.dedicated_account?.account_number ||
+          ""
+      ).trim();
 
-      const accountNumber =
-        String(
-          data.account_number ||
-            data.account
-              ?.account_number ||
-            data.dedicated_account
-              ?.account_number ||
-            ""
-        ).trim();
+      const accountName = String(
+        data.account_name ||
+          data.account?.account_name ||
+          data.account?.name ||
+          data.dedicated_account?.account_name ||
+          ""
+      ).trim();
 
-      const accountName =
-        String(
-          data.account_name ||
-            data.account
-              ?.account_name ||
-            data.account?.name ||
-            data.dedicated_account
-              ?.account_name ||
-            ""
-        ).trim();
-
-      const bankName =
-        String(
-          data.bank?.name ||
-            data.account?.bank?.name ||
-            data.dedicated_account
-              ?.bank?.name ||
-            data.bank_name ||
-            data.bankName ||
-            ""
-        ).trim();
-
-      console.log(
-        "=== DVA ASSIGNMENT SUCCESS ==="
-      );
-
-      console.log({
-        email,
-        customerCode,
-        accountNumber,
-        accountName,
-        bankName,
-      });
+      const bankName = String(
+        data.bank?.name ||
+          data.account?.bank?.name ||
+          data.dedicated_account?.bank?.name ||
+          data.bank_name ||
+          data.bankName ||
+          ""
+      ).trim();
 
       if (!accountNumber) {
         console.error(
-          "=== DVA SUCCESS EVENT HAS NO ACCOUNT NUMBER ==="
+          "DVA assignment success event has no account number"
         );
 
-        return NextResponse.json({
-          ok: true,
-        });
+        return NextResponse.json({ ok: true });
       }
 
-      const conditions: any[] =
-        [];
+      const conditions: any[] = [];
 
       if (customerCode) {
         conditions.push({
-          "kyc.customerCode":
-            customerCode,
+          "kyc.customerCode": customerCode,
         });
       }
 
       if (email) {
-        conditions.push({
-          email,
-        });
-      }
-
-      if (
-        conditions.length === 0
-      ) {
-        console.error(
-          "=== DVA USER IDENTIFICATION FAILED ==="
+        const escapedEmail = email.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
         );
 
-        return NextResponse.json({
-          ok: true,
+        conditions.push({
+          email: {
+            $regex: `^${escapedEmail}$`,
+            $options: "i",
+          },
         });
       }
 
-      const updatedUser =
-        await User.findOneAndUpdate(
-          {
-            $or: conditions,
+      if (conditions.length === 0) {
+        console.error("DVA assignment user identification failed");
+
+        return NextResponse.json({ ok: true });
+      }
+
+      const updatedUser = (await User.findOneAndUpdate(
+        { $or: conditions },
+        {
+          $set: {
+            "kyc.accountNumber": accountNumber,
+            "kyc.accountName": accountName,
+            "kyc.bankName": bankName,
+            "kyc.customerCode": customerCode,
+            "kyc.dvaStatus": "ACTIVE",
           },
-          {
-            $set: {
-              "kyc.accountNumber":
-                accountNumber,
-
-              "kyc.accountName":
-                accountName,
-
-              "kyc.bankName":
-                bankName,
-
-              "kyc.customerCode":
-                customerCode,
-
-              "kyc.dvaStatus":
-                "ACTIVE",
-            },
-          },
-          {
-            new: true,
-            runValidators: true,
-          }
-        ).lean() as any;
+        },
+        {
+          new: true,
+          runValidators: true,
+        }
+      ).lean()) as any;
 
       if (!updatedUser) {
-        console.error(
-          "=== DVA USER NOT FOUND ==="
-        );
+        console.error("DVA assignment user not found");
 
-        return NextResponse.json({
-          ok: true,
-        });
+        return NextResponse.json({ ok: true });
       }
 
-      console.log(
-        "=== DVA USER UPDATED SUCCESSFULLY ==="
-      );
-
-      console.log({
-        userId:
-          String(
-            updatedUser._id
-          ),
-        email:
-          updatedUser.email,
-        customerCode:
-          updatedUser.kyc
-            ?.customerCode,
-        accountNumber:
-          updatedUser.kyc
-            ?.accountNumber,
-        accountName:
-          updatedUser.kyc
-            ?.accountName,
-        bankName:
-          updatedUser.kyc?.bankName,
-        dvaStatus:
-          updatedUser.kyc
-            ?.dvaStatus,
+      console.log("DVA account assignment saved:", {
+        userId: String(updatedUser._id),
+        email: updatedUser.email,
+        accountNumber: updatedUser.kyc?.accountNumber,
+        bankName: updatedUser.kyc?.bankName,
       });
 
-      return NextResponse.json({
-        ok: true,
-      });
+      return NextResponse.json({ ok: true });
     }
 
     /* =========================================================
-       DVA ASSIGNMENT FAILED
+       4. DVA ASSIGNMENT FAILED
        ========================================================= */
 
-    if (
-      event.event ===
-      "dedicatedaccount.assign.failed"
-    ) {
-      const data =
-        event.data || {};
+    if (event.event === "dedicatedaccount.assign.failed") {
+      const data = event.data || {};
+      const customer = data.customer || {};
 
-      const customer =
-        data.customer || {};
+      const email = String(
+        customer.email || data.email || ""
+      )
+        .trim()
+        .toLowerCase();
 
-      const email =
-        String(
-          customer.email ||
-            data.email ||
-            ""
-        )
-          .trim()
-          .toLowerCase();
+      const customerCode = String(
+        customer.customer_code ||
+          data.customer_code ||
+          ""
+      ).trim();
 
-      const customerCode =
-        String(
-          customer.customer_code ||
-            data.customer_code ||
-            ""
-        ).trim();
+      const reason = String(
+        data.reason ||
+          data.message ||
+          "Dedicated account assignment failed"
+      ).trim();
 
-      const reason =
-        String(
-          data.reason ||
-            data.message ||
-            "Dedicated account assignment failed"
-        ).trim();
-
-      console.error(
-        "=== PAYSTACK DVA ASSIGNMENT FAILED ==="
-      );
-
-      console.error({
+      console.error("Paystack DVA assignment failed:", {
         email,
         customerCode,
         reason,
       });
 
-      const conditions: any[] =
-        [];
+      const conditions: any[] = [];
 
       if (customerCode) {
         conditions.push({
-          "kyc.customerCode":
-            customerCode,
+          "kyc.customerCode": customerCode,
         });
       }
 
       if (email) {
+        const escapedEmail = email.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&"
+        );
+
         conditions.push({
-          email,
+          email: {
+            $regex: `^${escapedEmail}$`,
+            $options: "i",
+          },
         });
       }
 
-      if (
-        conditions.length > 0
-      ) {
+      if (conditions.length > 0) {
         await User.findOneAndUpdate(
-          {
-            $or: conditions,
-          },
+          { $or: conditions },
           {
             $set: {
-              "kyc.dvaStatus":
-                "FAILED",
+              "kyc.dvaStatus": "FAILED",
             },
           },
           {
             runValidators: true,
           }
         );
-
-        console.log(
-          "=== DVA FAILURE SAVED ==="
-        );
       }
 
-      return NextResponse.json({
-        ok: true,
-      });
+      return NextResponse.json({ ok: true });
     }
 
     /* =========================================================
-       UNKNOWN / OTHER PAYSTACK EVENTS
+       5. UNKNOWN / OTHER PAYSTACK EVENTS
        ========================================================= */
 
-    console.log(
-      "=== PAYSTACK EVENT ACKNOWLEDGED ==="
-    );
+    console.log("Paystack event acknowledged:", event.event);
 
-    console.log({
-      event:
-        event.event,
-    });
-
-    return NextResponse.json({
-      ok: true,
-    });
+    return NextResponse.json({ ok: true });
   } catch (error: any) {
-    console.error(
-      "=== PAYSTACK WEBHOOK ERROR ==="
-    );
-
-    console.error(error);
+    console.error("PAYSTACK WEBHOOK PROCESSING ERROR:", error);
 
     return NextResponse.json(
       {
@@ -1367,9 +818,7 @@ export async function POST(req: Request) {
           error?.message ||
           "Webhook processing failed",
       },
-      {
-        status: 500,
-      }
+      { status: 500 }
     );
   }
 }

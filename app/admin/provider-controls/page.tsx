@@ -13,11 +13,8 @@ type Controls = {
 
   sme_data_plans: Record<string, boolean>;
 
-  wisesub_electricity: Record<string, boolean>;
-
-  wisesub_cable: Record<string, boolean>;
-
-  wisesub_education: Record<string, boolean>;
+  data_providers: Record<string, string>;
+  data_provider_enabled: Record<string, boolean>;
 };
 
 type SmePlan = {
@@ -60,123 +57,12 @@ type ServiceTypesByNetwork = Record<
   ServiceNetwork
 >;
 
-const WISESUB_GROUPS = [
-  {
-    key: "wisesub_electricity",
-    title: "Electricity Providers",
-    description:
-      "Control electricity distribution providers.",
-    providers: [
-      {
-        code: "abuja",
-        name: "Abuja Electric",
-        icon: "⚡",
-      },
-      {
-        code: "ikeja",
-        name: "Ikeja Electric",
-        icon: "⚡",
-      },
-      {
-        code: "eko",
-        name: "Eko Electric",
-        icon: "⚡",
-      },
-      {
-        code: "kano",
-        name: "Kano Electric",
-        icon: "⚡",
-      },
-      {
-        code: "portharcourt",
-        name: "Port Harcourt Electric",
-        icon: "⚡",
-      },
-      {
-        code: "jos",
-        name: "Jos Electric",
-        icon: "⚡",
-      },
-      {
-        code: "ibadan",
-        name: "Ibadan Electric",
-        icon: "⚡",
-      },
-      {
-        code: "kaduna",
-        name: "Kaduna Electric",
-        icon: "⚡",
-      },
-      {
-        code: "benin",
-        name: "Benin Electric",
-        icon: "⚡",
-      },
-      {
-        code: "aba",
-        name: "Aba Electric",
-        icon: "⚡",
-      },
-      {
-        code: "enugu",
-        name: "Enugu Electric",
-        icon: "⚡",
-      },
-      {
-        code: "yola",
-        name: "Yola Electric",
-        icon: "⚡",
-      },
-    ],
-  },
-
-  {
-    key: "wisesub_cable",
-    title: "Cable TV Providers",
-    description:
-      "Control cable TV providers.",
-    providers: [
-      {
-        code: "dstv",
-        name: "DSTV",
-        icon: "📺",
-      },
-      {
-        code: "gotv",
-        name: "GOTV",
-        icon: "📺",
-      },
-      {
-        code: "startimes",
-        name: "Startimes",
-        icon: "📺",
-      },
-    ],
-  },
-
-  {
-    key: "wisesub_education",
-    title: "Education Providers",
-    description:
-      "Control education and examination PIN products.",
-    providers: [
-      {
-        code: "result-checker",
-        name: "WAEC Result Checker PIN",
-        icon: "🎓",
-      },
-      {
-        code: "registration",
-        name: "WAEC Registration PIN",
-        icon: "🎓",
-      },
-    ],
-  },
-] as const;
-
 export default function ProviderControlsPage() {
   const [controls, setControls] =
     useState<Controls | null>(null);
+
+  const [availableDataProviders, setAvailableDataProviders] =
+    useState<string[]>(["SMEAPI", "LEGITDATAWAY"]);
 
   const [
     serviceTypesByNetwork,
@@ -553,6 +439,11 @@ export default function ProviderControlsPage() {
       setControls(
         data?.controls || null
       );
+      setAvailableDataProviders(
+        Array.isArray(data?.availableDataProviders)
+          ? data.availableDataProviders
+          : ["SMEAPI", "LEGITDATAWAY"]
+      );
 
       /* -------------------------------------------------------
          LOAD CATALOGUE FROM ADMIN API
@@ -754,6 +645,49 @@ export default function ProviderControlsPage() {
         error?.message ||
           "Unable to update provider"
       );
+    } finally {
+      setSaving(null);
+    }
+  }
+
+  /* =========================================================
+     CHANGE SELECTED PROVIDER FOR A NETWORK
+     ========================================================= */
+
+  async function setNetworkProvider(
+    networkId: string,
+    provider: string
+  ) {
+    if (!controls || saving || !networkId || !provider) return;
+
+    setSaving(`data_provider:${networkId}`);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/admin/provider-controls", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data_providers: { [networkId]: provider },
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data?.error || "Unable to change data provider");
+      }
+
+      setControls(data?.controls || controls);
+      setAvailableDataProviders(
+        Array.isArray(data?.availableDataProviders)
+          ? data.availableDataProviders
+          : availableDataProviders
+      );
+      setMessage(
+        `${getNetworkName(networkId)} will use ${provider} for new data purchases. No automatic failover is enabled.`
+      );
+    } catch (error: any) {
+      setMessage(error?.message || "Unable to change data provider");
     } finally {
       setSaving(null);
     }
@@ -1063,7 +997,7 @@ export default function ProviderControlsPage() {
             href="/admin"
             className="admin-provider-back"
           >
-            ← Back to Admin
+            â† Back to Admin
           </Link>
 
           <h1>
@@ -1100,6 +1034,70 @@ export default function ProviderControlsPage() {
         </div>
       ) : (
         <div className="admin-provider-groups">
+
+          {/* =================================================
+              NETWORK DATA PROVIDER SELECTION
+              ================================================= */}
+
+          <section className="admin-provider-section">
+            <div className="admin-provider-section-header">
+              <div>
+                <h2>Data Provider Selection</h2>
+                <p>
+                  Choose which registered provider handles new data purchases for each network.
+                  Switching is manual; automatic failover is disabled.
+                </p>
+              </div>
+            </div>
+
+            <div className="admin-provider-grid">
+              {[
+                { id: "1", name: "MTN" },
+                { id: "2", name: "Airtel" },
+                { id: "3", name: "Glo" },
+                { id: "4", name: "9mobile" },
+              ].map((network) => {
+                const selectedProvider =
+                  controls?.data_providers?.[network.id] || "SMEAPI";
+                const isSaving = saving === `data_provider:${network.id}`;
+
+                return (
+                  <div
+                    key={`data-provider-${network.id}`}
+                    className="admin-provider-card enabled"
+                  >
+                    <div className="admin-provider-icon">ðŸ“¡</div>
+                    <div className="admin-provider-info">
+                      <h3>{network.name}</h3>
+                      <span>Network ID: {network.id}</span>
+                      <span className="admin-provider-status enabled">
+                        â— Current provider: {selectedProvider}
+                      </span>
+                    </div>
+                    <select
+                      aria-label={`${network.name} data provider`}
+                      value={selectedProvider}
+                      disabled={!!saving}
+                      onChange={(event) =>
+                        setNetworkProvider(network.id, event.target.value)
+                      }
+                      className="admin-provider-select"
+                    >
+                      {availableDataProviders.map((provider) => (
+                        <option key={provider} value={provider}>
+                          {provider}
+                        </option>
+                      ))}
+                    </select>
+                    {isSaving && <span>Saving...</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="admin-provider-help">
+              Keep SMEAPI selected for normal operation. Select LEGITDATAWAY only when you are ready to test it.
+            </p>
+          </section>
 
           {/* =================================================
               SME NETWORKS
@@ -1162,7 +1160,7 @@ export default function ProviderControlsPage() {
                       >
 
                         <div className="admin-provider-icon">
-                          📱
+                          ðŸ“±
                         </div>
 
                         <div className="admin-provider-info">
@@ -1185,7 +1183,7 @@ export default function ProviderControlsPage() {
                                 : "disabled"
                             }`}
                           >
-                            ●{" "}
+                            â—{" "}
                             {enabled
                               ? "Enabled"
                               : "Disabled"}
@@ -1381,7 +1379,7 @@ export default function ProviderControlsPage() {
                                 >
 
                                   <div className="admin-provider-icon">
-                                    📦
+                                    ðŸ“¦
                                   </div>
 
                                   <div className="admin-provider-info">
@@ -1398,7 +1396,7 @@ export default function ProviderControlsPage() {
                                           : "disabled"
                                       }`}
                                     >
-                                      ●{" "}
+                                      â—{" "}
                                       {!networkEnabled
                                         ? "Network Disabled"
                                         : enabled
@@ -1578,7 +1576,7 @@ export default function ProviderControlsPage() {
                       >
 
                         <div className="admin-provider-icon">
-                          📶
+                          ðŸ“¶
                         </div>
 
                         <div className="admin-provider-info">
@@ -1607,7 +1605,7 @@ export default function ProviderControlsPage() {
                           </span>
 
                           <span>
-                            ₦
+                            â‚¦
                             {safePrice.toLocaleString()}
                           </span>
 
@@ -1619,7 +1617,7 @@ export default function ProviderControlsPage() {
                                 : "disabled"
                             }`}
                           >
-                            ●{" "}
+                            â—{" "}
                             {!networkId
                               ? "Network Missing"
                               : !networkEnabled
@@ -1668,118 +1666,6 @@ export default function ProviderControlsPage() {
 
           </section>
 
-          {/* =================================================
-              WISESUB
-              ================================================= */}
-
-          {WISESUB_GROUPS.map(
-            (group) => (
-              <section
-                key={`wisesub-group-${group.key}`}
-                className="admin-provider-section"
-              >
-
-                <div className="admin-provider-section-header">
-
-                  <div>
-
-                    <h2>
-                      {group.title}
-                    </h2>
-
-                    <p>
-                      {group.description}
-                    </p>
-
-                  </div>
-
-                </div>
-
-                <div className="admin-provider-grid">
-
-                  {group.providers.map(
-                    (provider) => {
-
-                      const enabled =
-                        controls?.[
-                          group.key
-                        ]?.[
-                          provider.code
-                        ] !== false;
-
-                      const isSaving =
-                        saving ===
-                        `${group.key}:${provider.code}`;
-
-                      return (
-                        <div
-                          key={`${group.key}-${provider.code}`}
-                          className={`admin-provider-card ${
-                            enabled
-                              ? "enabled"
-                              : "disabled"
-                          }`}
-                        >
-
-                          <div className="admin-provider-icon">
-                            {provider.icon}
-                          </div>
-
-                          <div className="admin-provider-info">
-
-                            <h3>
-                              {provider.name}
-                            </h3>
-
-                            <span
-                              className={`admin-provider-status ${
-                                enabled
-                                  ? "enabled"
-                                  : "disabled"
-                              }`}
-                            >
-                              ●{" "}
-                              {enabled
-                                ? "Enabled"
-                                : "Disabled"}
-                            </span>
-
-                          </div>
-
-                          <button
-                            type="button"
-                            disabled={
-                              !!saving
-                            }
-                            onClick={() =>
-                              toggleProvider(
-                                group.key,
-                                provider.code
-                              )
-                            }
-                            className={`admin-provider-toggle ${
-                              enabled
-                                ? "on"
-                                : "off"
-                            }`}
-                          >
-                            {isSaving
-                              ? "Saving..."
-                              : enabled
-                              ? "Disable"
-                              : "Enable"}
-                          </button>
-
-                        </div>
-                      );
-                    }
-                  )}
-
-                </div>
-
-              </section>
-            )
-          )}
 
         </div>
       )}

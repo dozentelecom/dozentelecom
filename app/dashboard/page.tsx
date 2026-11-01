@@ -6,6 +6,7 @@ import { User, Wallet } from "@/lib/models";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
 import CreatePinPopup from "./CreatePinPopup";
 import GenerateAccountButton from "./GenerateAccountButton";
+import FlutterwaveAccountCard from "@/components/dashboard/FlutterwaveAccountCard";
 import NotificationBell from "@/components/notifications/NotificationBell";
 
 export const dynamic = "force-dynamic";
@@ -292,6 +293,20 @@ export default async function Dashboard() {
 
           </div>
 
+          {/* ===================================================
+              FLUTTERWAVE PERMANENT ACCOUNT (NEW / SEPARATE)
+              This does not change KYC status or the Paystack account.
+          =================================================== */}
+
+          <FlutterwaveAccountCard
+            initialAccountNumber={u?.kyc?.flutterwaveAccountNumber || ""}
+            initialBankName={u?.kyc?.flutterwaveBankName || ""}
+            initialAccountName={u?.kyc?.flutterwaveAccountName || ""}
+            initialStatus={u?.kyc?.flutterwaveDvaStatus || ""}
+            name={u?.name || ""}
+            existingIdentityVerified={u?.kyc?.status === "VERIFIED"}
+          />
+
         </div>
 
         {/* =====================================================
@@ -305,13 +320,6 @@ export default async function Dashboard() {
               Services
             </h2>
           </div>
-
-          <Link
-            className="btn primary"
-            href="/dashboard/services"
-          >
-            Open services
-          </Link>
 
         </div>
 

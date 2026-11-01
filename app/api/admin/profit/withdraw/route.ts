@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi } from "@/lib/requireAdminApi";
 
 import {
   currentUserId,

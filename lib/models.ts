@@ -27,6 +27,15 @@ const KycSchema = new Schema(
     customerCode: String,
 
     dvaStatus: String,
+
+    // Flutterwave dedicated virtual account details
+    flutterwaveAccountNumber: String,
+    flutterwaveBankName: String,
+    flutterwaveAccountName: String,
+    flutterwaveTxRef: String,
+    flutterwaveReference: String,
+    flutterwaveDvaStatus: String,
+    flutterwaveCreatedAt: Date,
   },
   {
     _id: false,

@@ -1,32 +1,18 @@
+
+import mongoose from "mongoose";
 import { db } from "./db";
-import {
-  Ledger,
-  Wallet,
-} from "./models";
+import { Ledger, Wallet } from "./models";
 
 /* =========================================================
    GET / CREATE WALLET
    ========================================================= */
 
-export async function wallet(
-  userId: string
-) {
+export async function wallet(userId: string) {
   await db();
 
-  /*
-   * userId is UNIQUE in WalletSchema.
-   *
-   * Therefore there should only ever be one wallet
-   * for a user.
-   */
-  const existing =
-    await Wallet.findOne({
-      userId,
-    });
+  const existing = await Wallet.findOne({ userId });
 
-  if (existing) {
-    return existing;
-  }
+  if (existing) return existing;
 
   try {
     return await Wallet.create({
@@ -34,26 +20,10 @@ export async function wallet(
       balanceKobo: 0,
       currency: "NGN",
     });
-  } catch (
-    error: any
-  ) {
-    /*
-     * Another request may have created the wallet
-     * simultaneously.
-     */
-    if (
-      /duplicate|E11000|unique/i.test(
-        error?.message || ""
-      )
-    ) {
-      const created =
-        await Wallet.findOne({
-          userId,
-        });
-
-      if (created) {
-        return created;
-      }
+  } catch (error: any) {
+    if (/duplicate|E11000|unique/i.test(error?.message || "")) {
+      const created = await Wallet.findOne({ userId });
+      if (created) return created;
     }
 
     throw error;
@@ -61,7 +31,126 @@ export async function wallet(
 }
 
 /* =========================================================
+   LEDGER REFERENCE VALIDATION
+   ========================================================= */
+
+async function findMatchingLedger(
+  userId: string,
+  kobo: number,
+  reference: string,
+  type: "CREDIT" | "DEBIT",
+  session?: mongoose.ClientSession
+) {
+  let query = Ledger.findOne({ reference });
+
+  if (session) query = query.session(session);
+
+  const existing: any = await query;
+
+  if (!existing) return null;
+
+  if (
+    String(existing.userId) !== String(userId) ||
+    existing.type !== type ||
+    Number(existing.amountKobo) !== kobo
+  ) {
+    throw new Error("LEDGER_REFERENCE_CONFLICT");
+  }
+
+  return existing;
+}
+
+/* =========================================================
+   CREDIT WALLET INSIDE AN EXISTING TRANSACTION
+
+   The caller must start and commit/abort the session.
+   ========================================================= */
+
+export async function creditWalletInSession(
+  userId: string,
+  kobo: number,
+  ref: string,
+  session: mongoose.ClientSession,
+  metadata: any = {}
+) {
+  if (!session?.inTransaction()) {
+    throw new Error("ACTIVE_TRANSACTION_REQUIRED");
+  }
+
+  if (!Number.isSafeInteger(kobo) || kobo <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  const reference = String(ref || "").trim();
+
+  if (!reference) {
+    throw new Error("INVALID_LEDGER_REFERENCE");
+  }
+
+  const existing = await findMatchingLedger(
+    userId,
+    kobo,
+    reference,
+    "CREDIT",
+    session
+  );
+
+  if (existing) {
+    const existingWallet = await Wallet.findOne({ userId }).session(session);
+
+    if (!existingWallet) {
+      throw new Error("WALLET_NOT_FOUND");
+    }
+
+    return existingWallet;
+  }
+
+  // Create the wallet if necessary and credit it atomically.
+  const updatedWallet = await Wallet.findOneAndUpdate(
+    { userId },
+    {
+      $setOnInsert: {
+        userId,
+        currency: "NGN",
+      },
+      $inc: {
+        balanceKobo: kobo,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      session,
+      setDefaultsOnInsert: false,
+    }
+  );
+
+  if (!updatedWallet) {
+    throw new Error("WALLET_NOT_FOUND");
+  }
+
+  await Ledger.create(
+    [
+      {
+        userId,
+        type: "CREDIT",
+        amountKobo: kobo,
+        balanceAfterKobo: Number(updatedWallet.balanceKobo),
+        reference,
+        status: "POSTED",
+        metadata,
+      },
+    ],
+    { session }
+  );
+
+  return updatedWallet;
+}
+
+/* =========================================================
    CREDIT WALLET
+
+   Wallet increment and ledger creation commit together.
    ========================================================= */
 
 export async function creditWallet(
@@ -72,215 +161,161 @@ export async function creditWallet(
 ) {
   await db();
 
-  /* =======================================================
-     VALIDATION
-     ======================================================= */
-
-  if (
-    !Number.isInteger(kobo) ||
-    kobo <= 0
-  ) {
-    throw new Error(
-      "INVALID_AMOUNT"
-    );
+  if (!Number.isSafeInteger(kobo) || kobo <= 0) {
+    throw new Error("INVALID_AMOUNT");
   }
 
-  const reference =
-    String(ref || "").trim();
+  const reference = String(ref || "").trim();
 
   if (!reference) {
-    throw new Error(
-      "INVALID_LEDGER_REFERENCE"
-    );
+    throw new Error("INVALID_LEDGER_REFERENCE");
   }
 
-  /* =======================================================
-     IDEMPOTENCY CHECK
-     ======================================================= */
-
-  const existing =
-    await Ledger.findOne({
-      reference,
-    });
-
-  if (existing) {
-    /*
-     * Same reference must belong to the same user.
-     */
-    if (
-      String(existing.userId) !==
-      String(userId)
-    ) {
-      throw new Error(
-        "LEDGER_REFERENCE_CONFLICT"
-      );
-    }
-
-    /*
-     * Same reference must represent the
-     * same credit.
-     */
-    if (
-      existing.type !==
-        "CREDIT" ||
-      Number(
-        existing.amountKobo
-      ) !== kobo
-    ) {
-      throw new Error(
-        "LEDGER_REFERENCE_CONFLICT"
-      );
-    }
-
-    return await wallet(
-      userId
-    );
-  }
-
-  /* =======================================================
-     GET WALLET
-     ======================================================= */
-
-  const w =
-    await wallet(userId);
-
-  /* =======================================================
-     ATOMIC CREDIT
-     ======================================================= */
-
-  const updatedWallet =
-    await Wallet.findOneAndUpdate(
-      {
-        _id: w._id,
-      },
-      {
-        $inc: {
-          balanceKobo:
-            kobo,
-        },
-      },
-      {
-        new: true,
-      }
-    );
-
-  if (!updatedWallet) {
-    throw new Error(
-      "WALLET_NOT_FOUND"
-    );
-  }
-
-  /* =======================================================
-     CREATE LEDGER
-     ======================================================= */
+  const session = await mongoose.startSession();
 
   try {
-    await Ledger.create({
-      userId,
+    let result: any;
 
-      type:
-        "CREDIT",
-
-      amountKobo:
+    await session.withTransaction(async () => {
+      result = await creditWalletInSession(
+        userId,
         kobo,
-
-      balanceAfterKobo:
-        Number(
-          updatedWallet.balanceKobo
-        ),
-
-      reference,
-
-      status:
-        "POSTED",
-
-      metadata,
+        reference,
+        session,
+        metadata
+      );
     });
-  } catch (
-    error: any
-  ) {
-    /*
-     * Another concurrent request may have inserted
-     * the same reference.
-     */
-    if (
-      /duplicate|E11000|unique/i.test(
-        error?.message || ""
-      )
-    ) {
-      const duplicate =
-        await Ledger.findOne({
-          reference,
-        });
 
-      if (
-        duplicate &&
-        String(
-          duplicate.userId
-        ) ===
-          String(userId) &&
-        duplicate.type ===
-          "CREDIT" &&
-        Number(
-          duplicate.amountKobo
-        ) === kobo
-      ) {
-        /*
-         * This request performed the temporary
-         * wallet increment, but the other request
-         * owns the ledger entry.
-         *
-         * Undo this request's increment.
-         */
-        await Wallet.findOneAndUpdate(
-          {
-            _id: w._id,
-            balanceKobo: {
-              $gte: kobo,
-            },
-          },
-          {
-            $inc: {
-              balanceKobo:
-                -kobo,
-            },
-          }
-        );
+    if (!result) {
+      throw new Error("WALLET_CREDIT_FAILED");
+    }
 
-        return await wallet(
-          userId
-        );
+    return result;
+  } catch (error: any) {
+    // A concurrent request may have completed this same credit.
+    if (/duplicate|E11000|unique/i.test(error?.message || "")) {
+      const existing = await findMatchingLedger(
+        userId,
+        kobo,
+        reference,
+        "CREDIT"
+      );
+
+      if (existing) {
+        return await wallet(userId);
       }
     }
 
-    /*
-     * Ledger creation failed.
-     *
-     * Restore the wallet credit.
-     */
-    await Wallet.findOneAndUpdate(
-      {
-        _id: w._id,
-        balanceKobo: {
-          $gte: kobo,
-        },
-      },
-      {
-        $inc: {
-          balanceKobo:
-            -kobo,
-        },
-      }
-    );
-
     throw error;
+  } finally {
+    await session.endSession();
   }
+}
+
+/* =========================================================
+   DEBIT WALLET INSIDE AN EXISTING TRANSACTION
+   ========================================================= */
+
+export async function debitWalletInSession(
+  userId: string,
+  kobo: number,
+  ref: string,
+  session: mongoose.ClientSession,
+  metadata: any = {}
+) {
+  if (!session?.inTransaction()) {
+    throw new Error("ACTIVE_TRANSACTION_REQUIRED");
+  }
+
+  if (!Number.isSafeInteger(kobo) || kobo <= 0) {
+    throw new Error("INVALID_AMOUNT");
+  }
+
+  const reference = String(ref || "").trim();
+
+  if (!reference) {
+    throw new Error("INVALID_LEDGER_REFERENCE");
+  }
+
+  const existing = await findMatchingLedger(
+    userId,
+    kobo,
+    reference,
+    "DEBIT",
+    session
+  );
+
+  if (existing) {
+    const existingWallet = await Wallet.findOne({ userId }).session(session);
+
+    if (!existingWallet) {
+      throw new Error("WALLET_NOT_FOUND");
+    }
+
+    return existingWallet;
+  }
+
+  // Ensure a wallet exists. This does not change an existing balance.
+  await Wallet.findOneAndUpdate(
+    { userId },
+    {
+      $setOnInsert: {
+        userId,
+        currency: "NGN",
+        balanceKobo: 0,
+      },
+    },
+    {
+      upsert: true,
+      new: true,
+      session,
+      setDefaultsOnInsert: false,
+    }
+  );
+
+  // Debit only when the available balance is sufficient.
+  const updatedWallet = await Wallet.findOneAndUpdate(
+    {
+      userId,
+      balanceKobo: { $gte: kobo },
+    },
+    {
+      $inc: {
+        balanceKobo: -kobo,
+      },
+    },
+    {
+      new: true,
+      session,
+    }
+  );
+
+  if (!updatedWallet) {
+    throw new Error("INSUFFICIENT_WALLET_BALANCE");
+  }
+
+  await Ledger.create(
+    [
+      {
+        userId,
+        type: "DEBIT",
+        amountKobo: kobo,
+        balanceAfterKobo: Number(updatedWallet.balanceKobo),
+        reference,
+        status: "POSTED",
+        metadata,
+      },
+    ],
+    { session }
+  );
 
   return updatedWallet;
 }
 
 /* =========================================================
    DEBIT WALLET
+
+   Wallet debit and ledger creation commit together.
    ========================================================= */
 
 export async function debitWallet(
@@ -291,324 +326,66 @@ export async function debitWallet(
 ) {
   await db();
 
-  /* =======================================================
-     VALIDATION
-     ======================================================= */
-
-  if (
-    !Number.isInteger(kobo) ||
-    kobo <= 0
-  ) {
-    throw new Error(
-      "INVALID_AMOUNT"
-    );
+  if (!Number.isSafeInteger(kobo) || kobo <= 0) {
+    throw new Error("INVALID_AMOUNT");
   }
 
-  const reference =
-    String(ref || "").trim();
+  const reference = String(ref || "").trim();
 
   if (!reference) {
-    throw new Error(
-      "INVALID_LEDGER_REFERENCE"
-    );
+    throw new Error("INVALID_LEDGER_REFERENCE");
   }
 
-  /* =======================================================
-     IDEMPOTENCY CHECK
-     ======================================================= */
+  const session = await mongoose.startSession();
 
-  const existing =
-    await Ledger.findOne({
-      reference,
-    });
+  try {
+    let result: any;
 
-  if (existing) {
-    if (
-      String(existing.userId) !==
-      String(userId)
-    ) {
-      throw new Error(
-        "LEDGER_REFERENCE_CONFLICT"
-      );
-    }
-
-    if (
-      existing.type !==
-        "DEBIT" ||
-      Number(
-        existing.amountKobo
-      ) !== kobo
-    ) {
-      throw new Error(
-        "LEDGER_REFERENCE_CONFLICT"
-      );
-    }
-
-    return await wallet(
-      userId
-    );
-  }
-
-  /* =======================================================
-     GET WALLET
-     ======================================================= */
-
-  const w =
-    await wallet(userId);
-
-  const currentBalance =
-    Number(
-      w.balanceKobo || 0
-    );
-
-  console.log(
-    "================ WITHDRAWAL BALANCE CHECK ================"
-  );
-
-  console.log({
-    userId:
-      String(userId),
-
-    walletId:
-      String(w._id),
-
-    walletBalanceKobo:
-      currentBalance,
-
-    walletBalanceNaira:
-      currentBalance / 100,
-
-    requestedKobo:
-      kobo,
-
-    requestedNaira:
-      kobo / 100,
-  });
-
-  console.log(
-    "==========================================================="
-  );
-
-  /* =======================================================
-     ATOMIC BALANCE CHECK + DEBIT
-     ======================================================= */
-
-  const updatedWallet =
-    await Wallet.findOneAndUpdate(
-      {
-        _id: w._id,
-
-        /*
-         * This is the actual protection against
-         * overdrawing the wallet.
-         */
-        balanceKobo: {
-          $gte: kobo,
-        },
-      },
-      {
-        $inc: {
-          balanceKobo:
-            -kobo,
-        },
-      },
-      {
-        new: true,
-      }
-    );
-
-  /* =======================================================
-     DEBIT FAILED
-     ======================================================= */
-
-  if (!updatedWallet) {
-    const currentWallet =
-      (await Wallet.findById(
-        w._id
-      ).lean()) as {
-        balanceKobo?: number;
-      } | null;
-
-    const actualBalance =
-      Number(
-        currentWallet?.balanceKobo ??
-          0
-      );
-
-    console.log(
-      "================ WITHDRAWAL FAILED ================"
-    );
-
-    console.log({
-      walletId:
-        String(w._id),
-
-      currentBalanceKobo:
-        actualBalance,
-
-      currentBalanceNaira:
-        actualBalance / 100,
-
-      requestedKobo:
+    await session.withTransaction(async () => {
+      result = await debitWalletInSession(
+        userId,
         kobo,
-
-      requestedNaira:
-        kobo / 100,
+        reference,
+        session,
+        metadata
+      );
     });
 
-    console.log(
-      "===================================================="
-    );
+    if (!result) {
+      throw new Error("WALLET_DEBIT_FAILED");
+    }
 
-    if (
-      actualBalance < kobo
-    ) {
+    return result;
+  } catch (error: any) {
+    if (/duplicate|E11000|unique/i.test(error?.message || "")) {
+      const existing = await findMatchingLedger(
+        userId,
+        kobo,
+        reference,
+        "DEBIT"
+      );
+
+      if (existing) {
+        return await wallet(userId);
+      }
+    }
+
+    if (error?.message === "INSUFFICIENT_WALLET_BALANCE") {
+      const currentWallet: any = await Wallet.findOne({ userId }).lean();
+      const actualBalance = Number(currentWallet?.balanceKobo || 0);
+
       throw new Error(
         `Insufficient wallet balance. Your available balance is ₦${(
           actualBalance / 100
-        ).toLocaleString(
-          "en-NG",
-          {
-            minimumFractionDigits:
-              2,
-
-            maximumFractionDigits:
-              2,
-          }
-        )}.`
+        ).toLocaleString("en-NG", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        })}.`
       );
     }
 
-    throw new Error(
-      "WALLET_DEBIT_FAILED"
-    );
-  }
-
-  /* =======================================================
-     CREATE DEBIT LEDGER
-     ======================================================= */
-
-  try {
-    await Ledger.create({
-      userId,
-
-      type:
-        "DEBIT",
-
-      amountKobo:
-        kobo,
-
-      balanceAfterKobo:
-        Number(
-          updatedWallet.balanceKobo
-        ),
-
-      reference,
-
-      status:
-        "POSTED",
-
-      metadata,
-    });
-  } catch (
-    error: any
-  ) {
-    /*
-     * Concurrent request created the same ledger
-     * reference.
-     */
-    if (
-      /duplicate|E11000|unique/i.test(
-        error?.message || ""
-      )
-    ) {
-      const duplicate =
-        await Ledger.findOne({
-          reference,
-        });
-
-      if (
-        duplicate &&
-        String(
-          duplicate.userId
-        ) ===
-          String(userId) &&
-        duplicate.type ===
-          "DEBIT" &&
-        Number(
-          duplicate.amountKobo
-        ) === kobo
-      ) {
-        /*
-         * This request performed the temporary
-         * debit but does not own the ledger.
-         *
-         * Restore it.
-         */
-        await Wallet.findOneAndUpdate(
-          {
-            _id: w._id,
-          },
-          {
-            $inc: {
-              balanceKobo:
-                kobo,
-            },
-          }
-        );
-
-        return await wallet(
-          userId
-        );
-      }
-    }
-
-    /*
-     * Ledger creation failed.
-     *
-     * Restore the debit.
-     */
-    await Wallet.findOneAndUpdate(
-      {
-        _id: w._id,
-      },
-      {
-        $inc: {
-          balanceKobo:
-            kobo,
-        },
-      }
-    );
-
     throw error;
+  } finally {
+    await session.endSession();
   }
-
-  console.log(
-    "=== WALLET DEBIT SUCCESS ==="
-  );
-
-  console.log({
-    userId:
-      String(userId),
-
-    reference,
-
-    debitedKobo:
-      kobo,
-
-    debitedNaira:
-      kobo / 100,
-
-    remainingKobo:
-      Number(
-        updatedWallet.balanceKobo
-      ),
-
-    remainingNaira:
-      Number(
-        updatedWallet.balanceKobo
-      ) / 100,
-  });
-
-  return updatedWallet;
 }

@@ -79,33 +79,6 @@ export default function AdminSidebar() {
 
         <nav className="admin-sidebar-nav">
 
-          {/* CUSTOMER VIEW */}
-          <Link
-            href="/dashboard"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "10px",
-              width: "100%",
-              padding: "12px 14px",
-              marginTop: "10px",
-              borderRadius: "10px",
-              background: "#f3f4f6",
-              color: "#111827",
-              textDecoration: "none",
-              fontWeight: 600,
-              fontSize: "14px",
-              border: "1px solid #e5e7eb",
-            }}
-          >
-            <span>👤</span>
-
-            {open && (
-              <span>
-                Customer View
-              </span>
-            )}
-          </Link>
 
           {/* DASHBOARD */}
           <Link

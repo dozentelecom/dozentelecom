@@ -71,42 +71,20 @@ export async function POST(req: Request) {
       );
     }
 
-console.log("=== DVA USER RAW CHECK ===");
-
-console.log({
-  idFromSession: String(id),
-  mongoUserId: user ? String(user._id) : null,
-  email: user?.email,
-  name: user?.name,
-  hasKyc: !!user?.kyc,
-  fullKyc: user?.kyc,
-});
-
-const rawUser = await User.findById(id).lean();
-
-console.log("=== DVA LEAN USER CHECK ===");
-console.log(JSON.stringify(rawUser, null, 2))
-
-console.log("=== DVA KYC CHECK ===");
-console.log({
-  userId: String(user._id),
-  kycStatus: user.kyc?.status,
-  kycType: user.kyc?.type,
-  kycReference: user.kyc?.reference,
-});
-
     /*
      * Customer must complete KYC first.
      */
-    if (user.kyc?.status !== "VERIFIED") {
-      return NextResponse.json(
-        {
-          error:
-            "Please complete your NIN or BVN verification first.",
-        },
-        { status: 403 }
-      );
-    }
+    if (
+  user.kyc?.flutterwaveDvaStatus !== "ACTIVE" ||
+  !user.kyc?.flutterwaveAccountNumber
+) {
+  return NextResponse.json(
+    {
+      error: "Flutterwave account creation must succeed first.",
+    },
+    { status: 403 }
+  );
+}
 
     /*
      * Already has an account.
@@ -128,6 +106,21 @@ console.log({
       });
     }
 
+	if (
+  user.kyc?.dvaStatus === "PENDING" ||
+  user.kyc?.dvaStatus === "CREATING"
+) {
+  return NextResponse.json({
+    success: true,
+    pending: true,
+    accountNumber: null,
+    accountName: null,
+    bankName: null,
+    customerCode: user.kyc?.customerCode || null,
+    dvaStatus: user.kyc.dvaStatus,
+    message: "Your Paystack account request is already processing.",
+  });
+}
     /*
      * Build customer's name.
      */

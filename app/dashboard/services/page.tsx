@@ -161,142 +161,127 @@ const [receipt, setReceipt] =
      DATA PLAN NORMALIZATION
   ======================================================= */
 
-  const dataPlans = useMemo(() => {
-    return plans.map(
-      (p: any, index: number) => {
-        const cost = Number(
-          p?.price ??
-            p?.amount ??
-            p?.selling_price ??
-            p?.cost ??
-            0
-        );
-
-        return {
-          raw: p,
-
-          key: String(
-            p?.id ??
-              p?.plan_id ??
-              p?.data_plan ??
-              index
-          ),
-
-          name: String(
-            p?.name ??
-              p?.plan_name ??
-              p?.plan ??
-              p?.variation ??
-              p?.description ??
-              "Data plan"
-          ),
-
-          cost,
-
-          price: customerPrice(cost),
-
-          network: String(
-            p?.network ??
-              p?.network_name ??
-              p?.network_id ??
-              ""
-          ),
-
-          networkId: String(
-            p?.network_id ??
-              p?.network ??
-              ""
-          ),
-
-          type: String(
-            p?.type ??
-              p?.datagroup ??
-              p?.service_type ??
-              "SME"
-          ),
-
-          days: String(
-            p?.days ??
-              p?.validity ??
-              p?.duration ??
-              "30 days"
-          ),
-        };
-      }
+  
+const dataPlans = useMemo(() => {
+  return plans.map((p: any, index: number) => {
+    const cost = Number(
+      p?.price ??
+        p?.amount ??
+        p?.selling_price ??
+        p?.cost ??
+        0
     );
-  }, [plans, dataRate]);
+
+    const networkId = String(
+      p?.networkId ??
+        p?.network_id ??
+        ""
+    ).trim();
+
+    const providerPlanId = String(
+      p?.providerPlanId ??
+        p?.provider_plan_id ??
+        p?.plan_id ??
+        p?.data_plan ??
+        ""
+    ).trim();
+
+    const provider = String(
+      p?.provider ?? "SMEAPI"
+    ).toUpperCase();
+
+    return {
+      raw: p,
+
+      // Keep the API's complete provider-prefixed ID for the form.
+      key: String(
+        p?.id ??
+          `${provider}:${providerPlanId || index}`
+      ),
+
+      provider,
+      providerPlanId,
+
+      name: String(
+        p?.name ??
+          p?.plan_name ??
+          p?.plan ??
+          p?.variation ??
+          p?.description ??
+          "Data plan"
+      ),
+
+      cost,
+      price: customerPrice(cost),
+
+      network: String(
+        p?.network ??
+          p?.network_name ??
+          networkId
+      ),
+
+      networkId,
+
+      type: String(
+        p?.type ??
+          p?.plan_type ??
+          p?.service_type ??
+          p?.serviceType ??
+          p?.datagroup ??
+          ""
+      ).trim(),
+
+      days: String(
+        p?.days ??
+          p?.validity ??
+          p?.duration ??
+          ""
+      ),
+    };
+  });
+}, [plans, dataRate]);
+
 
   /* =======================================================
      DATA SERVICE TYPES
   ======================================================= */
 
-  const serviceTypes = useMemo(() => {
-    if (!form.network) {
-      return [];
-    }
+const serviceTypes = useMemo(() => {
+  if (!form.network) return [];
 
-    const types =
-      new Set<string>();
+  return Array.from(
+    new Set(
+      dataPlans
+        .filter(
+          (plan) =>
+            plan.networkId === String(form.network) &&
+            plan.type.length > 0
+        )
+        .map((plan) => plan.type)
+    )
+  );
+}, [dataPlans, form.network]);
 
-    for (const plan of dataPlans) {
-      if (
-        String(plan.networkId) ===
-          String(form.network) &&
-        plan.type
-      ) {
-        types.add(plan.type);
-      }
-    }
-
-    return Array.from(types);
-  }, [
-    dataPlans,
-    form.network,
-  ]);
 
   /* =======================================================
      DATA NETWORKS
   ======================================================= */
 
-  const networkOptions =
-    useMemo(() => {
-      const map =
-        new Map<string, any>();
+const networkOptions = useMemo(() => {
+  const map = new Map<string, { id: string; name: string }>();
 
-      for (const plan of plans) {
-        const networkId =
-          String(
-            plan?.network_id ??
-              plan?.network ??
-              ""
-          );
+  for (const plan of dataPlans) {
+    const id = String(plan.networkId || "").trim();
+    const name = String(plan.network || "").trim();
 
-        const networkName =
-          String(
-            plan?.network_name ??
-              plan?.network ??
-              ""
-          );
+    if (id && name && !map.has(id)) {
+      map.set(id, { id, name });
+    }
+  }
 
-        if (
-          networkId &&
-          networkName &&
-          !map.has(networkId)
-        ) {
-          map.set(
-            networkId,
-            {
-              id: networkId,
-              name: networkName,
-            }
-          );
-        }
-      }
+  return Array.from(map.values());
+}, [dataPlans]);
 
-      return Array.from(
-        map.values()
-      );
-    }, [plans]);
 
   /* =======================================================
      LOAD DATA PLANS
@@ -518,26 +503,16 @@ async function buy() {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        network: Number(form.network),
-        data_plan: Number(form.data_plan),
-        phone: form.phone,
-        pin: form.pin,
-      }),
+  network: Number(form.network),
+  data_plan: String(form.data_plan),
+  phone: form.phone,
+  pin: form.pin,
+}),
     });
 
     const json = await response
       .json()
       .catch(() => ({}));
-
-    console.log(
-      "DATA PURCHASE HTTP STATUS:",
-      response.status
-    );
-
-    console.log(
-      "DATA PURCHASE RESPONSE:",
-      json
-    );
 
     /*
      * Provider / API response can be either at the
@@ -605,14 +580,14 @@ async function buy() {
       rawStatus === "COMPLETE"
     ) {
       status = "SUCCESS";
-    } else if (!response.ok) {
-      /*
-       * If the server returned an error HTTP status but
-       * supplied no explicit status, treat it as FAILED
-       * so the customer still gets a receipt/result.
-       */
-      status = "FAILED";
-    } else {
+   } else if (!response.ok) {
+  /*
+   * An HTTP error alone does not prove that the
+   * provider transaction failed. Keep the result
+   * pending until the backend confirms its status.
+   */
+  status = "PROCESSING";
+} else {
       /*
        * A successful HTTP response without a final status
        * is treated as processing rather than silently

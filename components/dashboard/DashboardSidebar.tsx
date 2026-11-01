@@ -234,21 +234,6 @@ export default function DashboardSidebar() {
         ===================================================== */}
 
         <nav className="sidebar-nav">
-          {/* ADMIN */}
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="sidebar-link admin-link"
-            >
-              <span className="sidebar-icon">
-                🛠️
-              </span>
-
-              <span className="sidebar-text">
-                Admin Panel
-              </span>
-            </Link>
-          )}
 
           {/* DASHBOARD */}
           <Link

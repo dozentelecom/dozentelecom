@@ -1,65 +1,20 @@
 import { NextResponse } from "next/server";
+import { requireAdminApi, adminApiErrorStatus } from "@/lib/requireAdminApi";
+import { getProfitSummary } from "@/lib/profit";
+import { paystackGet } from "@/lib/paystack";
 
-import {
-  currentUserId,
-} from "@/lib/session";
-
-import {
-  db,
-} from "@/lib/db";
-
-import {
-  User,
-} from "@/lib/models";
-
-import {
-  getProfitSummary,
-} from "@/lib/profit";
-
-import {
-  paystackGet,
-} from "@/lib/paystack";
-
-async function requireAdmin() {
-  const id = await currentUserId();
-
-  if (!id) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  await db();
-
-  const user: any =
-    await User.findById(id);
-
-  if (!user || user.role !== "admin") {
-    throw new Error("FORBIDDEN");
-  }
-
-  return user;
-}
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    await requireAdmin();
-
-    const profit =
-      await getProfitSummary();
+    await requireAdminApi();
+    const profit = await getProfitSummary();
 
     let paystackBalanceKobo = 0;
-
     try {
-      const balance =
-        await paystackGet("/balance");
-
-      const ngn =
-        balance?.data?.find(
-          (item: any) =>
-            item.currency === "NGN"
-        );
-
-      paystackBalanceKobo =
-        Number(ngn?.balance || 0);
+      const balance = await paystackGet("/balance");
+      const ngn = balance?.data?.find((item: any) => item.currency === "NGN");
+      paystackBalanceKobo = Number(ngn?.balance || 0);
     } catch {
       paystackBalanceKobo = 0;
     }
@@ -67,23 +22,13 @@ export async function GET() {
     return NextResponse.json({
       ...profit,
       paystackBalanceKobo,
-      maxWithdrawableKobo:
-        Math.min(
-          profit.availableProfitKobo,
-          paystackBalanceKobo
-        ),
+      maxWithdrawableKobo: Math.min(profit.availableProfitKobo, paystackBalanceKobo),
     });
-  } catch (e: any) {
+  } catch (error: unknown) {
+    const status = adminApiErrorStatus(error);
     return NextResponse.json(
-      {
-        error: e.message,
-      },
-      {
-        status:
-          e.message === "UNAUTHORIZED"
-            ? 401
-            : 403,
-      }
+      { error: status === 401 ? "UNAUTHORIZED" : status === 403 ? "FORBIDDEN" : "Unable to load profit summary" },
+      { status }
     );
   }
 }

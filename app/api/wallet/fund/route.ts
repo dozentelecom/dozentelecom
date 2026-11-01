@@ -1,353 +1,228 @@
 import { NextResponse } from "next/server";
-
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
-import {
-  User,
-  Funding,
-} from "@/lib/models";
-import { paystack } from "@/lib/paystack";
+import { User, Funding } from "@/lib/models";
 import { getRates } from "@/lib/settings";
 
-export async function POST(
-  req: Request
-) {
-  try {
-    /* =======================================================
-       AUTHENTICATION
-       ======================================================= */
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
-    const userId =
-      await currentUserId();
+export async function POST(req: Request) {
+  let reference = "";
+
+  try {
+    // AUTHENTICATION
+    const userId = await currentUserId();
 
     if (!userId) {
-      return NextResponse.redirect(
-        new URL(
-          "/login",
-          req.url
-        )
-      );
+      return NextResponse.redirect(new URL("/login", req.url));
     }
 
-    /* =======================================================
-       READ AMOUNT
-       ======================================================= */
+    // READ AMOUNT
+    const formData = await req.formData();
+    const amount = Number(formData.get("amount"));
 
-    const formData =
-      await req.formData();
-
-    const rawAmount =
-      formData.get("amount");
-
-    const amount =
-      Number(rawAmount);
-
-    if (
-      !Number.isFinite(amount) ||
-      amount < 100
-    ) {
+    if (!Number.isFinite(amount) || amount < 100) {
       return NextResponse.json(
-        {
-          error:
-            "Minimum funding is ₦100",
-        },
-        {
-          status: 400,
-        }
+        { error: "Minimum funding is ₦100." },
+        { status: 400 }
       );
     }
 
-    /*
-     * Convert to kobo immediately.
-     *
-     * This avoids floating-point inconsistencies.
-     */
-    const grossKobo =
-      Math.round(amount * 100);
+    const grossKobo = Math.round(amount * 100);
 
-    if (
-      !Number.isInteger(
-        grossKobo
-      ) ||
-      grossKobo < 10000
-    ) {
+    if (!Number.isInteger(grossKobo) || grossKobo < 10000) {
       return NextResponse.json(
-        {
-          error:
-            "Minimum funding is ₦100",
-        },
-        {
-          status: 400,
-        }
+        { error: "Minimum funding is ₦100." },
+        { status: 400 }
       );
     }
 
-    /* =======================================================
-       DATABASE
-       ======================================================= */
-
+    // DATABASE
     await db();
 
-    const user: any =
-      await User.findById(
-        userId
-      );
+    const user: any = await User.findById(userId).lean();
 
     if (!user) {
       return NextResponse.json(
-        {
-          error:
-            "User not found",
-        },
-        {
-          status: 404,
-        }
+        { error: "User not found." },
+        { status: 404 }
       );
     }
 
-    /* =======================================================
-       KYC
-       ======================================================= */
-
+    // CUSTOMER MUST HAVE COMPLETED FLUTTERWAVE ACCOUNT SETUP
     if (
-      user.kyc?.status !==
-      "VERIFIED"
+      user.kyc?.flutterwaveDvaStatus !== "ACTIVE" ||
+      !user.kyc?.flutterwaveAccountNumber
     ) {
-      return NextResponse.redirect(
-        new URL(
-          "/kyc",
-          req.url
-        )
-      );
+      return NextResponse.redirect(new URL("/kyc", req.url));
     }
 
-    /* =======================================================
-       FUNDING RATE
-       ======================================================= */
+    // FLUTTERWAVE CONFIGURATION
+    const secretKey = process.env.FLW_SECRET_KEY;
+    const callbackUrl = process.env.FLW_FUNDING_CALLBACK_URL;
 
-    const rates =
-      await getRates();
+    if (!secretKey || !callbackUrl) {
+      console.error("Flutterwave funding configuration is incomplete.");
 
-    const fundingRate =
-  Number(
-    rates.funding ?? 0
-  );
-
-console.log("=== FUNDING RATE DEBUG ===");
-console.log("rates:", rates);
-console.log("fundingRate:", fundingRate);
-
-    if (
-      !Number.isFinite(
-        fundingRate
-      ) ||
-      fundingRate < 0
-    ) {
       return NextResponse.json(
-        {
-          error:
-            "Invalid funding rate configuration",
-        },
-        {
-          status: 500,
-        }
+        { error: "Flutterwave funding is not configured." },
+        { status: 503 }
       );
     }
 
-    /* =======================================================
-       CALCULATE FEE
-       ======================================================= */
+    // FUNDING RATE
+    const rates = await getRates();
+    const fundingRate = Number(rates.funding ?? 0);
 
-    const feeKobo =
-      Math.ceil(
-        (grossKobo *
-          fundingRate) /
-          100
-      );
-
-    const creditKobo =
-      grossKobo -
-      feeKobo;
-
-    if (
-      creditKobo <= 0
-    ) {
+    if (!Number.isFinite(fundingRate) || fundingRate < 0) {
       return NextResponse.json(
-        {
-          error:
-            "Funding amount is too small for the configured funding fee",
-        },
-        {
-          status: 400,
-        }
+        { error: "Invalid funding rate configuration." },
+        { status: 500 }
       );
     }
 
-    /* =======================================================
-       REFERENCE
-       ======================================================= */
+    // FEE CALCULATION
+    const feeKobo = Math.ceil((grossKobo * fundingRate) / 100);
+    const creditKobo = grossKobo - feeKobo;
 
-    const reference =
-      `DZT-FUND-${Date.now()}-${Math.random()
+    if (creditKobo <= 0) {
+      return NextResponse.json(
+        { error: "Funding amount is too small for the configured fee." },
+        { status: 400 }
+      );
+    }
+
+    // UNIQUE FUNDING REFERENCE
+    reference =
+      `DZT-FLW-FUND-${Date.now()}-${Math.random()
         .toString(36)
         .slice(2, 8)
         .toUpperCase()}`;
 
-    /* =======================================================
-       CREATE FUNDING RECORD
-       ======================================================= */
-
+    // CREATE FUNDING RECORD
     await Funding.create({
-      userId: userId,
-
+      userId,
       reference,
-
       grossKobo,
-
       feeKobo,
-
       creditKobo,
-
-      status:
-        "PENDING",
+      status: "PENDING",
+      providerData: {
+        provider: "FLUTTERWAVE",
+        paymentType: "HOSTED_CHECKOUT",
+      },
     });
 
-    /* =======================================================
-       INITIALIZE PAYSTACK PAYMENT
-       ======================================================= */
+    // INITIALIZE FLUTTERWAVE CHECKOUT
+    const customerName = String(user.name || "Customer").trim();
+    const names = customerName.split(/\s+/);
 
-    try {
-      const payment =
-        await paystack(
-          "/transaction/initialize",
-          {
-            email:
-              user.email,
-
-            amount:
-              grossKobo,
-
-            reference,
-
-            callback_url:
-              process.env
-                .PAYSTACK_CALLBACK_URL,
-
-            metadata: {
-              userId:
-                String(userId),
-
-              fundingReference:
-                reference,
-
-              fundingAmount:
-                grossKobo / 100,
-
-              fundingAmountKobo:
-                grossKobo,
-
-              fee:
-                feeKobo / 100,
-
-              feeKobo,
-
-              credit:
-                creditKobo / 100,
-
-              creditKobo,
-            },
-          }
-        );
-
-      const authorizationUrl =
-        payment?.data
-          ?.authorization_url;
-
-      const paystackReference =
-        payment?.data
-          ?.reference;
-
-      if (
-        !authorizationUrl
-      ) {
-        throw new Error(
-          "Paystack did not return a payment authorization URL"
-        );
+    const response = await fetch(
+      "https://api.flutterwave.com/v3/payments",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${secretKey}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        body: JSON.stringify({
+          tx_ref: reference,
+          amount: (grossKobo / 100).toFixed(2),
+          currency: "NGN",
+          redirect_url: callbackUrl,
+          customer: {
+            email: String(user.email || "").trim(),
+            name: customerName,
+            phonenumber: String(
+              user.phone || user.phoneNumber || ""
+            ).trim(),
+          },
+          customizations: {
+            title: "Dozentelecom Wallet Funding",
+            description: "Wallet funding payment",
+            logo: process.env.NEXT_PUBLIC_APP_LOGO || "",
+          },
+          meta: {
+            userId: String(userId),
+            fundingReference: reference,
+            grossKobo,
+            feeKobo,
+            creditKobo,
+          },
+        }),
+        cache: "no-store",
       }
-
-      await Funding.findOneAndUpdate(
-        {
-          reference,
-        },
-        {
-          $set: {
-            paystackReference:
-              paystackReference ||
-              reference,
-
-            providerData:
-              payment.data,
-          },
-        }
-      );
-
-      /* =====================================================
-         REDIRECT CUSTOMER TO PAYSTACK
-         ===================================================== */
-
-      return NextResponse.redirect(
-        authorizationUrl
-      );
-    } catch (
-      error: any
-    ) {
-      console.error(
-        "=== PAYSTACK FUNDING INITIALIZATION FAILED ==="
-      );
-
-      console.error(error);
-
-      await Funding.findOneAndUpdate(
-        {
-          reference,
-        },
-        {
-          $set: {
-            status:
-              "FAILED",
-          },
-        }
-      );
-
-      return NextResponse.json(
-        {
-          error:
-            error?.message ||
-            "Unable to initialize Paystack payment",
-        },
-        {
-          status: 502,
-        }
-      );
-    }
-  } catch (
-    error: any
-  ) {
-    console.error(
-      "=== FUNDING ROUTE ERROR ==="
     );
 
-    console.error(error);
+    const result: any = await response.json().catch(() => ({}));
+    const checkoutUrl = result?.data?.link;
+
+    if (
+      !response.ok ||
+      result?.status !== "success" ||
+      !checkoutUrl
+    ) {
+      await Funding.findOneAndUpdate(
+        { reference, status: "PENDING" },
+        {
+          $set: {
+            status: "FAILED",
+            "providerData.initializationError": String(
+              result?.message || "Flutterwave initialization failed"
+            ).slice(0, 200),
+          },
+        }
+      );
+
+      console.error("Flutterwave checkout initialization failed:", {
+        httpStatus: response.status,
+        providerMessage: String(result?.message || "Unknown error").slice(0, 200),
+      });
+
+      return NextResponse.json(
+        { error: "Unable to initialize Flutterwave payment. Please try again." },
+        { status: 502 }
+      );
+    }
+
+    // SAVE PROVIDER REFERENCE AND CHECKOUT DETAILS
+    await Funding.findOneAndUpdate(
+      { reference },
+      {
+        $set: {
+          providerData: {
+            provider: "FLUTTERWAVE",
+            paymentType: "HOSTED_CHECKOUT",
+            txRef: reference,
+            checkoutUrl,
+          },
+        },
+      }
+    );
+
+    // REDIRECT CUSTOMER TO FLUTTERWAVE
+    return NextResponse.redirect(checkoutUrl, { status: 303 });
+  } catch (error: any) {
+    console.error(
+      "Flutterwave wallet funding initialization error:",
+      error?.message || "Unknown error"
+    );
+
+    if (reference) {
+      try {
+        await db();
+        await Funding.findOneAndUpdate(
+          { reference, status: "PENDING" },
+          { $set: { status: "FAILED" } }
+        );
+      } catch {}
+    }
 
     return NextResponse.json(
-      {
-        error:
-          error?.message ||
-          "Unable to process funding request",
-      },
-      {
-        status: 500,
-      }
+      { error: "Unable to process your funding request right now." },
+      { status: 500 }
     );
   }
 }

@@ -1,3 +1,4 @@
+
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { User } from "@/lib/models";
@@ -9,64 +10,55 @@ export default async function KycPage({
   searchParams?: Promise<{ error?: string }>;
 }) {
   const params = await searchParams;
-
   const id = await currentUserId();
 
-  if (!id) {
-    redirect("/login");
-  }
+  if (!id) redirect("/login");
 
   await db();
 
-  const u: any = await User.findById(id).lean();
+  const user: any = await User.findById(id)
+    .select("kyc")
+    .lean();
 
-  console.log("=================================");
-  console.log("=== KYC PAGE USER CHECK ===");
-  console.log("=================================");
-  console.log("USER ID:", String(id));
-  console.log("USER EXISTS:", !!u);
-  console.log("USER EMAIL:", u?.email);
-  console.log("USER NAME:", u?.name);
-  console.log("FULL KYC OBJECT:", u?.kyc);
-  console.log("KYC STATUS:", u?.kyc?.status);
-  console.log("KYC TYPE:", u?.kyc?.type);
-  console.log("KYC REFERENCE EXISTS:", !!u?.kyc?.reference);
-  console.log("=================================");
-
-  if (u?.kyc?.status === "VERIFIED") {
+  // Flutterwave account already exists: no need to submit NIN again.
+  if (
+    user?.kyc?.flutterwaveAccountNumber &&
+    user?.kyc?.flutterwaveDvaStatus === "ACTIVE"
+  ) {
     redirect("/dashboard");
   }
 
   return (
     <main className="shell page">
       <div className="card auth-card">
-        <h1>Verify your identity</h1>
+        <h1>Set up your virtual accounts</h1>
 
         <p className="muted">
-          Complete NIN or BVN verification once. After successful
-          verification this page disappears for your account.
+          Enter your NIN once. Flutterwave will process your details first.
+          After Flutterwave successfully creates your account, Dozentelecom
+          will automatically request your other available virtual accounts.
         </p>
 
         {params?.error && (
-          <div className="alert error">
-            {params.error}
-          </div>
+          <div className="alert error">{params.error}</div>
         )}
 
         <form action="/api/kyc/nin" method="post">
-          <label className="label">NIN</label>
+          <label className="label">11-digit NIN</label>
 
           <input
             className="input"
             name="nin"
+            type="text"
             inputMode="numeric"
             pattern="[0-9]{11}"
             maxLength={11}
+            autoComplete="off"
             required
           />
 
           <button type="submit" className="btn primary">
-            Verify NIN
+            Submit NIN and Create Accounts
           </button>
         </form>
       </div>
