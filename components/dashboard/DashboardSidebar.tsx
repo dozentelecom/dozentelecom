@@ -432,26 +432,7 @@ export default function DashboardSidebar() {
             </span>
           </Link>
 
-          {/* KYC */}
-          <Link
-            href="/dashboard/kyc"
-            className={`sidebar-link ${
-              pathname.startsWith(
-                "/dashboard/kyc"
-              )
-                ? "active"
-                : ""
-            }`}
-          >
-            <span className="sidebar-icon">
-              🪪
-            </span>
-
-            <span className="sidebar-text">
-              KYC
-            </span>
-          </Link>
-
+          
           {/* SETTINGS */}
 <Link
   href="/dashboard/settings"

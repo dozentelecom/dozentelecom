@@ -1,4 +1,3 @@
-
 import { NextResponse } from "next/server";
 import { currentUserId } from "@/lib/session";
 
@@ -23,14 +22,16 @@ export async function POST(req: Request) {
 
     if (!/^\d{11}$/.test(nin)) {
       return NextResponse.redirect(
-        new URL("/kyc?error=Enter%20a%20valid%2011-digit%20NIN", req.url)
+        new URL(
+          `/kyc?error=${encodeURIComponent("Enter a valid 11-digit NIN")}`,
+          req.url
+        )
       );
     }
 
     const cookie = req.headers.get("cookie") || "";
 
-    // STEP 1: Create the customer's Flutterwave permanent account.
-    // The Flutterwave endpoint handles the atomic account-creation lock.
+    // Create the Flutterwave account only.
     const flutterwaveResponse = await fetch(
       new URL("/api/flutterwave/dva", req.url),
       {
@@ -63,62 +64,20 @@ export async function POST(req: Request) {
       );
     }
 
-    // STEP 2: Flutterwave succeeded. Automatically request Paystack.
-    // The NIN is not sent to Paystack.
-    let paystackStatus: "PENDING" | "REQUESTED" | "FAILED" = "FAILED";
-
-    try {
-      const paystackResponse = await fetch(
-        new URL("/api/paystack/dva", req.url),
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            cookie,
-          },
-          body: JSON.stringify({}),
-          cache: "no-store",
-        }
-      );
-
-      const paystackResult: any = await paystackResponse
-        .json()
-        .catch(() => ({}));
-
-      if (paystackResponse.ok && paystackResult?.success) {
-        paystackStatus = paystackResult.pending ? "PENDING" : "REQUESTED";
-      } else {
-        console.error("Automatic Paystack account request failed:", {
-          status: paystackResponse.status,
-          message: String(
-            paystackResult?.error || "Unknown error"
-          ).slice(0, 200),
-        });
-      }
-    } catch (error: any) {
-      console.error(
-        "Automatic Paystack request error:",
-        error?.message || "Unknown error"
-      );
-    }
-
-    // Flutterwave remains successful even if Paystack is pending or fails.
-    const destination =
-      paystackStatus === "FAILED"
-        ? "/dashboard?accountSetup=partial"
-        : "/dashboard?accountSetup=started";
-
-    return NextResponse.redirect(new URL(destination, req.url));
+    // Flutterwave succeeded. Paystack is deliberately not called here.
+    return NextResponse.redirect(
+      new URL("/dashboard?flutterwaveSetup=success", req.url)
+    );
   } catch (error: any) {
     console.error(
-      "NIN account setup failed:",
+      "Flutterwave NIN account setup failed:",
       error?.message || "Unknown error"
     );
 
     return NextResponse.redirect(
       new URL(
         `/kyc?error=${encodeURIComponent(
-          "We could not complete your account setup. Please try again."
+          "We could not complete your Flutterwave account setup. Please try again."
         )}`,
         req.url
       )

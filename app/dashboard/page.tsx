@@ -291,22 +291,29 @@ export default async function Dashboard() {
 
             )}
 
-          </div>
+          </div>{/* =====================================================
+    FLUTTERWAVE PERMANENT ACCOUNT
+    Independent of Paystack and available to all customers.
+===================================================== */}
 
-          {/* ===================================================
-              FLUTTERWAVE PERMANENT ACCOUNT (NEW / SEPARATE)
-              This does not change KYC status or the Paystack account.
-          =================================================== */}
-
-          <FlutterwaveAccountCard
-            initialAccountNumber={u?.kyc?.flutterwaveAccountNumber || ""}
-            initialBankName={u?.kyc?.flutterwaveBankName || ""}
-            initialAccountName={u?.kyc?.flutterwaveAccountName || ""}
-            initialStatus={u?.kyc?.flutterwaveDvaStatus || ""}
-            name={u?.name || ""}
-            existingIdentityVerified={u?.kyc?.status === "VERIFIED"}
-          />
-
+<section
+  className="flutterwave-account-section"
+  style={{
+    width: "100%",
+    maxWidth: "100%",
+    minWidth: 0,
+    marginTop: "20px",
+    marginBottom: "24px",
+  }}
+>
+  <FlutterwaveAccountCard
+    initialAccountNumber={u?.kyc?.flutterwaveAccountNumber || ""}
+    initialBankName={u?.kyc?.flutterwaveBankName || ""}
+    initialAccountName={u?.kyc?.flutterwaveAccountName || ""}
+    initialStatus={u?.kyc?.flutterwaveDvaStatus || ""}
+    name={u?.name || ""}
+  />
+</section>
         </div>
 
         {/* =====================================================
@@ -495,6 +502,7 @@ export default async function Dashboard() {
           max-width: 100%;
           box-sizing: border-box;
         }
+	
 
         /* =====================================================
            WALLET
