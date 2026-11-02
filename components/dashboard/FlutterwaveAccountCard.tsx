@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -76,7 +77,7 @@ export default function FlutterwaveAccountCard({
   }
 
   return (
-    <div className="card virtual-account-card">
+    <div className="card virtual-account-card flutterwave-card">
       <div className="virtual-account-inner">
         <div className="virtual-account-header">
           <div className="virtual-account-bank">
@@ -125,19 +126,15 @@ export default function FlutterwaveAccountCard({
             </div>
           </>
         ) : (
-          <>
+          <div className="flutterwave-form">
             <h3>Generate Flutterwave account</h3>
 
             <p className="muted">
               Enter your 11-digit NIN to generate your permanent
-              Flutterwave account number. This is available whether
-              or not you already have a Paystack account.
+              Flutterwave account number.
             </p>
 
-            <label
-              htmlFor="flutterwave-nin"
-              style={{ display: "block", marginBottom: 6 }}
-            >
+            <label htmlFor="flutterwave-nin">
               11-digit NIN
             </label>
 
@@ -152,7 +149,6 @@ export default function FlutterwaveAccountCard({
               }
               placeholder="Enter your NIN"
               disabled={busy}
-              style={{ width: "100%", marginBottom: 10 }}
             />
 
             <button
@@ -163,21 +159,120 @@ export default function FlutterwaveAccountCard({
             >
               {busy ? "Creating account..." : "Create Flutterwave account"}
             </button>
-          </>
+          </div>
         )}
 
         {error && (
-          <p role="alert" style={{ color: "#dc2626", marginTop: 10 }}>
+          <p role="alert" className="flutterwave-error">
             {error}
           </p>
         )}
 
         {message && (
-          <p role="status" style={{ color: "#16a34a", marginTop: 10 }}>
+          <p role="status" className="flutterwave-success">
             {message}
           </p>
         )}
       </div>
+
+      <style jsx>{`
+        .flutterwave-card {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+          overflow: hidden;
+        }
+
+        .virtual-account-inner {
+          width: 100%;
+          min-width: 0;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
+
+        .virtual-account-header,
+        .virtual-account-bank {
+          min-width: 0;
+          max-width: 100%;
+        }
+
+        .virtual-account-bank-name,
+        .account-number,
+        .account-name {
+          overflow-wrap: anywhere;
+          word-break: break-word;
+        }
+
+        .flutterwave-form {
+          width: 100%;
+          min-width: 0;
+          margin-top: 16px;
+          box-sizing: border-box;
+        }
+
+        .flutterwave-form h3 {
+          font-size: 16px;
+          margin-bottom: 8px;
+        }
+
+        .flutterwave-form p {
+          font-size: 13px;
+          line-height: 1.5;
+        }
+
+        .flutterwave-form label {
+          display: block;
+          font-size: 13px;
+          font-weight: 600;
+          margin-bottom: 6px;
+        }
+
+        .flutterwave-form input {
+          display: block;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          height: 44px;
+          padding: 10px 12px;
+          margin-bottom: 12px;
+          box-sizing: border-box;
+        }
+
+        .flutterwave-form button {
+          width: 100%;
+          max-width: 100%;
+          white-space: normal;
+          box-sizing: border-box;
+        }
+
+        .flutterwave-error,
+        .flutterwave-success {
+          font-size: 13px;
+          line-height: 1.5;
+          overflow-wrap: anywhere;
+          margin-top: 10px;
+        }
+
+        .flutterwave-error {
+          color: #dc2626;
+        }
+
+        .flutterwave-success {
+          color: #16a34a;
+        }
+
+        @media (max-width: 600px) {
+          .flutterwave-form h3 {
+            font-size: 15px;
+          }
+
+          .flutterwave-form button {
+            font-size: 13px;
+            padding: 10px;
+          }
+        }
+      `}</style>
     </div>
   );
 }

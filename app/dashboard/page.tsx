@@ -1,11 +1,10 @@
+
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
 import { User, Wallet } from "@/lib/models";
 import DashboardSidebar from "@/components/dashboard/DashboardSidebar";
-import CreatePinPopup from "./CreatePinPopup";
-import GenerateAccountButton from "./GenerateAccountButton";
 import FlutterwaveAccountCard from "@/components/dashboard/FlutterwaveAccountCard";
 import NotificationBell from "@/components/notifications/NotificationBell";
 
@@ -25,9 +24,7 @@ export default async function Dashboard() {
   const w: any = await Wallet.findOne({
     userId: id,
   })
-    .sort({
-      balanceKobo: -1,
-    })
+    .sort({ balanceKobo: -1 })
     .lean();
 
   return (
@@ -35,308 +32,60 @@ export default async function Dashboard() {
       <DashboardSidebar />
 
       <section className="dashboard-content">
-
-        {/* =====================================================
-            TOP BAR
-        ===================================================== */}
-
+        {/* TOP BAR */}
         <div className="dashboard-top">
           <div>
-            <p className="muted">
-              Welcome back
-            </p>
-
-            <h1>
-              Dashboard
-            </h1>
+            <p className="muted">Welcome back</p>
+            <h1>Dashboard</h1>
           </div>
-
           <NotificationBell />
         </div>
 
-        {/* =====================================================
-            SUMMARY
-        ===================================================== */}
+        {/* WALLET AND FLUTTERWAVE ACCOUNT SIDE BY SIDE */}
+        <section className="dashboard-summary-grid">
 
-        <div className="dashboard-summary-grid">
-
-          {/* ===================================================
-              WALLET
-          =================================================== */}
-
+          {/* WALLET BOX - ORIGINAL CONTENT PRESERVED */}
           <div className="card wallet-card">
-
-            <div className="muted">
-              Wallet balance
-            </div>
+            <div className="muted">Wallet balance</div>
 
             <h2 className="wallet-balance">
               ₦
-              {(
-                (w?.balanceKobo || 0) / 100
-              ).toLocaleString(
+              {((w?.balanceKobo || 0) / 100).toLocaleString(
                 undefined,
-                {
-                  minimumFractionDigits: 2,
-                }
+                { minimumFractionDigits: 2 }
               )}
             </h2>
 
             <div className="wallet-actions">
-              <Link
-                className="btn primary"
-                href="/dashboard/fund"
-              >
+              <Link className="btn primary" href="/dashboard/fund">
                 Fund wallet
               </Link>
             </div>
-
           </div>
 
-          {/* ===================================================
-              KYC / VIRTUAL ACCOUNT
-          =================================================== */}
+          {/* FLUTTERWAVE ACCOUNT BOX */}
+          <FlutterwaveAccountCard
+            initialAccountNumber={u?.kyc?.flutterwaveAccountNumber || ""}
+            initialBankName={u?.kyc?.flutterwaveBankName || ""}
+            initialAccountName={u?.kyc?.flutterwaveAccountName || ""}
+            initialStatus={u?.kyc?.flutterwaveDvaStatus || ""}
+            name={u?.name || ""}
+          />
 
-          <div className="card virtual-account-card">
+        </section>
 
-            {u?.kyc?.status === "VERIFIED" ? (
-
-              <>
-
-                {/* =================================================
-                    ACCOUNT GENERATED
-                ================================================= */}
-
-                {u?.kyc?.accountNumber ? (
-
-                  <div className="virtual-account-inner">
-
-                    {/* ACCOUNT HEADER */}
-
-                    <div className="virtual-account-header">
-
-                      <div className="virtual-account-bank">
-
-                        <div className="virtual-account-label">
-                          Virtual Account
-                        </div>
-
-                        <div className="virtual-account-bank-name">
-                          {u?.kyc?.bankName ||
-                            "Paystack-Titan"}
-                        </div>
-
-                      </div>
-
-                      {/* ACCOUNT STATUS */}
-
-                      {u?.kyc?.dvaStatus && (
-                        <div
-                          className={`virtual-account-status ${
-                            u.kyc.dvaStatus ===
-                            "ACTIVE"
-                              ? "active"
-                              : "pending"
-                          }`}
-                        >
-                          {u.kyc.dvaStatus ===
-                          "ACTIVE"
-                            ? "● Account Active"
-                            : `● ${u.kyc.dvaStatus}`}
-                        </div>
-                      )}
-
-                    </div>
-
-                    {/* =================================================
-                        ACCOUNT NUMBER
-                    ================================================= */}
-
-                    <div className="account-number-section">
-
-                      <div className="account-number-label">
-                        Account Number
-                      </div>
-
-                      <div
-                        className="account-number"
-                        title={u.kyc.accountNumber}
-                      >
-                        {u.kyc.accountNumber}
-                      </div>
-
-                    </div>
-
-                    {/* =================================================
-                        ACCOUNT NAME
-                    ================================================= */}
-
-                    <div className="account-name-section">
-
-                      <div className="account-name-label">
-                        Account Name
-                      </div>
-
-                      <div className="account-name">
-                        {u?.kyc?.accountName ||
-                          u?.name ||
-                          ""}
-                      </div>
-
-                    </div>
-
-                  </div>
-
-                ) : u?.kyc?.dvaStatus === "PENDING" ? (
-
-                  /* =================================================
-                     ACCOUNT GENERATION PROCESSING
-                  ================================================= */
-
-                  <div
-                    style={{
-                      marginTop: "0",
-                      padding: "18px",
-                      borderRadius: "12px",
-                      border: "1px solid #fde68a",
-                      background: "#fffbeb",
-                    }}
-                  >
-
-                    <h3
-                      style={{
-                        marginTop: 0,
-                      }}
-                    >
-                      ⏳ Account generation in progress
-                    </h3>
-
-                    <p className="muted">
-                      Your Paystack virtual account is
-                      being generated.
-                    </p>
-
-                    <p
-                      className="muted"
-                      style={{
-                        fontSize: "13px",
-                      }}
-                    >
-                      This usually completes automatically.
-                      Please refresh the page in a moment.
-                    </p>
-
-                    <Link
-                      href="/dashboard"
-                      className="btn"
-                    >
-                      Refresh
-                    </Link>
-
-                  </div>
-
-                ) : (
-
-                  /* =================================================
-                     VERIFIED BUT ACCOUNT NOT GENERATED
-                  ================================================= */
-
-                  <div>
-                    <p className="muted">
-                      Generate your dedicated Paystack
-                      virtual account.
-                    </p>
-
-                    <GenerateAccountButton />
-
-                    <p
-                      className="muted"
-                      style={{
-                        fontSize: "12px",
-                        marginTop: "10px",
-                      }}
-                    >
-                      Your account number will appear here
-                      after Paystack completes the assignment.
-                    </p>
-                  </div>
-
-                )}
-
-              </>
-
-            ) : (
-
-              /* ===================================================
-                 KYC NOT VERIFIED
-              =================================================== */
-
-              <>
-                <h3>
-                  Identity verification required
-                </h3>
-
-                <p className="muted">
-                  Verify NIN or BVN before generating
-                  your wallet account number.
-                </p>
-
-                <Link
-                  className="btn"
-                  href="/kyc"
-                >
-                  Verify KYC
-                </Link>
-              </>
-
-            )}
-
-          </div>{/* =====================================================
-    FLUTTERWAVE PERMANENT ACCOUNT
-    Independent of Paystack and available to all customers.
-===================================================== */}
-
-<section
-  className="flutterwave-account-section"
-  style={{
-    width: "100%",
-    maxWidth: "100%",
-    minWidth: 0,
-    marginTop: "20px",
-    marginBottom: "24px",
-  }}
->
-  <FlutterwaveAccountCard
-    initialAccountNumber={u?.kyc?.flutterwaveAccountNumber || ""}
-    initialBankName={u?.kyc?.flutterwaveBankName || ""}
-    initialAccountName={u?.kyc?.flutterwaveAccountName || ""}
-    initialStatus={u?.kyc?.flutterwaveDvaStatus || ""}
-    name={u?.name || ""}
-  />
-</section>
-        </div>
-
-        {/* =====================================================
-            SERVICES
-        ===================================================== */}
-
+        {/* SERVICES */}
         <div className="section-head">
-
           <div>
-            <h2>
-              Services
-            </h2>
+            <h2>Services</h2>
           </div>
-
         </div>
 
         <div className="service-card-grid">
-
           {[
             ["Data", "📶"],
             ["Giveaway", "🎁"],
           ].map(([x, icon]) => (
-
             <Link
               href={
                 x === "Giveaway"
@@ -346,74 +95,41 @@ export default async function Dashboard() {
               className="card service-card"
               key={x}
             >
-
-              <div className="service-icon">
-                {icon}
-              </div>
-
-              <h3>
-                {x}
-              </h3>
-
+              <div className="service-icon">{icon}</div>
+              <h3>{x}</h3>
               <p className="muted">
                 {x === "Giveaway"
                   ? "Send Airtime or Data as a gift"
                   : "Open secure form"}
               </p>
-
             </Link>
-
           ))}
-
         </div>
 
-        {/* =====================================================
-            CONTACT & COMMUNITY
-        ===================================================== */}
-
+        {/* CONTACT AND COMMUNITY */}
         <div className="section-head">
-
           <div>
-
-            <h2>
-              Contact & Community
-            </h2>
-
+            <h2>Contact & Community</h2>
             <p className="muted">
-              Need help? Contact our support team or
-              join our WhatsApp community.
+              Need help? Contact our support team or join our
+              WhatsApp community.
             </p>
-
           </div>
-
         </div>
 
         <div className="contact-grid">
-
-          {/* WHATSAPP ADMIN */}
-
           <a
             href="https://wa.me/2348143140831"
             target="_blank"
             rel="noopener noreferrer"
             className="card service-card"
           >
-
-            <div className="service-icon">
-              💬
-            </div>
-
-            <h3>
-              Chat with Admin
-            </h3>
-
+            <div className="service-icon">💬</div>
+            <h3>Chat with Admin</h3>
             <p className="muted">
               Message us directly on WhatsApp
             </p>
-
           </a>
-
-          {/* WHATSAPP GROUP */}
 
           <a
             href="https://chat.whatsapp.com/Euf9WLOfblGD1BzH4c4jVE"
@@ -421,57 +137,28 @@ export default async function Dashboard() {
             rel="noopener noreferrer"
             className="card service-card"
           >
-
-            <div className="service-icon">
-              👥
-            </div>
-
-            <h3>
-              Join WhatsApp Group
-            </h3>
-
+            <div className="service-icon">👥</div>
+            <h3>Join WhatsApp Group</h3>
             <p className="muted">
-              Join our community for updates and
-              announcements
+              Join our community for updates and announcements
             </p>
-
           </a>
-
-          {/* EMAIL */}
 
           <a
             href="mailto:ajibadeayodeji07@gmail.com"
             className="card service-card"
           >
-
-            <div className="service-icon">
-              ✉️
-            </div>
-
-            <h3>
-              Email Support
-            </h3>
-
+            <div className="service-icon">✉️</div>
+            <h3>Email Support</h3>
             <p className="muted">
               Contact our support team by email
             </p>
-
           </a>
-
         </div>
-
       </section>
 
-      {/* =======================================================
-          RESPONSIVE DASHBOARD FIX
-      ======================================================= */}
-
+      {/* RESPONSIVE DASHBOARD STYLES */}
       <style>{`
-
-        /* =====================================================
-           PREVENT GLOBAL HORIZONTAL OVERFLOW
-        ===================================================== */
-
         .dashboard-layout {
           width: 100%;
           max-width: 100%;
@@ -486,33 +173,38 @@ export default async function Dashboard() {
           box-sizing: border-box;
         }
 
-        /* =====================================================
-           SUMMARY GRID
-        ===================================================== */
-
+        /* WALLET AND FLUTTERWAVE BOXES */
         .dashboard-summary-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 18px;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          margin-bottom: 24px;
+          align-items: stretch;
+          box-sizing: border-box;
+        }
+
+        .dashboard-summary-grid > * {
           width: 100%;
           max-width: 100%;
           min-width: 0;
           box-sizing: border-box;
         }
 
-        .dashboard-summary-grid > * {
-          min-width: 0;
-          max-width: 100%;
-          box-sizing: border-box;
-        }
-	
-
-        /* =====================================================
-           WALLET
-        ===================================================== */
-
-        .wallet-card {
+        .wallet-card,
+        .virtual-account-card {
           min-width: 0;
           max-width: 100%;
           overflow: hidden;
           box-sizing: border-box;
+        }
+
+        .wallet-card {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
 
         .wallet-balance {
@@ -521,6 +213,7 @@ export default async function Dashboard() {
           word-break: break-word;
         }
 
+        /* KEEP ORIGINAL FUND WALLET BUTTON STYLING */
         .wallet-actions {
           display: flex;
           align-items: center;
@@ -535,28 +228,15 @@ export default async function Dashboard() {
           box-sizing: border-box;
         }
 
-        /* =====================================================
-           VIRTUAL ACCOUNT CARD
-        ===================================================== */
-
-        .virtual-account-card {
-          min-width: 0;
-          max-width: 100%;
-          overflow: hidden;
-          box-sizing: border-box;
-        }
-
+        /* FLUTTERWAVE ACCOUNT CONTENT */
         .virtual-account-inner {
           width: 100%;
           max-width: 100%;
           min-width: 0;
           box-sizing: border-box;
-
-          padding: clamp(14px, 3vw, 20px);
+          padding: clamp(12px, 2vw, 20px);
           border-radius: 16px;
-
           color: #ffffff;
-
           overflow: hidden;
         }
 
@@ -564,10 +244,8 @@ export default async function Dashboard() {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-
-          gap: 12px;
+          gap: 10px;
           flex-wrap: wrap;
-
           width: 100%;
           min-width: 0;
         }
@@ -575,20 +253,19 @@ export default async function Dashboard() {
         .virtual-account-bank {
           min-width: 0;
           max-width: 100%;
-          flex: 1 1 150px;
+          flex: 1 1 120px;
         }
 
         .virtual-account-label {
-          font-size: 13px;
+          font-size: 12px;
           color: #cbd5e1;
           margin-bottom: 5px;
         }
 
         .virtual-account-bank-name {
-          font-size: clamp(15px, 2vw, 17px);
+          font-size: clamp(14px, 1.5vw, 17px);
           font-weight: 700;
           color: #ffffff;
-
           overflow-wrap: anywhere;
           word-break: break-word;
         }
@@ -596,10 +273,8 @@ export default async function Dashboard() {
         .virtual-account-status {
           flex: 0 1 auto;
           max-width: 100%;
-
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-
           white-space: normal;
           overflow-wrap: anywhere;
         }
@@ -612,25 +287,17 @@ export default async function Dashboard() {
           color: #f59e0b;
         }
 
-        /* =====================================================
-           ACCOUNT NUMBER
-        ===================================================== */
-
         .account-number-section {
           width: 100%;
           min-width: 0;
-
-          margin-top: 20px;
-
+          margin-top: 18px;
           box-sizing: border-box;
         }
 
         .account-number-label {
           margin-bottom: 6px;
-
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-
           color: #cbd5e1;
         }
 
@@ -638,52 +305,28 @@ export default async function Dashboard() {
           width: 100%;
           max-width: 100%;
           min-width: 0;
-
-          font-size: clamp(22px, 4vw, 30px);
-          line-height: 1.25;
+          font-size: clamp(18px, 2.3vw, 27px);
+          line-height: 1.3;
           font-weight: 800;
-
-          letter-spacing: clamp(
-            1px,
-            0.3vw,
-            2px
-          );
-
+          letter-spacing: 1px;
           color: #ffffff;
-
-          /*
-           * IMPORTANT:
-           * Never allow the account number to
-           * push the card outside the screen.
-           */
-
           overflow-wrap: anywhere;
           word-break: break-all;
-
           white-space: normal;
-
           box-sizing: border-box;
         }
-
-        /* =====================================================
-           ACCOUNT NAME
-        ===================================================== */
 
         .account-name-section {
           width: 100%;
           min-width: 0;
-
           margin-top: 14px;
-
           box-sizing: border-box;
         }
 
         .account-name-label {
           margin-bottom: 4px;
-
-          font-size: 12px;
+          font-size: 11px;
           font-weight: 600;
-
           color: #cbd5e1;
         }
 
@@ -691,63 +334,45 @@ export default async function Dashboard() {
           width: 100%;
           max-width: 100%;
           min-width: 0;
-
-          font-size: clamp(
-            13px,
-            2vw,
-            14px
-          );
-
+          font-size: 12px;
           line-height: 1.5;
           font-weight: 600;
-
           color: #e2e8f0;
-
           text-transform: uppercase;
-
           overflow-wrap: anywhere;
           word-break: break-word;
-
           white-space: normal;
         }
 
-        /* =====================================================
-           TABLET
-        ===================================================== */
+        .account-empty-state {
+          margin-top: 16px;
+          overflow-wrap: anywhere;
+        }
 
+        /* TABLET */
         @media (max-width: 900px) {
-
           .dashboard-content {
             width: 100%;
             max-width: 100%;
             min-width: 0;
-
             box-sizing: border-box;
           }
 
           .dashboard-summary-grid {
-            grid-template-columns: minmax(0, 1fr);
+            gap: 12px;
           }
 
           .virtual-account-inner {
-            padding: 16px;
+            padding: 14px;
           }
 
           .account-number {
-            font-size: clamp(
-              21px,
-              6vw,
-              28px
-            );
+            font-size: clamp(17px, 2.5vw, 23px);
           }
         }
 
-        /* =====================================================
-           MOBILE
-        ===================================================== */
-
+        /* MOBILE */
         @media (max-width: 600px) {
-
           .dashboard-content {
             padding-left: 12px;
             padding-right: 12px;
@@ -763,11 +388,12 @@ export default async function Dashboard() {
           }
 
           .dashboard-summary-grid {
-            gap: 12px;
+            grid-template-columns: 1fr;
+            gap: 14px;
           }
 
           .virtual-account-inner {
-            padding: 14px;
+            padding: 16px;
             border-radius: 13px;
           }
 
@@ -784,29 +410,15 @@ export default async function Dashboard() {
           }
 
           .account-number {
-            /*
-             * Smaller but still very readable.
-             */
-            font-size: clamp(
-              20px,
-              7vw,
-              25px
-            );
-
+            font-size: clamp(20px, 6vw, 25px);
             letter-spacing: 1px;
-
-            /*
-             * Allows long account numbers to
-             * wrap instead of being cut.
-             */
-            overflow-wrap: anywhere;
-            word-break: break-all;
           }
 
           .account-name {
             font-size: 13px;
           }
 
+          /* ORIGINAL WALLET BUTTON RESPONSIVE STYLING */
           .wallet-actions {
             width: 100%;
           }
@@ -828,12 +440,8 @@ export default async function Dashboard() {
           }
         }
 
-        /* =====================================================
-           VERY SMALL PHONES
-        ===================================================== */
-
+        /* VERY SMALL PHONES */
         @media (max-width: 380px) {
-
           .dashboard-content {
             padding-left: 10px;
             padding-right: 10px;
@@ -858,7 +466,6 @@ export default async function Dashboard() {
             min-width: 0;
           }
         }
-
       `}</style>
     </main>
   );

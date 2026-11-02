@@ -1,3 +1,4 @@
+
 import { NextResponse } from "next/server";
 import { currentUserId } from "@/lib/session";
 import { db } from "@/lib/db";
@@ -12,8 +13,7 @@ async function paystackRequest(
     {
       method: "POST",
       headers: {
-        Authorization:
-          `Bearer ${process.env.PAYSTACK_SECRET_KEY || ""}`,
+        Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY || ""}`,
         "Content-Type": "application/json",
         Accept: "application/json",
       },
@@ -29,15 +29,12 @@ async function paystackRequest(
   try {
     result = text ? JSON.parse(text) : {};
   } catch {
-    throw new Error(
-      "Paystack returned an invalid response."
-    );
+    throw new Error("Paystack returned an invalid response.");
   }
 
   if (!response.ok || !result.status) {
     throw new Error(
-      result.message ||
-        "Paystack DVA request failed"
+      result.message || "Paystack DVA request failed"
     );
   }
 
@@ -50,96 +47,90 @@ export async function POST(req: Request) {
 
     if (!id) {
       return NextResponse.json(
-        {
-          error: "Unauthorized",
-        },
+        { error: "Unauthorized" },
         { status: 401 }
+      );
+    }
+
+    // Temporarily disable Paystack account generation.
+    // Existing customer records are preserved.
+    if (process.env.PAYSTACK_DVA_ENABLED !== "true") {
+      return NextResponse.json(
+        {
+          success: false,
+          disabled: true,
+          error:
+            "Paystack account generation is temporarily unavailable.",
+        },
+        { status: 503 }
       );
     }
 
     await db();
 
-    const user: any =
-  await User.findById(id).lean();
+    const user: any = await User.findById(id).lean();
 
     if (!user) {
       return NextResponse.json(
-        {
-          error: "User not found",
-        },
+        { error: "User not found" },
         { status: 404 }
       );
     }
 
-    /*
-     * Customer must complete KYC first.
-     */
+    // Customer must have an active Flutterwave account first.
     if (
-  user.kyc?.flutterwaveDvaStatus !== "ACTIVE" ||
-  !user.kyc?.flutterwaveAccountNumber
-) {
-  return NextResponse.json(
-    {
-      error: "Flutterwave account creation must succeed first.",
-    },
-    { status: 403 }
-  );
-}
+      user.kyc?.flutterwaveDvaStatus !== "ACTIVE" ||
+      !user.kyc?.flutterwaveAccountNumber
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            "Flutterwave account creation must succeed first.",
+        },
+        { status: 403 }
+      );
+    }
 
-    /*
-     * Already has an account.
-     */
+    // Return an existing Paystack account if one already exists.
     if (user.kyc?.accountNumber) {
       return NextResponse.json({
         success: true,
         pending: false,
-        accountNumber:
-          user.kyc.accountNumber,
-        accountName:
-          user.kyc.accountName || "",
-        bankName:
-          user.kyc.bankName || "",
-        customerCode:
-          user.kyc.customerCode || "",
-        dvaStatus:
-          user.kyc.dvaStatus || "ACTIVE",
+        accountNumber: user.kyc.accountNumber,
+        accountName: user.kyc.accountName || "",
+        bankName: user.kyc.bankName || "",
+        customerCode: user.kyc.customerCode || "",
+        dvaStatus: user.kyc.dvaStatus || "ACTIVE",
       });
     }
 
-	if (
-  user.kyc?.dvaStatus === "PENDING" ||
-  user.kyc?.dvaStatus === "CREATING"
-) {
-  return NextResponse.json({
-    success: true,
-    pending: true,
-    accountNumber: null,
-    accountName: null,
-    bankName: null,
-    customerCode: user.kyc?.customerCode || null,
-    dvaStatus: user.kyc.dvaStatus,
-    message: "Your Paystack account request is already processing.",
-  });
-}
-    /*
-     * Build customer's name.
-     */
-    const names = String(
-      user.name || ""
-    )
+    if (
+      user.kyc?.dvaStatus === "PENDING" ||
+      user.kyc?.dvaStatus === "CREATING"
+    ) {
+      return NextResponse.json({
+        success: true,
+        pending: true,
+        accountNumber: null,
+        accountName: null,
+        bankName: null,
+        customerCode: user.kyc?.customerCode || null,
+        dvaStatus: user.kyc.dvaStatus,
+        message:
+          "Your Paystack account request is already processing.",
+      });
+    }
+
+    // Build customer's name.
+    const names = String(user.name || "")
       .trim()
       .split(/\s+/);
 
-    const firstName =
-      names.shift() || "Customer";
-
-    const lastName =
-      names.join(" ") || firstName;
+    const firstName = names.shift() || "Customer";
+    const lastName = names.join(" ") || firstName;
 
     const phone = String(
-      user.phone ||
-        user.phoneNumber ||
-        ""
+      user.phone || user.phoneNumber || ""
     ).trim();
 
     if (!phone) {
@@ -152,9 +143,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const email = String(
-      user.email || ""
-    ).trim();
+    const email = String(user.email || "").trim();
 
     if (!email) {
       return NextResponse.json(
@@ -166,25 +155,7 @@ export async function POST(req: Request) {
       );
     }
 
-console.log("=== KYC SCHEMA DETAILS ===");
-
-console.log("kyc path:", User.schema.path("kyc"));
-console.log(
-  "kyc.status path:",
-  User.schema.path("kyc.status")
-);
-console.log(
-  "kyc.reference path:",
-  User.schema.path("kyc.reference")
-);
-console.log(
-  "kyc.type path:",
-  User.schema.path("kyc.type")
-);
-
-    /*
-     * Paystack DVA assignment request.
-     */
+    // Paystack DVA assignment request.
     const body: any = {
       email,
       first_name: firstName,
@@ -192,60 +163,29 @@ console.log(
       phone,
       country: "NG",
       preferred_bank:
-        process.env.PAYSTACK_DVA_BANK ||
-        "titan-paystack",
+        process.env.PAYSTACK_DVA_BANK || "titan-paystack",
     };
 
-    /*
-     * If BVN was used for KYC,
-     * pass it to Paystack.
-     */
+    // If BVN was used for KYC, pass it to Paystack.
     if (
       user.kyc?.type === "BVN" &&
       user.kyc?.reference
     ) {
-      body.bvn =
-        String(user.kyc.reference).trim();
+      body.bvn = String(user.kyc.reference).trim();
     }
 
-    const result =
-      await paystackRequest(
-        "/dedicated_account/assign",
-        body
-      );
-
-    console.log(
-      "=== PAYSTACK DVA ASSIGN RESPONSE ==="
+    const result = await paystackRequest(
+      "/dedicated_account/assign",
+      body
     );
 
-    console.log(
-      JSON.stringify(
-        result,
-        null,
-        2
-      )
-    );
-
-    /*
-     * Paystack can return:
-     *
-     * Assign dedicated account in progress
-     *
-     * with data = null.
-     *
-     * The actual account will then arrive
-     * through dedicatedaccount.assign.success.
-     */
+    // Paystack may return an assignment still in progress.
     if (!result.data) {
-      await User.findByIdAndUpdate(
-        id,
-        {
-          $set: {
-            "kyc.dvaStatus":
-              "PENDING",
-          },
-        }
-      );
+      await User.findByIdAndUpdate(id, {
+        $set: {
+          "kyc.dvaStatus": "PENDING",
+        },
+      });
 
       return NextResponse.json({
         success: true,
@@ -262,60 +202,37 @@ console.log(
 
     const data = result.data;
 
-    const accountNumber =
-      String(
-        data.account_number ||
-          data.accountNumber ||
-          ""
-      ).trim();
+    const accountNumber = String(
+      data.account_number || data.accountNumber || ""
+    ).trim();
 
-    const accountName =
-      String(
-        data.account_name ||
-          data.accountName ||
-          ""
-      ).trim();
+    const accountName = String(
+      data.account_name || data.accountName || ""
+    ).trim();
 
-    const bankName =
-      String(
-        data.bank?.name ||
-          data.bank_name ||
-          data.bankName ||
-          ""
-      ).trim();
+    const bankName = String(
+      data.bank?.name ||
+        data.bank_name ||
+        data.bankName ||
+        ""
+    ).trim();
 
-    const customerCode =
-      String(
-        data.customer?.customer_code ||
-          data.customer_code ||
-          ""
-      ).trim();
+    const customerCode = String(
+      data.customer?.customer_code ||
+        data.customer_code ||
+        ""
+    ).trim();
 
-    /*
-     * Account was returned immediately.
-     */
     if (accountNumber) {
-      await User.findByIdAndUpdate(
-        id,
-        {
-          $set: {
-            "kyc.accountNumber":
-              accountNumber,
-
-            "kyc.accountName":
-              accountName,
-
-            "kyc.bankName":
-              bankName,
-
-            "kyc.customerCode":
-              customerCode,
-
-            "kyc.dvaStatus":
-              "ACTIVE",
-          },
-        }
-      );
+      await User.findByIdAndUpdate(id, {
+        $set: {
+          "kyc.accountNumber": accountNumber,
+          "kyc.accountName": accountName,
+          "kyc.bankName": bankName,
+          "kyc.customerCode": customerCode,
+          "kyc.dvaStatus": "ACTIVE",
+        },
+      });
 
       return NextResponse.json({
         success: true,
@@ -331,19 +248,12 @@ console.log(
       });
     }
 
-    /*
-     * Paystack returned data but no account number.
-     * Keep it pending.
-     */
-    await User.findByIdAndUpdate(
-      id,
-      {
-        $set: {
-          "kyc.dvaStatus":
-            "PENDING",
-        },
-      }
-    );
+    // Paystack returned data but no account number.
+    await User.findByIdAndUpdate(id, {
+      $set: {
+        "kyc.dvaStatus": "PENDING",
+      },
+    });
 
     return NextResponse.json({
       success: true,
@@ -351,17 +261,12 @@ console.log(
       accountNumber: null,
       accountName: null,
       bankName: null,
-      customerCode:
-        customerCode || null,
+      customerCode: customerCode || null,
       message:
         "Your account is still being generated. Please wait a moment.",
     });
   } catch (error: any) {
-    console.error(
-      "=== PAYSTACK DVA ERROR ==="
-    );
-
-    console.error(error);
+    console.error("Paystack DVA error:", error?.message);
 
     return NextResponse.json(
       {
