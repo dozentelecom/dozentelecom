@@ -42,18 +42,18 @@ export default function Home() {
         </p>
 
         <div className="actions">
-          <Link className="btn primary" href="/register">
-            Create account
-          </Link>
+  <Link className="btn primary" href="/register">
+    Create account
+  </Link>
 
-          <Link className="btn" href="/pricing">
-            View Data Prices
-          </Link>
+  <Link className="btn" href="/services">
+    View services
+  </Link>
 
-          <Link className="btn" href="/services">
-            View services
-          </Link>
-        </div>
+  <Link className="btn" href="/pricing">
+    View Data Prices
+  </Link>
+</div>
       </section>
 
       <div className="grid">
