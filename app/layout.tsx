@@ -10,7 +10,7 @@ export const metadata = {
     "Secure Nigerian VTU wallet and digital services",
   applicationName: "Dozentelecom",
   verification: {
-    google: "o70rE1iikThKz6PjbYzEcrdnvr2EaD7rcvcsUj5kY_c",
+    google: "oyfQUknhEuuQpUI_6IJrcpLNBgMLwZxOXym4KZEtzfw",
   },
 };
 
