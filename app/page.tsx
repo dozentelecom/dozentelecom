@@ -3,7 +3,7 @@ import Link from "next/link";
 
 const items: Array<[string, string, string]> = [
   ["📱", "Airtime", "Easy access."],
-  ["📶", "Data", "Cheap plans."],
+  ["📶", "Data", "Affordable plans across all networks."],
   ["⚡", "Electricity", "Verify meter before payment."],
   ["📺", "Cable TV", "Verify smartcard and select package."],
   ["🎓", "Education", "Live education pin."],
@@ -19,13 +19,16 @@ export default function Home() {
 
         <div className="links">
           <Link href="/services">Services</Link>
+          <Link href="/pricing">Pricing</Link>
           <Link href="/login">Login</Link>
           <Link href="/register">Register</Link>
         </div>
       </nav>
 
       <section className="hero">
-        <div className="muted">Premium VTU • Wallet • Payments</div>
+        <div className="muted">
+          Premium VTU • Wallet • Payments
+        </div>
 
         <h1>
           Simple. Fast.
@@ -34,13 +37,17 @@ export default function Home() {
         </h1>
 
         <p>
-          One secure wallet for airtime, data, electricity, cable TV and
-          educational pin.
+          One secure wallet for airtime, data, electricity,
+          cable TV and educational pins.
         </p>
 
         <div className="actions">
           <Link className="btn primary" href="/register">
             Create account
+          </Link>
+
+          <Link className="btn" href="/pricing">
+            View Data Prices
           </Link>
 
           <Link className="btn" href="/services">
