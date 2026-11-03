@@ -20,6 +20,7 @@ export default function Home() {
         <div className="links">
           <Link href="/services">Services</Link>
           <Link href="/pricing">Pricing</Link>
+          <Link href="/pricing">Data Prices</Link>
           <Link href="/login">Login</Link>
           <Link href="/register">Register</Link>
         </div>
