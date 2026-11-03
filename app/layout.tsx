@@ -1,4 +1,6 @@
+
 import "./globals.css";
+import Script from "next/script";
 import PWAProvider from "@/components/pwa/PWAProvider";
 import FloatingActions from "@/components/floating/FloatingActions";
 
@@ -25,6 +27,24 @@ export default function Layout({
         <PWAProvider />
 
         <FloatingActions />
+
+        {/* Google Analytics 4 */}
+        <Script
+          src="https://www.googletagmanager.com/gtag/js?id=G-TH94G93T18"
+          strategy="afterInteractive"
+        />
+
+        <Script
+          id="google-analytics"
+          strategy="afterInteractive"
+        >
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){window.dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-TH94G93T18');
+          `}
+        </Script>
       </body>
     </html>
   );
